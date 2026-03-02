@@ -188,7 +188,8 @@ public class ProfitHudRenderer {
             Map<String, Long> compactDrops = ProfitManager.getCompactDrops(lifetime);
             for (Map.Entry<String, Long> entry : compactDrops.entrySet()) {
                 if (entry.getValue() > 0) {
-                    drawRow(g, client, rowY, entry.getKey(), formatProfit(entry.getValue()), 0xFFFFFF55);
+                    String label = ProfitManager.getCompactCategoryLabel(entry.getKey());
+                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), 0xFFFFFF55);
                     rowY += ROW_HEIGHT;
                 }
             }
@@ -200,9 +201,12 @@ public class ProfitHudRenderer {
                 long price = ProfitManager.getItemPrice(itemName);
                 long lineProfit = price * count;
 
-                String labelText = itemName + " (x" + String.format("%,d", count) + ")";
+                String categorizedName = ProfitManager.getCategorizedName(itemName);
+                String labelText = categorizedName + " §r(x" + String.format("%,d", count) + ")";
                 String valueText = formatProfit(lineProfit);
 
+                // For the row value specifically, we can use a slightly highlighted yellow if
+                // it's a known item
                 int color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
                 drawRow(g, client, rowY, labelText, valueText, color);
                 rowY += ROW_HEIGHT;

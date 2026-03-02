@@ -48,7 +48,8 @@ public class ProfitManager {
 
     private static final Set<String> PETS_SET = Set.of("Epic Slug", "Legendary Slug", "Rat");
 
-    private static final Set<String> ARMOR_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus");
+    private static final Set<String> MISC_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus",
+            "Tool Exp Capsule");
 
     private static final Set<String> BASE_CROPS = Set.of(
             "Wheat", "Potato", "Carrot", "Melon Slice", "Pumpkin",
@@ -98,9 +99,9 @@ public class ProfitManager {
             // Pets
             Map.entry("Epic Slug", 500000L), Map.entry("Legendary Slug", 5000000L), Map.entry("Rat", 5000L),
 
-            // Armor Drops
+            // Misc Drops
             Map.entry("Cropie", 25000L), Map.entry("Squash", 75000L), Map.entry("Fermento", 250000L),
-            Map.entry("Helianthus", 0L));
+            Map.entry("Helianthus", 0L), Map.entry("Tool Exp Capsule", 100000L));
 
     private static final Map<String, String> BAZAAR_MAPPING = Map.of(
             "Sunder VI Book", "ENCHANTMENT_SUNDER_6",
@@ -117,12 +118,15 @@ public class ProfitManager {
     private static final Pattern PEST_PATTERN = Pattern.compile("received\\s+(\\d+)x\\s+(.+?)\\s+for\\s+killing",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_DROP_PATTERN = Pattern.compile(
-            "RARE DROP!\\s+(?:You dropped\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*\\(|!|$)", Pattern.CASE_INSENSITIVE);
+            "(?:UNCOMMON|RARE|CRAZY RARE|PRAY TO RNGESUS) DROP!\\s+(?:You dropped\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*\\(|!|$)",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern PET_DROP_PATTERN = Pattern.compile(
-            "PET DROP!\\s+(?:§[0-9a-fk-or])*§([56bf])(?:§[0-9a-fk-or])*([\\w\\s]+?)(?=\\s*\\(|!|$)",
+            "PET DROP!\\s+(?:§[0-9a-fk-or])*§([56bf])(?:§[0-9a-fk-or])*\\s*(?:(?:EPIC|LEGENDARY)\\s+(?:§[0-9a-fk-or])*)?([\\w\\s]+?)(?=\\s*\\(|!|$)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_CROP_PATTERN = Pattern.compile(
             "RARE CROP!\\s+(.+?)(?=\\s*\\(|!|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OVERFLOW_DROP_PATTERN = Pattern.compile(
+            "OVERFLOW!\\s+.*?\\s+has\\s+just\\s+dropped\\s+a\\s+(.+?)!", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern STRIP_COLOR_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
@@ -150,6 +154,12 @@ public class ProfitManager {
         Matcher cropMatcher = RARE_CROP_PATTERN.matcher(text);
         if (cropMatcher.find()) {
             addDrop(cropMatcher.group(1).trim(), 1);
+            return;
+        }
+
+        Matcher overflowMatcher = OVERFLOW_DROP_PATTERN.matcher(text);
+        if (overflowMatcher.find()) {
+            addDrop(overflowMatcher.group(1).trim(), 1);
             return;
         }
 
@@ -209,15 +219,54 @@ public class ProfitManager {
             }
         }
 
-        // If not in the "crop" list, we still track it but use a normalized version of
-        // the name
         if (matchedName == null) {
             matchedName = normalizeName(processedName);
         }
 
-        sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0) + finalCount);
+        // Only add to session counts if macro is running
+        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+            sessionCounts.put(matchedName, sessionCounts.getOrDefault(matchedName, 0) + finalCount);
+        }
+
         lifetimeCounts.put(matchedName, lifetimeCounts.getOrDefault(matchedName, 0) + finalCount);
         saveLifetime();
+    }
+
+    public static String getCategorizedName(String name) {
+        String color = "§7";
+        String tag = "OTHER";
+
+        if (CROPS_SET.contains(name)) {
+            color = "§a";
+            tag = "CROP";
+        } else if (PEST_ITEMS_SET.contains(name)) {
+            color = "§d";
+            tag = "PEST";
+        } else if (PETS_SET.contains(name)) {
+            color = "§6";
+            tag = "PET";
+        } else if (MISC_DROPS_SET.contains(name)) {
+            color = "§b";
+            tag = "MISC";
+        }
+
+        String displayName = name.replace("Enchanted ", "Ench. ");
+        return color + "§l[" + tag + "] §f" + displayName;
+    }
+
+    public static String getCompactCategoryLabel(String category) {
+        switch (category) {
+            case "Crops":
+                return "§a§l[CROP]";
+            case "Pest Items":
+                return "§d§l[PEST]";
+            case "Pets":
+                return "§6§l[PET]";
+            case "Misc Drops":
+                return "§b§l[MISC]";
+            default:
+                return "§7§l[OTHER]";
+        }
     }
 
     private static String normalizeName(String name) {
@@ -245,7 +294,20 @@ public class ProfitManager {
     }
 
     public static Map<String, Integer> getActiveDrops(boolean lifetime) {
-        return new LinkedHashMap<>(lifetime ? lifetimeCounts : sessionCounts);
+        Map<String, Integer> counts = lifetime ? lifetimeCounts : sessionCounts;
+
+        // Sort by total profit (count * price) descending
+        return counts.entrySet().stream()
+                .sorted((e1, e2) -> {
+                    long p1 = getItemPrice(e1.getKey()) * e1.getValue();
+                    long p2 = getItemPrice(e2.getKey()) * e2.getValue();
+                    return Long.compare(p2, p1);
+                })
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new));
     }
 
     public static Map<String, Long> getCompactDrops() {
@@ -257,7 +319,7 @@ public class ProfitManager {
         compact.put("Crops", 0L);
         compact.put("Pest Items", 0L);
         compact.put("Pets", 0L);
-        compact.put("Armor Drops", 0L);
+        compact.put("Misc Drops", 0L);
         compact.put("Others", 0L);
 
         Map<String, Integer> targetCounts = lifetime ? lifetimeCounts : sessionCounts;
@@ -273,13 +335,21 @@ public class ProfitManager {
                 compact.put("Pest Items", compact.get("Pest Items") + profit);
             } else if (PETS_SET.contains(name)) {
                 compact.put("Pets", compact.get("Pets") + profit);
-            } else if (ARMOR_DROPS_SET.contains(name)) {
-                compact.put("Armor Drops", compact.get("Armor Drops") + profit);
+            } else if (MISC_DROPS_SET.contains(name)) {
+                compact.put("Misc Drops", compact.get("Misc Drops") + profit);
             } else {
                 compact.put("Others", compact.get("Others") + profit);
             }
         }
-        return compact;
+
+        // Sort compact map by value descending
+        return compact.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> v1,
+                        LinkedHashMap::new));
     }
 
     public static void reset() {
