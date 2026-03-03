@@ -37,6 +37,9 @@ public class BookCombineManager {
         if (!MacroConfig.autoBookCombine || screen == null || client.player == null)
             return;
 
+        if (!MacroConfig.alwaysActiveCombine && !isCombining)
+            return;
+
         long now = System.currentTimeMillis();
         if (now - interactionTime < MacroConfig.getRandomizedDelay(MacroConfig.bookCombineDelay))
             return;

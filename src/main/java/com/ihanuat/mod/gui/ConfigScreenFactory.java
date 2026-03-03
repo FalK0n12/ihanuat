@@ -388,6 +388,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 qol.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Always Active Combine"),
+                                                MacroConfig.alwaysActiveCombine)
+                                .setDefaultValue(MacroConfig.DEFAULT_ALWAYS_ACTIVE_COMBINE)
+                                .setTooltip(Component.literal(
+                                                "If enabled, Auto-Combine will trigger whenever an anvil menu is opened. If disabled, it only triggers during mod-initiated sequences."))
+                                .setSaveConsumer(newValue -> MacroConfig.alwaysActiveCombine = newValue)
+                                .build());
+
+                qol.addEntry(builder.entryBuilder()
                                 .startStrList(Component.literal("Custom Enchantment Max Levels"),
                                                 MacroConfig.customEnchantmentLevels)
                                 .setDefaultValue(MacroConfig.DEFAULT_CUSTOM_ENCHANTMENT_LEVELS)

@@ -22,7 +22,7 @@ public class MacroConfig {
     }
 
     public static final int DEFAULT_PEST_THRESHOLD = 5;
-    public static final boolean DEFAULT_TRIGGER_PEST_ON_CHAT = false;
+    public static final boolean DEFAULT_TRIGGER_PEST_ON_CHAT = true;
     public static final int DEFAULT_VISITOR_THRESHOLD = 5;
     public static final GearSwapMode DEFAULT_GEAR_SWAP_MODE = GearSwapMode.NONE;
     public static final UnflyMode DEFAULT_UNFLY_MODE = UnflyMode.DOUBLE_TAP_SPACE;
@@ -32,6 +32,7 @@ public class MacroConfig {
     public static final boolean DEFAULT_AUTO_BOOK_COMBINE = false;
     public static final boolean DEFAULT_AUTO_GEORGE_SELL = false;
     public static final boolean DEFAULT_AUTO_BOOSTER_COOKIE = true;
+    public static final boolean DEFAULT_ALWAYS_ACTIVE_COMBINE = false;
     public static final java.util.List<String> DEFAULT_BOOSTER_COOKIE_ITEMS = java.util.Arrays.asList(
             "Atmospheric Filter", "Squeaky Toy", "Beady Eyes", "Clipped Wings", "Overclocker",
             "Mantid Claw", "Flowering Bouquet", "Bookworm", "Chirping Stereo", "Firefly",
@@ -105,6 +106,7 @@ public class MacroConfig {
     public static boolean autoBookCombine = DEFAULT_AUTO_BOOK_COMBINE;
     public static boolean autoGeorgeSell = DEFAULT_AUTO_GEORGE_SELL;
     public static boolean autoBoosterCookie = DEFAULT_AUTO_BOOSTER_COOKIE;
+    public static boolean alwaysActiveCombine = DEFAULT_ALWAYS_ACTIVE_COMBINE;
     public static java.util.List<String> boosterCookieItems = new java.util.ArrayList<>(DEFAULT_BOOSTER_COOKIE_ITEMS);
     public static java.util.List<String> customEnchantmentLevels = new java.util.ArrayList<>(
             DEFAULT_CUSTOM_ENCHANTMENT_LEVELS);
@@ -297,6 +299,7 @@ public class MacroConfig {
         data.autoStashManager = autoStashManager;
         data.autoBookCombine = autoBookCombine;
         data.autoGeorgeSell = autoGeorgeSell;
+        data.alwaysActiveCombine = alwaysActiveCombine;
         data.autoBoosterCookie = autoBoosterCookie;
         data.boosterCookieItems = new java.util.ArrayList<>(boosterCookieItems);
         data.customEnchantmentLevels = new java.util.ArrayList<>(customEnchantmentLevels);
@@ -386,6 +389,7 @@ public class MacroConfig {
                 autoStashManager = data.autoStashManager;
                 autoBookCombine = data.autoBookCombine;
                 autoGeorgeSell = data.autoGeorgeSell;
+                alwaysActiveCombine = data.alwaysActiveCombine;
                 autoBoosterCookie = data.autoBoosterCookie;
                 if (data.boosterCookieItems != null) {
                     boosterCookieItems = new java.util.ArrayList<>(data.boosterCookieItems);
@@ -479,6 +483,7 @@ public class MacroConfig {
         boolean autoStashManager = DEFAULT_AUTO_STASH_MANAGER;
         boolean autoBookCombine = DEFAULT_AUTO_BOOK_COMBINE;
         boolean autoGeorgeSell = DEFAULT_AUTO_GEORGE_SELL;
+        boolean alwaysActiveCombine = DEFAULT_ALWAYS_ACTIVE_COMBINE;
         boolean autoBoosterCookie = DEFAULT_AUTO_BOOSTER_COOKIE;
         java.util.List<String> boosterCookieItems = new java.util.ArrayList<>(DEFAULT_BOOSTER_COOKIE_ITEMS);
         java.util.List<String> customEnchantmentLevels = new java.util.ArrayList<>(DEFAULT_CUSTOM_ENCHANTMENT_LEVELS);
