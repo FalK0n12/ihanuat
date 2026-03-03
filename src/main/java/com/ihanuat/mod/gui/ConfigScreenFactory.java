@@ -3,8 +3,19 @@ package com.ihanuat.mod.gui;
 import com.ihanuat.mod.MacroConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
+import me.shedaniel.clothconfig2.gui.entries.TooltipListEntry;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 public class ConfigScreenFactory {
 
@@ -58,6 +69,38 @@ public class ConfigScreenFactory {
                                                 Component.literal("§7" + MacroConfig.getScriptDescription(value)) }))
                                 .setSaveConsumer(newValue -> MacroConfig.restartScript = newValue)
                                 .build());
+
+                general.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal(
+                                                "Enable PlotTP Rewarp (for hyper-optimized farms that have startpos as plottp rewarp)"),
+                                                MacroConfig.enablePlotTpRewarp)
+                                .setDefaultValue(MacroConfig.DEFAULT_ENABLE_PLOT_TP_REWARP)
+                                .setSaveConsumer(newValue -> MacroConfig.enablePlotTpRewarp = newValue)
+                                .build());
+
+                general.addEntry(builder.entryBuilder()
+                                .startStrField(Component.literal("PlotTP Number"), MacroConfig.plotTpNumber)
+                                .setDefaultValue(MacroConfig.DEFAULT_PLOT_TP_NUMBER)
+                                .setSaveConsumer(newValue -> MacroConfig.plotTpNumber = newValue)
+                                .build());
+
+                general.addEntry(new ButtonEntry(
+                                Component.literal("Capture Rewarp End Position"),
+                                Component.literal("Captures your current position as the trigger for PlotTP Rewarp."),
+                                button -> {
+                                        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                                        if (client.player != null) {
+                                                MacroConfig.rewarpEndX = client.player.getX();
+                                                MacroConfig.rewarpEndY = client.player.getY();
+                                                MacroConfig.rewarpEndZ = client.player.getZ();
+                                                MacroConfig.rewarpEndPosSet = true;
+                                                MacroConfig.save();
+                                                client.player.displayClientMessage(
+                                                                net.minecraft.network.chat.Component.literal(
+                                                                                "\u00A7aRewarp End Position captured and saved!"),
+                                                                true);
+                                        }
+                                }));
 
                 // --- Delays Category ---
                 ConfigCategory delays = builder.getOrCreateCategory(Component.literal("Delays"));
@@ -366,20 +409,6 @@ public class ConfigScreenFactory {
                                 .build());
 
                 qol.addEntry(builder.entryBuilder()
-                                .startBooleanToggle(Component.literal(
-                                                "Enable PlotTP Rewarp (for hyper-optimized farms that have startpos as plottp rewarp)"),
-                                                MacroConfig.enablePlotTpRewarp)
-                                .setDefaultValue(MacroConfig.DEFAULT_ENABLE_PLOT_TP_REWARP)
-                                .setSaveConsumer(newValue -> MacroConfig.enablePlotTpRewarp = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
-                                .startStrField(Component.literal("PlotTP Number"), MacroConfig.plotTpNumber)
-                                .setDefaultValue(MacroConfig.DEFAULT_PLOT_TP_NUMBER)
-                                .setSaveConsumer(newValue -> MacroConfig.plotTpNumber = newValue)
-                                .build());
-
-                qol.addEntry(builder.entryBuilder()
                                 .startBooleanToggle(Component.literal("Send Status through Discord"),
                                                 MacroConfig.sendDiscordStatus)
                                 .setDefaultValue(MacroConfig.DEFAULT_SEND_DISCORD_STATUS)
@@ -401,5 +430,55 @@ public class ConfigScreenFactory {
                                 .build());
 
                 return builder.build();
+        }
+
+        private static class ButtonEntry extends TooltipListEntry<Object> {
+                private final Button button;
+                private final Component fieldName;
+
+                @SuppressWarnings("deprecation")
+                public ButtonEntry(Component fieldName, Component tooltip, Button.OnPress onPress) {
+                        super(fieldName, () -> Optional.of(new Component[] { tooltip }));
+                        this.fieldName = fieldName;
+                        this.button = Button.builder(fieldName, onPress).bounds(0, 0, 150, 20).build();
+                }
+
+                @Override
+                public void render(@NotNull GuiGraphics graphics, int index, int y, int x, int entryWidth,
+                                int entryHeight,
+                                int mouseX,
+                                int mouseY, boolean isHovered, float tickDelta) {
+                        super.render(graphics, index, y, x, entryWidth, entryHeight, mouseX, mouseY, isHovered,
+                                        tickDelta);
+                        this.button.setX(x + entryWidth - 160);
+                        this.button.setY(y);
+                        this.button.setWidth(150);
+                        this.button.render(graphics, mouseX, mouseY, tickDelta);
+                        graphics.drawString(Minecraft.getInstance().font, fieldName, x, y + 6, 0xFFFFFF);
+                }
+
+                @Override
+                public @NotNull List<? extends GuiEventListener> children() {
+                        return Collections.singletonList(button);
+                }
+
+                @Override
+                public @NotNull List<? extends NarratableEntry> narratables() {
+                        return Collections.singletonList(button);
+                }
+
+                @Override
+                public @NotNull Object getValue() {
+                        return "";
+                }
+
+                @Override
+                public @NotNull Optional<Object> getDefaultValue() {
+                        return Optional.empty();
+                }
+
+                @Override
+                public void save() {
+                }
         }
 }
