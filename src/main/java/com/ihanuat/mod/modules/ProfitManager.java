@@ -126,15 +126,16 @@ public class ProfitManager {
     private static final Pattern PEST_PATTERN = Pattern.compile("received\\s+(\\d+)x\\s+(.+?)\\s+for\\s+killing",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_DROP_PATTERN = Pattern.compile(
-            "(?:UNCOMMON|RARE|CRAZY RARE|PRAY TO RNGESUS) DROP!\\s+(?:You dropped\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*\\(|!|$)",
+            "(?:UNCOMMON|RARE|CRAZY RARE|PRAY TO RNGESUS) DROP!\\s+(?:You dropped\\s+)?(?:an?\\s+)?(?:(\\d+)x\\s+)?(.+?)(?=\\s*(?:§[0-9a-fk-or])*\\s*[\\(!]|$)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern PET_DROP_PATTERN = Pattern.compile(
-            "PET DROP!\\s+(?:§[0-9a-fk-or])*§([56bf])(?:§[0-9a-fk-or])*\\s*(?:(?:EPIC|LEGENDARY)\\s+(?:§[0-9a-fk-or])*)?([\\w\\s]+?)(?=\\s*\\(|!|$)",
+            "PET DROP!\\s+.*?§([0-9a-f])(?:§[0-9a-fk-or])*\\s*(?:(?:COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC)\\s+(?:§[0-9a-fk-or])*)?(.+?)(?=\\s*(?:§[0-9a-fk-or])*\\s*[\\(!]|$)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern RARE_CROP_PATTERN = Pattern.compile(
-            "RARE CROP!\\s+(.+?)(?=\\s*\\(|!|$)", Pattern.CASE_INSENSITIVE);
+            "RARE CROP!\\s+(.+?)(?=\\s*(?:§[0-9a-fk-or])*\\s*[\\(!]|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern OVERFLOW_DROP_PATTERN = Pattern.compile(
-            "OVERFLOW!\\s+.*?\\s+has\\s+just\\s+dropped\\s+a\\s+(.+?)!", Pattern.CASE_INSENSITIVE);
+            "OVERFLOW!\\s+.*?\\s+has\\s+just\\s+dropped\\s+a\\s+(.+?)(?=\\s*(?:§[0-9a-fk-or])*\\s*[\\(!]|!|$)",
+            Pattern.CASE_INSENSITIVE);
 
     private static final Pattern STRIP_COLOR_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
@@ -143,12 +144,12 @@ public class ProfitManager {
         // PET DROP needs raw text to detect color-coded rarity
         Matcher petMatcher = PET_DROP_PATTERN.matcher(text);
         if (petMatcher.find()) {
-            String colorCode = petMatcher.group(1); // 5 = Epic, 6 = Legendary
+            String colorCode = petMatcher.group(1).toLowerCase(); // 5 = Epic, 6 = Legendary, 9 = Rare
             String petName = petMatcher.group(2).trim();
             String finalName = petName;
 
             if (petName.equalsIgnoreCase("Slug")) {
-                if (colorCode.equals("5")) {
+                if (colorCode.equals("5") || colorCode.equals("d")) {
                     finalName = "Epic Slug";
                 } else if (colorCode.equals("6")) {
                     finalName = "Legendary Slug";
