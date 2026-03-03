@@ -46,8 +46,8 @@ public class VisitorManager {
                 true);
         new Thread(() -> {
             try {
-                ClientUtils.sendCommand(client, "/warp garden");
-                Thread.sleep(1000); // 1s wait for warp load
+                com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                Thread.sleep(250);
                 PestManager.isReturningFromPestVisitor = true;
                 finalizeReturnToFarm(client);
             } catch (Exception e) {
@@ -84,12 +84,8 @@ public class VisitorManager {
                 }
             }
             ClientUtils.waitForGearAndGui(client);
-            try {
-                ClientUtils.sendCommand(client, ".ez-stopscript");
-                Thread.sleep(250);
-                ClientUtils.sendCommand(client, ".ez-startscript misc:visitor");
-            } catch (InterruptedException ignored) {
-            }
+            com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+            com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:visitor", 0);
             PestManager.isCleaningInProgress = false;
             return;
         }
@@ -127,12 +123,8 @@ public class VisitorManager {
         client.player.displayClientMessage(Component.literal("\u00A7aRestarting farming script..."),
                 true);
         com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
-        try {
-            ClientUtils.sendCommand(client, ".ez-stopscript");
-            Thread.sleep(250);
-            ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
-        } catch (InterruptedException ignored) {
-        }
+        com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+        com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
         PestManager.isCleaningInProgress = false;
     }
 }

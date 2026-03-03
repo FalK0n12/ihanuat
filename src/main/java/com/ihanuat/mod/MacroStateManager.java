@@ -107,7 +107,7 @@ public class MacroStateManager {
     public static void stopMacro(Minecraft client) {
         setCurrentState(MacroState.State.OFF);
         ClientUtils.forceReleaseKeys(client);
-        ClientUtils.sendCommand(client, ".ez-stopscript");
+        com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
         com.ihanuat.mod.modules.PestManager.reset();
         com.ihanuat.mod.modules.GearManager.reset();
         com.ihanuat.mod.modules.GeorgeManager.reset();

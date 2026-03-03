@@ -71,7 +71,7 @@ public class RecoveryManager {
                 MacroStateManager.setCurrentState(MacroState.State.FARMING);
                 com.ihanuat.mod.modules.DynamicRestManager.scheduleNextRest();
                 GearManager.swapToFarmingTool(client);
-                ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                 break;
         }
     }

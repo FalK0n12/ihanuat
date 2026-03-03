@@ -191,7 +191,7 @@ public class BookCombineManager {
 
         new Thread(() -> {
             try {
-                com.ihanuat.mod.util.ClientUtils.sendCommand(client, ".ez-stopscript");
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
 
                 boolean success = true;
                 for (int i = 0; i < 50; i++) {
@@ -245,7 +245,7 @@ public class BookCombineManager {
                     client.execute(() -> GearManager.swapToFarmingTool(client));
                     Thread.sleep(200);
 
-                    com.ihanuat.mod.util.ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                 } catch (Exception ignored) {
                 }
             }).start();

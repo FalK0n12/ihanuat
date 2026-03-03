@@ -149,18 +149,24 @@ public class DynamicRestManager {
                 }
 
                 // Stop the farming script, release all keys, /setspawn
-                ClientUtils.sendCommand(client, ".ez-stopscript");
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                 ClientUtils.forceReleaseKeys(client);
                 client.player.displayClientMessage(
                         Component.literal("§c[Ihanuat] Dynamic Rest: running /setspawn..."), false);
-                client.player.connection.sendChat("/setspawn");
+                com.ihanuat.mod.util.CommandUtils.initiateSetSpawn(client);
                 MacroStateManager.setCurrentState(MacroState.State.OFF);
 
                 restSequenceStage = 1;
-                nextStageActionTime = System.currentTimeMillis() + 3000; // 3 s for /setspawn to register
+                nextStageActionTime = System.currentTimeMillis() + 3000; // Fallback timeout of 3 seconds
                 break;
             }
             case 1: {
+                // Check if spawn was set, or wait for fallback timeout
+                if (!com.ihanuat.mod.util.CommandUtils.hasSpawnBeenSet()
+                        && System.currentTimeMillis() < nextStageActionTime) {
+                    return; // Still waiting for spawn confirmation
+                }
+
                 // Disconnect and schedule the reconnect after the break duration
                 int base = MacroConfig.restBreakTime;
                 int offset = MacroConfig.restBreakTimeOffset;

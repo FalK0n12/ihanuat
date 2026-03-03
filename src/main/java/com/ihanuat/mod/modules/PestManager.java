@@ -184,8 +184,8 @@ public class PestManager {
                     client.player.displayClientMessage(
                             Component.literal("\u00A7dVisitor Threshold Met (" + visitors + "). Warping to Garden..."),
                             true);
-                    ClientUtils.sendCommand(client, "/warp garden");
-                    Thread.sleep(MacroConfig.getRandomizedDelay(MacroConfig.gardenWarpDelay));
+                    com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                    Thread.sleep(250);
 
                     GearManager.swapToFarmingToolSync(client);
 
@@ -199,19 +199,15 @@ public class PestManager {
                     }
 
                     ClientUtils.waitForGearAndGui(client);
-                    try {
-                        ClientUtils.sendCommand(client, ".ez-stopscript");
-                        Thread.sleep(250);
-                        ClientUtils.sendCommand(client, ".ez-startscript misc:visitor");
-                    } catch (InterruptedException ignored) {
-                    }
+                    com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:visitor", 0);
                     isCleaningInProgress = false;
                     return;
                 }
 
                 Thread.sleep(150);
-                ClientUtils.sendCommand(client, "/warp garden");
-                Thread.sleep(MacroConfig.getRandomizedDelay(MacroConfig.gardenWarpDelay));
+                com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                Thread.sleep(250);
 
                 isReturningFromPestVisitor = true;
                 finalizeReturnToFarm(client);
@@ -276,12 +272,8 @@ public class PestManager {
                 }
 
                 ClientUtils.waitForGearAndGui(client);
-                try {
-                    ClientUtils.sendCommand(client, ".ez-stopscript");
-                    Thread.sleep(250);
-                    ClientUtils.sendCommand(client, ".ez-startscript misc:visitor");
-                } catch (InterruptedException ignored) {
-                }
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+                com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:visitor", 0);
                 isCleaningInProgress = false;
                 return;
             }
@@ -298,14 +290,10 @@ public class PestManager {
             ClientUtils.waitForGearAndGui(client);
             com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
             prepSwappedForCurrentPestCycle = false; // Ensure flag is reset when returning
-            try {
-                ClientUtils.sendCommand(client, ".ez-stopscript");
-                Thread.sleep(250);
-                if (isCleaningInProgress || isPrepSwapping)
-                    return;
-                ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
-            } catch (InterruptedException ignored) {
-            }
+            com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+            if (isCleaningInProgress || isPrepSwapping)
+                return;
+            com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
             isCleaningInProgress = false;
         } catch (InterruptedException ignored) {
         }
@@ -322,8 +310,7 @@ public class PestManager {
                 true);
         new Thread(() -> {
             try {
-                ClientUtils.sendCommand(client, ".ez-stopscript");
-                Thread.sleep(375);
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 375);
                 if (isCleaningInProgress) {
                     prepSwappedForCurrentPestCycle = false;
                     return;
@@ -367,7 +354,7 @@ public class PestManager {
 
         client.execute(() -> {
             com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
-            ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+            com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
         });
     }
 
@@ -375,7 +362,7 @@ public class PestManager {
         if (isCleaningInProgress || GearManager.isSwappingWardrobe || GearManager.isSwappingEquipment)
             return;
 
-        ClientUtils.sendCommand(client, ".ez-stopscript");
+        com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
         isCleaningInProgress = true;
         GearManager.shouldRestartFarmingAfterSwap = false;
         com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.CLEANING);
@@ -422,14 +409,13 @@ public class PestManager {
 
                 client.player.displayClientMessage(
                         Component.literal("§6Starting Pest Cleaner script (" + currentInfestedPlot + ")..."), true);
-                ClientUtils.sendCommand(client, "/setspawn");
-                Thread.sleep(400); // Wait on thread, not main thread
+                com.ihanuat.mod.util.CommandUtils.setSpawn(client);
 
                 if (isBonusInactive) {
                     client.player.displayClientMessage(
                             Component.literal("§dBonus is INACTIVE! Triggering Phillip reactivation..."), true);
                     isReactivatingBonus = true;
-                    ClientUtils.sendCommand(client, ".ez-startscript misc:pestCleaner");
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:pestCleaner", 0);
                     return;
                 }
 
@@ -469,8 +455,8 @@ public class PestManager {
                             client.execute(() -> client.options.keyShift.setDown(false));
                             // Fall back to normal plottp
                             if (currentInfestedPlot != null && !currentInfestedPlot.equals("0")) {
-                                ClientUtils.sendCommand(client, "/plottp " + currentInfestedPlot);
-                                Thread.sleep(300);
+                                com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                                Thread.sleep(250);
                             }
                         } else {
                             // Swap to Aspect of the Void
@@ -488,8 +474,8 @@ public class PestManager {
                                 isSneakingForAotv = false;
                                 client.execute(() -> client.options.keyShift.setDown(false));
                                 if (currentInfestedPlot != null && !currentInfestedPlot.equals("0")) {
-                                    ClientUtils.sendCommand(client, "/plottp " + currentInfestedPlot);
-                                    Thread.sleep(300);
+                                    com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                                    Thread.sleep(250);
                                 }
                             }
 
@@ -534,17 +520,15 @@ public class PestManager {
                     } else {
                         // Normal plottp sequence
                         if (currentInfestedPlot != null && !currentInfestedPlot.equals("0")) {
-                            ClientUtils.sendCommand(client, "/plottp " + currentInfestedPlot);
-                            Thread.sleep(100); // Reduced delay for warp to plot
+                            com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                            Thread.sleep(250);
                         }
                     }
 
                     // Trigger pest cleaning sequence immediately
-                    ClientUtils.sendCommand(client, ".ez-stopscript");
-                    Thread.sleep(50); // Minimal delay
+                    com.ihanuat.mod.util.CommandUtils.stopScript(client, 50); // Minimal delay
                     GearManager.swapToFarmingToolSync(client);
-                    Thread.sleep(50); // Minimal delay
-                    ClientUtils.sendCommand(client, ".ez-startscript misc:pestCleaner");
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:pestCleaner", 0);
                 } catch (InterruptedException ignored) {
                 }
             } catch (Exception e) {
@@ -564,11 +548,10 @@ public class PestManager {
                 ClientUtils.waitForGearAndGui(client);
                 GearManager.swapToFarmingToolSync(client);
                 Thread.sleep(250);
-                ClientUtils.sendCommand(client, ".ez-stopscript");
-                Thread.sleep(250);
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
                 if (isCleaningInProgress || isPrepSwapping)
                     return;
-                ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
             } catch (Exception ignored) {
             }
         }).start();
@@ -584,11 +567,9 @@ public class PestManager {
                     "§aPhillip message detected! Returning to plot §e" + currentInfestedPlot + "..."), true);
             new Thread(() -> {
                 try {
-                    ClientUtils.sendCommand(client, ".ez-stopscript");
-                    Thread.sleep(MacroConfig.getRandomizedDelay(250));
-                    ClientUtils.sendCommand(client, "/tptoplot " + currentInfestedPlot);
-                    Thread.sleep(MacroConfig.getRandomizedDelay(1000));
-                    ClientUtils.sendCommand(client, ".ez-startscript misc:pestCleaner");
+                    com.ihanuat.mod.util.CommandUtils.stopScript(client, MacroConfig.getRandomizedDelay(250));
+                    com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                    com.ihanuat.mod.util.CommandUtils.startScript(client, "misc:pestCleaner", 250);
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {

@@ -132,16 +132,15 @@ public class JunkManager {
                 if (!isPreparingToDrop)
                     return;
 
-                ClientUtils.sendCommand(client, ".ez-stopscript");
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                 Thread.sleep(400); // Small safety delay after stop
 
                 // /setspawn before warping
-                client.execute(() -> ClientUtils.sendCommand(client, "/setspawn"));
-                Thread.sleep(400);
+                com.ihanuat.mod.util.CommandUtils.setSpawn(client);
 
                 // /plottp
-                client.execute(() -> ClientUtils.sendCommand(client, "/plottp " + MacroConfig.dropJunkPlotTp));
-                Thread.sleep(1500); // Wait for warp
+                com.ihanuat.mod.util.CommandUtils.plotTp(client, MacroConfig.dropJunkPlotTp);
+                Thread.sleep(250);
 
                 if (!isPreparingToDrop)
                     return;
@@ -208,14 +207,14 @@ public class JunkManager {
 
         new Thread(() -> {
             try {
-                ClientUtils.sendCommand(client, "/warp garden");
-                Thread.sleep(MacroConfig.getRandomizedDelay(MacroConfig.gardenWarpDelay + 800));
+                com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                Thread.sleep(250);
 
                 ClientUtils.waitForGearAndGui(client);
                 if (MacroStateManager.getCurrentState() == MacroState.State.FARMING) {
                     client.execute(() -> {
                         GearManager.swapToFarmingTool(client);
-                        ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                        com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                     });
                 }
             } catch (Exception ignored) {

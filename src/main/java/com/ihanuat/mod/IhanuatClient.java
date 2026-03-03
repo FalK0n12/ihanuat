@@ -209,6 +209,10 @@ public class IhanuatClient implements ClientModInitializer {
 
                 ProfitManager.handleChatMessage(message);
                 PestManager.handlePhillipMessage(Minecraft.getInstance(), text);
+
+                // Notify CommandUtils about the chat message for command synchronization
+                com.ihanuat.mod.util.CommandUtils.onChatMessage(text);
+
             } finally {
                 isHandlingMessage = false;
             }
@@ -254,12 +258,12 @@ public class IhanuatClient implements ClientModInitializer {
                             if (PestManager.isCleaningInProgress || PestManager.isPrepSwapping)
                                 return;
 
-                            ClientUtils.sendCommand(client, ".ez-stopscript");
-                            Thread.sleep(250);
+                            com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
                             if (PestManager.isCleaningInProgress || PestManager.isPrepSwapping)
                                 return;
 
-                            ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                            com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(),
+                                    0);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -388,13 +392,14 @@ public class IhanuatClient implements ClientModInitializer {
                         client.player.displayClientMessage(Component.literal("§6Rewarp End Position reached!"), true);
                         new Thread(() -> {
                             try {
-                                client.execute(() -> ClientUtils.sendCommand(client, ".ez-stopscript"));
+                                client.execute(() -> com.ihanuat.mod.util.CommandUtils.stopScript(client, 0));
                                 Thread.sleep(300);
                                 client.execute(() -> MacroConfig.executePlotTpRewarp(client));
                                 Thread.sleep(1200); // Wait for warp
                                 if (MacroStateManager.getCurrentState() == MacroState.State.FARMING) {
                                     client.execute(
-                                            () -> ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand()));
+                                            () -> com.ihanuat.mod.util.CommandUtils.startScript(client,
+                                                    MacroConfig.getFullRestartCommand(), 0));
                                 }
                             } catch (Exception e) {
                                 e.printStackTrace();

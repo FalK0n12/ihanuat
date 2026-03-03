@@ -39,17 +39,20 @@ public class RestartManager {
         if (restartSequenceStage == 0 && System.currentTimeMillis() >= restartExecutionTime) {
             client.player.displayClientMessage(
                     Component.literal("§c[Ihanuat] Executing delayed restart abort sequence..."), false);
-            ClientUtils.sendCommand(client, ".ez-stopscript");
+            com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
             ClientUtils.forceReleaseKeys(client);
-            client.player.connection.sendChat("/setspawn");
+            com.ihanuat.mod.util.CommandUtils.initiateSetSpawn(client);
             restartSequenceStage = 1;
-            nextRestartActionTime = System.currentTimeMillis() + 5000;
-        } else if (restartSequenceStage == 1 && System.currentTimeMillis() >= nextRestartActionTime) {
-            client.player.connection.sendChat("/hub");
-            restartSequenceStage = 2;
-            nextRestartActionTime = System.currentTimeMillis() + 10000;
+            nextRestartActionTime = System.currentTimeMillis() + 5000; // Fallback timeout
+        } else if (restartSequenceStage == 1) {
+            if (com.ihanuat.mod.util.CommandUtils.hasSpawnBeenSet()
+                    || System.currentTimeMillis() >= nextRestartActionTime) {
+                client.player.connection.sendChat("/hub");
+                restartSequenceStage = 2;
+                nextRestartActionTime = System.currentTimeMillis() + 10000;
+            }
         } else if (restartSequenceStage == 2 && System.currentTimeMillis() >= nextRestartActionTime) {
-            ClientUtils.sendCommand(client, ".ez-stopscript");
+            com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
             MacroStateManager.setCurrentState(MacroState.State.RECOVERING);
             restartSequenceStage = 0;
             isRestartPending = true; // Still pending until recovery starts? Actually, let's reset it here.

@@ -210,7 +210,7 @@ public class GeorgeManager {
                     com.ihanuat.mod.util.ClientUtils.waitForGearAndGui(client);
                     client.execute(() -> {
                         GearManager.swapToFarmingTool(client);
-                        com.ihanuat.mod.util.ClientUtils.sendCommand(client, MacroConfig.getFullRestartCommand());
+                        com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                     });
                 } catch (Exception ignored) {
                 }
@@ -247,7 +247,7 @@ public class GeorgeManager {
 
         new Thread(() -> {
             try {
-                com.ihanuat.mod.util.ClientUtils.sendCommand(client, ".ez-stopscript");
+                com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
 
                 boolean success = true;
                 for (int i = 0; i < 50; i++) {
