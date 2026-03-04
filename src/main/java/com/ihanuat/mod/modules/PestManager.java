@@ -299,7 +299,17 @@ public class PestManager {
                     }
                 }
 
-                ClientUtils.waitForGearAndGui(client);
+                // Wait for any remaining GUIs and wardrobe swap (equipment swap not done for visitors)
+                try {
+                    while (GearManager.isSwappingWardrobe)
+                        Thread.sleep(50);
+                    long guiStart = System.currentTimeMillis();
+                    while (client.screen != null && System.currentTimeMillis() - guiStart < 5000) {
+                        Thread.sleep(100);
+                    }
+                    Thread.sleep(250);
+                } catch (InterruptedException ignored) {
+                }
                 ClientUtils.sendDebugMessage(client, "Wardrobe swap done, now triggering visitor macro");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
                 com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
@@ -309,7 +319,10 @@ public class PestManager {
 
             GearManager.swapToFarmingToolSync(client);
 
-            ClientUtils.waitForGearAndGui(client);
+            // Only wait for gear swap if equipment swap is enabled (since it's only done during cleaning if enabled)
+            if (MacroConfig.autoEquipment) {
+                ClientUtils.waitForGearAndGui(client);
+            }
 
             com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
             prepSwappedForCurrentPestCycle = false; // Ensure flag is reset when returning
