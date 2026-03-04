@@ -193,9 +193,10 @@ public class ProfitHudRenderer {
         if (MacroConfig.compactProfitCalculator) {
             Map<String, Long> compactDrops = ProfitManager.getCompactDrops(lifetime);
             for (Map.Entry<String, Long> entry : compactDrops.entrySet()) {
-                if (entry.getValue() > 0) {
+                if (entry.getValue() != 0) {
                     String label = ProfitManager.getCompactCategoryLabel(entry.getKey());
-                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), 0xFFFFFF55);
+                    int valColor = entry.getKey().equals("Costs") ? 0xFFFF5555 : 0xFFFFFF55;
+                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), valColor);
                     rowY += ROW_HEIGHT;
                 }
             }
@@ -209,15 +210,26 @@ public class ProfitHudRenderer {
 
                 String categorizedName = ProfitManager.getCategorizedName(itemName);
                 // Pet XP: show XP total rather than an item count
-                String countDisplay = itemName.startsWith("Pet XP (")
-                        ? String.format("%,d XP", count)
-                        : "x" + String.format("%,d", count);
+                String countDisplay;
+                if (itemName.equals("[Spray] Sprayonator")) {
+                    long sprayQty = ProfitManager.getSprayQuantity(lifetime);
+                    countDisplay = "x" + String.format("%,d", sprayQty);
+                } else if (itemName.startsWith("Pet XP (")) {
+                    countDisplay = String.format("%,d XP", count);
+                } else {
+                    countDisplay = "x" + String.format("%,d", count);
+                }
                 String labelText = categorizedName + " §r(" + countDisplay + ")";
                 String valueText = formatProfit(lineProfit);
 
-                // For the row value specifically, we can use a slightly highlighted yellow if
-                // it's a known item
-                int color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
+                int color;
+                if (itemName.equals("[Visitor] Visitor Cost") || itemName.equals("[Spray] Sprayonator")) {
+                    color = 0xFFFF5555; // red for costs
+                } else if (itemName.startsWith("[Visitor] ")) {
+                    color = 0xFFFFFF55; // yellow for visitor gains
+                } else {
+                    color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
+                }
                 drawRow(g, client, rowY, labelText, valueText, color);
                 rowY += ROW_HEIGHT;
             }

@@ -434,6 +434,7 @@ public class PestManager {
                     client.player.displayClientMessage(
                             Component.literal("§dBonus is INACTIVE! Triggering Phillip reactivation..."), true);
                     isReactivatingBonus = true;
+                    ProfitManager.startSprayPhase();
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
                     return;
                 }
@@ -554,6 +555,7 @@ public class PestManager {
                     // Trigger pest cleaning sequence immediately
                     com.ihanuat.mod.util.CommandUtils.stopScript(client, 50); // Minimal delay
                     GearManager.swapToFarmingToolSync(client);
+                    ProfitManager.startSprayPhase();
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
                 } catch (InterruptedException ignored) {
                 }
@@ -580,6 +582,7 @@ public class PestManager {
                 try {
                     com.ihanuat.mod.util.CommandUtils.stopScript(client, MacroConfig.getRandomizedDelay(250));
                     com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                    ProfitManager.startSprayPhase();
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 250);
                 } catch (Exception e) {
                     e.printStackTrace();

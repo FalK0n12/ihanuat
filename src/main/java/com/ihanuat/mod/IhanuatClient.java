@@ -47,6 +47,7 @@ public class IhanuatClient implements ClientModInitializer {
     private static final long REWARP_COOLDOWN_MS = 5000; // 5 seconds cooldown
 
     private static boolean isPickingUpStash = false;
+    private static String lastScannedVisitorTitle = null;
 
     @Override
     public void onInitializeClient() {
@@ -57,6 +58,28 @@ public class IhanuatClient implements ClientModInitializer {
         MacroHudRenderer.register();
         com.ihanuat.mod.gui.ProfitHudRenderer.register();
 
+        // ── Visitor ROI: detect "offer accepted" chat messages (case-insensitive) ──
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (overlay)
+                return;
+            String text = message.getString();
+            String cleanText = text.replaceAll("(?i)\u00A7[0-9a-fk-or]", "").trim();
+            String lowerClean = cleanText.toLowerCase();
+
+            if (lowerClean.contains("offer accepted")) {
+                // Extract visitor name after "with" if present
+                String visitorName = cleanText;
+                int withIdx = cleanText.toLowerCase().indexOf("with");
+                if (withIdx >= 0) {
+                    visitorName = cleanText.substring(withIdx + 4).trim();
+                }
+                if (visitorName.contains("]")) {
+                    visitorName = visitorName.substring(visitorName.lastIndexOf("]") + 1).trim();
+                }
+                VisitorManager.onOfferAccepted(visitorName);
+            }
+        });
+
         // ── HUD edit-mode: render panel and handle drag/resize in inventory screens ──
         ScreenEvents.AFTER_INIT.register((mcClient, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof AbstractContainerScreen))
@@ -65,6 +88,28 @@ public class IhanuatClient implements ClientModInitializer {
             ScreenEvents.afterRender(screen).register((scr, graphics, mouseX, mouseY, tickDelta) -> {
                 MacroHudRenderer.renderInEditMode(graphics, Minecraft.getInstance());
                 com.ihanuat.mod.gui.ProfitHudRenderer.renderInEditMode(graphics, Minecraft.getInstance());
+
+                // ── Visitor ROI: scan visitor GUI for costs/rewards ──
+                if (scr instanceof AbstractContainerScreen) {
+                    AbstractContainerScreen<?> containerScr = (AbstractContainerScreen<?>) scr;
+                    String title = containerScr.getTitle().getString().trim();
+                    // Only scan once per unique GUI title, and only if macro is running
+                    if (!title.equals(lastScannedVisitorTitle)
+                            && com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+                        // Check if slot 29 has loaded (has items)
+                        if (containerScr.getMenu().slots.size() > 29) {
+                            net.minecraft.world.inventory.Slot slot = containerScr.getMenu().getSlot(29);
+                            if (slot != null && slot.hasItem()) {
+                                String itemName = slot.getItem().getHoverName().getString();
+                                if (itemName.contains("Accept Offer")) {
+                                    lastScannedVisitorTitle = title;
+                                    new Thread(() -> VisitorManager.scanVisitorGui(
+                                            Minecraft.getInstance(), containerScr)).start();
+                                }
+                            }
+                        }
+                    }
+                }
             });
 
             // Fabric 0.141+: mouse event object carries x, y, button and modifiers
@@ -171,11 +216,32 @@ public class IhanuatClient implements ClientModInitializer {
 
                 if (text.contains("Pest Cleaner") && text.contains("Finished")) {
                     if (MacroStateManager.getCurrentState() == MacroState.State.CLEANING) {
+                        ProfitManager.stopSprayPhase();
                         PestManager.handlePestCleaningFinished(Minecraft.getInstance());
                     }
                 }
 
-                String plainText = text.replaceAll("(?i)\u00A7.", "");
+                String plainText = text.replaceAll("(?i)[\u00A7&][0-9a-fk-or]", "");
+
+                // Track bazaar buys during pest cleaner spray phase
+                if (ProfitManager.isSprayPhaseActive && plainText.contains("[Bazaar]")
+                        && plainText.contains("Bought")) {
+                    java.util.regex.Matcher bazaarMatcher = java.util.regex.Pattern.compile(
+                            "\\[Bazaar\\]\\s*Bought\\s+(\\d+)x\\s+.+?for\\s+([\\d,]+)\\s+coins",
+                            java.util.regex.Pattern.CASE_INSENSITIVE).matcher(plainText);
+                    if (bazaarMatcher.find()) {
+                        try {
+                            int qty = Integer.parseInt(bazaarMatcher.group(1));
+                            long coins = Long.parseLong(bazaarMatcher.group(2).replace(",", ""));
+                            ProfitManager.addSprayCost(qty, coins);
+                            if (MacroConfig.showDebug) {
+                                ClientUtils.sendDebugMessage(Minecraft.getInstance(),
+                                        "Spray buy detected: " + qty + " items for " + coins + " coins");
+                            }
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                }
 
                 // Debug for ANY message containing "YUCK" or "Plot" for diagnostic purposes
                 if (lowerText.contains("yuck") && MacroConfig.showDebug) {
