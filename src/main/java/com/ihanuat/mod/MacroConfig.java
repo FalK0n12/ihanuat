@@ -75,6 +75,7 @@ public class MacroConfig {
             "Fruit Bowl", "Farming Exp Boost", "Sunder VI");
     public static final String DEFAULT_DROP_JUNK_PLOT_TP = "0";
     public static final int DEFAULT_JUNK_THRESHOLD = 3;
+    public static final int DEFAULT_PEST_CHAT_TRIGGER_DELAY = 0;
     public static final boolean DEFAULT_SHOW_DEBUG = false;
 
     // Pet Tracker Defaults
@@ -98,6 +99,7 @@ public class MacroConfig {
 
     public static int pestThreshold = DEFAULT_PEST_THRESHOLD;
     public static boolean triggerPestOnChat = DEFAULT_TRIGGER_PEST_ON_CHAT;
+    public static int pestChatTriggerDelay = DEFAULT_PEST_CHAT_TRIGGER_DELAY;
     public static int visitorThreshold = DEFAULT_VISITOR_THRESHOLD;
     public static GearSwapMode gearSwapMode = DEFAULT_GEAR_SWAP_MODE;
     public static UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
@@ -293,6 +295,7 @@ public class MacroConfig {
         ConfigData data = new ConfigData();
         data.pestThreshold = pestThreshold;
         data.triggerPestOnChat = triggerPestOnChat;
+        data.pestChatTriggerDelay = pestChatTriggerDelay;
         data.visitorThreshold = visitorThreshold;
         data.gearSwapMode = gearSwapMode;
         data.unflyMode = unflyMode;
@@ -384,6 +387,7 @@ public class MacroConfig {
             if (data != null) {
                 pestThreshold = data.pestThreshold;
                 triggerPestOnChat = data.triggerPestOnChat;
+                pestChatTriggerDelay = data.pestChatTriggerDelay;
                 visitorThreshold = data.visitorThreshold;
                 gearSwapMode = data.gearSwapMode != null ? data.gearSwapMode : DEFAULT_GEAR_SWAP_MODE;
                 unflyMode = data.unflyMode != null ? data.unflyMode : DEFAULT_UNFLY_MODE;
@@ -479,6 +483,7 @@ public class MacroConfig {
     private static class ConfigData {
         int pestThreshold = DEFAULT_PEST_THRESHOLD;
         boolean triggerPestOnChat = DEFAULT_TRIGGER_PEST_ON_CHAT;
+        int pestChatTriggerDelay = DEFAULT_PEST_CHAT_TRIGGER_DELAY;
         int visitorThreshold = DEFAULT_VISITOR_THRESHOLD;
         GearSwapMode gearSwapMode = DEFAULT_GEAR_SWAP_MODE;
         UnflyMode unflyMode = DEFAULT_UNFLY_MODE;

@@ -140,6 +140,16 @@ public class ConfigScreenFactory {
                                 .build());
 
                 delays.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("Pest Chat Trigger Delay (ms)"),
+                                                MacroConfig.pestChatTriggerDelay,
+                                                0, 3000)
+                                .setDefaultValue(MacroConfig.DEFAULT_PEST_CHAT_TRIGGER_DELAY)
+                                .setTooltip(Component.literal(
+                                                "Adds a fixed delay before triggering the pest cleaner after seeing the chat message."))
+                                .setSaveConsumer(newValue -> MacroConfig.pestChatTriggerDelay = newValue)
+                                .build());
+
+                delays.addEntry(builder.entryBuilder()
                                 .startIntSlider(Component.literal("Book Combine Delay (ms)"),
                                                 MacroConfig.bookCombineDelay, 100, 2000)
                                 .setDefaultValue(MacroConfig.DEFAULT_BOOK_COMBINE_DELAY)

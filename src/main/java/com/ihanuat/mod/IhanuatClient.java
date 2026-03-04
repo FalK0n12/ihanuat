@@ -195,11 +195,18 @@ public class IhanuatClient implements ClientModInitializer {
                             Matcher m = p.matcher(plainText);
                             if (m.find()) {
                                 String plot = m.group(1);
-                                if (MacroConfig.showDebug) {
-                                    ClientUtils.sendDebugMessage(Minecraft.getInstance(),
-                                            "Chat pest trigger matched plot: " + plot);
+                                if (MacroConfig.pestChatTriggerDelay > 0) {
+                                    new Thread(() -> {
+                                        try {
+                                            Thread.sleep(MacroConfig.pestChatTriggerDelay);
+                                            PestManager.startCleaningSequence(Minecraft.getInstance(), plot);
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                        }
+                                    }).start();
+                                } else {
+                                    PestManager.startCleaningSequence(Minecraft.getInstance(), plot);
                                 }
-                                PestManager.startCleaningSequence(Minecraft.getInstance(), plot);
                             } else if (MacroConfig.showDebug) {
                                 ClientUtils.sendDebugMessage(Minecraft.getInstance(),
                                         "Chat pest trigger failed regex on: " + plainText);
