@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 public class VisitorManager {
     private static final Pattern VISITORS_PATTERN = Pattern.compile("Visitors:\\s*\\(?(\\d+)\\)?");
     public static volatile long lastSequenceFinishTime = 0;
+    public static volatile long visitingStartedAt = 0;
 
     private static VisitorOffer pendingOffer = null;
 
@@ -70,9 +71,11 @@ public class VisitorManager {
                 true);
         new Thread(() -> {
             try {
+                ClientUtils.sendDebugMessage(client, "Warping to garden...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
-                Thread.sleep(250);
+                Thread.sleep(2000); // Increased delay for warp to register
                 PestManager.isReturningFromPestVisitor = true;
+                ClientUtils.sendDebugMessage(client, "Finalizing return to farm...");
                 finalizeReturnToFarm(client);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -81,6 +84,8 @@ public class VisitorManager {
     }
 
     public static void finalizeReturnToFarm(Minecraft client) {
+        ClientUtils.sendDebugMessage(client,
+                "finalizeReturnToFarm triggered. State: " + MacroStateManager.getCurrentState());
         if (MacroStateManager.getCurrentState() == MacroState.State.OFF)
             return;
 
@@ -106,6 +111,7 @@ public class VisitorManager {
             }
             ClientUtils.waitForGearAndGui(client);
             com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.VISITING);
+            VisitorManager.visitingStartedAt = System.currentTimeMillis();
             com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
             com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
             PestManager.isCleaningInProgress = false;
@@ -136,6 +142,7 @@ public class VisitorManager {
         ClientUtils.waitForGearAndGui(client);
         client.player.displayClientMessage(Component.literal("\u00A7aRestarting farming script..."),
                 true);
+        ClientUtils.sendDebugMessage(client, "Setting state to FARMING and starting script.");
         com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
         com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
         com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
@@ -250,9 +257,11 @@ public class VisitorManager {
     }
 
     private static void parseReward(String text, VisitorOffer offer) {
-        String clean = text.replace("+", "").trim();
+        String clean = text.replaceAll("\u00A7[0-9a-fk-or]", "").replace("+", "").trim();
+        if (clean.isEmpty() || clean.contains("Farming XP") || clean.contains("Garden Experience"))
+            return;
 
-        // Copper: "+324 Copper"
+        // Copper: "324 Copper"
         if (clean.toLowerCase().contains("copper")) {
             Matcher m = Pattern.compile("([\\d,]+)\\s+Copper").matcher(clean);
             if (m.find()) {
@@ -264,14 +273,30 @@ public class VisitorManager {
             return;
         }
 
-        // Other items: "+1x Biofuel" or "+1 Biofuel"
-        Matcher m = Pattern.compile("([\\d,]+)x?\\s+(.+)").matcher(clean);
-        if (m.find()) {
+        // Other items: "1x Biofuel" or "1 Biofuel" or "28.2k Mithril Powder"
+        Matcher mStart = Pattern.compile("^([\\d,.]+)[xX]?\\s+(.+)").matcher(clean);
+        if (mStart.find()) {
             VisitorOffer.Reward r = new VisitorOffer.Reward();
-            r.count = Long.parseLong(m.group(1).replace(",", ""));
-            r.name = m.group(2).trim();
+            String countStr = mStart.group(1).replace(",", "");
+            long count = 1;
+            try {
+                if (countStr.toLowerCase().endsWith("k")) {
+                    count = (long) (Double.parseDouble(countStr.substring(0, countStr.length() - 1)) * 1000);
+                } else {
+                    count = Long.parseLong(countStr);
+                }
+            } catch (Exception ignored) {
+            }
+            r.count = count;
+            r.name = mStart.group(2).trim();
             offer.rewards.add(r);
+            return;
         }
+
+        // No quantity prefix — skip. In the GUI, all real reward lines have an
+        // explicit count (e.g. "+43 Copper", "+1x Biofuel"). Lines like
+        // "Click to give! (x1)" or "Missing items to accept!" have no count
+        // and are UI hints, not rewards.
     }
 
     /**

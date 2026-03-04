@@ -221,6 +221,7 @@ public class PestManager {
 
                     ClientUtils.waitForGearAndGui(client);
                     MacroStateManager.setCurrentState(MacroState.State.VISITING);
+                    VisitorManager.visitingStartedAt = System.currentTimeMillis();
                     com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
                     isCleaningInProgress = false;
@@ -232,10 +233,11 @@ public class PestManager {
                 }
 
                 Thread.sleep(150);
+                ClientUtils.sendDebugMessage(client, "Warping to garden (PestManager)...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
                 Thread.sleep(250);
-
                 isReturningFromPestVisitor = true;
+                ClientUtils.sendDebugMessage(client, "Finalizing return to farm (PestManager)...");
                 finalizeReturnToFarm(client);
             } catch (Exception e) {
                 e.printStackTrace();

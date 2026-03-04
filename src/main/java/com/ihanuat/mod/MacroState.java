@@ -6,7 +6,8 @@ public class MacroState {
         FARMING,
         CLEANING,
         RECOVERING,
-        VISITING
+        VISITING,
+        AUTOSELLING
     }
 
     public enum Location {

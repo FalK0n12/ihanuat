@@ -176,6 +176,8 @@ public class ProfitManager {
             "SPRAYONATOR! You sprayed Plot - \\d+ with (.+?)(?:!|$)",
             Pattern.CASE_INSENSITIVE);
     private static long lastBazaarSprayBuyTime = 0;
+    private static boolean isTrackingVisitorRewards = false;
+    private static boolean copperSeenInRewards = false;
 
     public static void handleChatMessage(Component component) {
         String text = toLegacyText(component);
@@ -267,6 +269,50 @@ public class ProfitManager {
                 lastBazaarSprayBuyTime = System.currentTimeMillis();
             } catch (Exception ignored) {
             }
+        }
+
+        // ── Visitor Rewards Tracking ──
+        if (plainText.equalsIgnoreCase("REWARDS")) {
+            isTrackingVisitorRewards = true;
+            copperSeenInRewards = false;
+            return;
+        }
+
+        if (isTrackingVisitorRewards) {
+            if (plainText.isEmpty()) {
+                isTrackingVisitorRewards = false;
+                return;
+            }
+
+            if (plainText.contains("Farming XP") || plainText.contains("Garden Experience")) {
+                return;
+            }
+
+            if (plainText.contains("Copper")) {
+                copperSeenInRewards = true;
+            }
+
+            if (copperSeenInRewards) {
+                // Parse reward line
+                Matcher m = Pattern.compile("^\\+?([\\d,.]+)[xX]?\\s+(.+)").matcher(plainText);
+                if (m.find()) {
+                    String item = m.group(2).trim();
+                    String countStr = m.group(1).replace(",", "");
+                    long count = 1;
+                    try {
+                        if (countStr.toLowerCase().endsWith("k")) {
+                            count = (long) (Double.parseDouble(countStr.substring(0, countStr.length() - 1)) * 1000);
+                        } else {
+                            count = Long.parseLong(countStr);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    addVisitorGain(item, count);
+                } else {
+                    addVisitorGain(plainText, 1);
+                }
+            }
+            return;
         }
 
         Matcher sprayMatcher = SPRAY_PATTERN.matcher(plainText);
@@ -371,11 +417,24 @@ public class ProfitManager {
     }
 
     public static void addVisitorGain(String itemName, long count) {
-        // Store directly — bypass addDrop's normalization to preserve [Visitor] prefix
-        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
-            sessionCounts.put(itemName, sessionCounts.getOrDefault(itemName, 0L) + count);
+        String cleanName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").replace("+", "").trim();
+        long multiplier = 1;
+        Matcher m = Pattern.compile("\\s+[xX](\\d+)$").matcher(cleanName);
+        if (m.find()) {
+            try {
+                multiplier = Long.parseLong(m.group(1));
+                cleanName = cleanName.substring(0, m.start()).trim();
+            } catch (Exception ignored) {
+            }
         }
-        lifetimeCounts.put(itemName, lifetimeCounts.getOrDefault(itemName, 0L) + count);
+
+        String key = cleanName.startsWith("[Visitor] ") ? cleanName : "[Visitor] " + cleanName;
+        long totalCount = count * multiplier;
+
+        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+            sessionCounts.put(key, sessionCounts.getOrDefault(key, 0L) + totalCount);
+        }
+        lifetimeCounts.put(key, lifetimeCounts.getOrDefault(key, 0L) + totalCount);
         saveLifetime();
     }
 
@@ -596,21 +655,26 @@ public class ProfitManager {
     }
 
     public static double getItemPrice(String itemName) {
-        // Visitor cost: count IS the coin amount, so price = 1.0
-        if ("[Visitor] Visitor Cost".equals(itemName) || "[Spray] Sprayonator".equals(itemName)
-                || "Purse".equals(itemName)) {
-            return 1.0;
+        if (itemName.startsWith("[Visitor] ")) {
+            String realName = itemName.substring(10);
+            if ("Visitor Cost".equals(realName))
+                return 1.0;
+            if ("Copper".equals(realName)) {
+                double greenThumbPrice = bazaarPrices.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
+                if (greenThumbPrice <= 0) {
+                    greenThumbPrice = TRACKED_ITEMS.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
+                }
+                if (greenThumbPrice > 0) {
+                    return greenThumbPrice / 1500.0;
+                }
+                return 0.0;
+            }
+            return getItemPrice(realName); // Recursive call for the actual item price
         }
-        // Copper: value based on Green Thumb (1500 copper)
-        if ("[Visitor] Copper".equals(itemName)) {
-            double greenThumbPrice = bazaarPrices.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
-            if (greenThumbPrice <= 0) {
-                greenThumbPrice = TRACKED_ITEMS.getOrDefault("ENCHANTMENT_GREEN_THUMB_1", 0.0);
-            }
-            if (greenThumbPrice > 0) {
-                return greenThumbPrice / 1500.0;
-            }
-            return 0.0;
+
+        // Visitor cost: count IS the coin amount, so price = 1.0
+        if ("[Spray] Sprayonator".equals(itemName) || "Purse".equals(itemName)) {
+            return 1.0;
         }
         double price = TRACKED_ITEMS.getOrDefault(itemName, 0.0);
         if (price == 0.0) {
@@ -703,18 +767,12 @@ public class ProfitManager {
                     }
                 }
                 lastCultivatingValue = newValue;
-
-                // Track Rose Dragon XP from tab list (runs every tick regardless)
-                PetXpTracker.update(client);
-
-                // Refresh bazaar prices every hour
-                long now = System.currentTimeMillis();
-                if (now - lastBazaarFetchTime > 3600000L) {
-                    fetchBazaarPrices();
-                }
+            } else {
+                lastCultivatingValue = -1;
             }
+        } else {
+            lastCultivatingValue = -1;
         }
-        lastCultivatingValue = -1;
 
         // 3. Track Purse
         long currentPurse = ClientUtils.getPurse(client);
@@ -722,7 +780,9 @@ public class ProfitManager {
             if (lastPurseBalance != -1) {
                 if (currentPurse > lastPurseBalance) {
                     long delta = currentPurse - lastPurseBalance;
-                    addDrop("Purse", delta);
+                    if (com.ihanuat.mod.MacroStateManager.getCurrentState() != MacroState.State.AUTOSELLING) {
+                        addDrop("Purse", delta);
+                    }
                 }
             }
             lastPurseBalance = currentPurse;
