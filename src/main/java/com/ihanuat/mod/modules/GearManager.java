@@ -114,27 +114,33 @@ public class GearManager {
         if (!title.contains("wardrobe"))
             return;
 
+        // Validate that the wardrobe is actually functional before marking as detected
+        int slotIdx = 35 + targetWardrobeSlot;
+        if (slotIdx >= screen.getMenu().slots.size()) {
+            // Wardrobe slots don't exist yet, GUI is not ready
+            return;
+        }
+
+        Slot slot = screen.getMenu().slots.get(slotIdx);
+        ItemStack stack = slot.getItem();
+
+        // If the slot item is still loading (gray dye/empty), GUI is not ready yet
+        if (stack.isEmpty() || stack.getItem().toString().toLowerCase().contains("air")
+                || stack.getItem().toString().toLowerCase().contains("gray_dye")
+                || stack.getHoverName().getString().toLowerCase().contains("gray dye")) {
+            // Wardrobe GUI open but data not loaded yet
+            ClientUtils.sendDebugMessage(client, "Wardrobe GUI open but data not loaded yet (gray dye/empty detected)");
+            return;
+        }
+
+        // Only now mark as detected - we've validated the wardrobe is functional
         if (!wardrobeGuiDetected) {
             wardrobeGuiDetected = true;
-            ClientUtils.sendDebugMessage(client, "Wardrobe GUI detected");
+            ClientUtils.sendDebugMessage(client, "Wardrobe GUI detected AND VALIDATED as functional");
             wardrobeInteractionTime = System.currentTimeMillis();
         }
 
         if (wardrobeInteractionStage == 0) {
-            int slotIdx = 35 + targetWardrobeSlot;
-            if (slotIdx >= screen.getMenu().slots.size())
-                return;
-
-            Slot slot = screen.getMenu().slots.get(slotIdx);
-            ItemStack stack = slot.getItem();
-
-            // Wait for item to load (not be air/empty or gray dye)
-            if (stack.isEmpty() || stack.getItem().toString().toLowerCase().contains("air")
-                    || stack.getItem().toString().toLowerCase().contains("gray_dye")
-                    || stack.getHoverName().getString().toLowerCase().contains("gray dye")) {
-                return;
-            }
-
             String itemName = stack.getItem().toString().toLowerCase();
             String hoverName = stack.getHoverName().getString().toLowerCase();
 
@@ -159,16 +165,16 @@ public class GearManager {
             if (lastClickElapsed < 150)
                 return;
 
-            int slotIdx = 35 + targetWardrobeSlot;
-            if (slotIdx >= screen.getMenu().slots.size())
+            int confirmSlotIdx = 35 + targetWardrobeSlot;
+            if (confirmSlotIdx >= screen.getMenu().slots.size())
                 return;
 
-            ItemStack stack = screen.getMenu().slots.get(slotIdx).getItem();
-            if (stack.isEmpty())
+            ItemStack confirmStack = screen.getMenu().slots.get(confirmSlotIdx).getItem();
+            if (confirmStack.isEmpty())
                 return;
 
-            String itemName = stack.getItem().toString().toLowerCase();
-            String hoverName = stack.getHoverName().getString().toLowerCase();
+            String itemName = confirmStack.getItem().toString().toLowerCase();
+            String hoverName = confirmStack.getHoverName().getString().toLowerCase();
 
             if (itemName.contains("green_dye") || hoverName.contains("green dye") || itemName.contains("lime_dye")
                     || hoverName.contains("lime dye")) {
@@ -286,14 +292,40 @@ public class GearManager {
         if (!title.contains("equipment"))
             return;
 
+        // Validate that equipment GUI is actually functional before marking as detected
+        int[] guiSlots = { 10, 19, 28, 37 };
+        boolean hasValidEquipmentSlots = true;
+        
+        // Check if at least one equipment slot has a valid item (not empty/loading)
+        boolean foundValidSlot = false;
+        for (int slotIdx : guiSlots) {
+            if (slotIdx < screen.getMenu().slots.size()) {
+                Slot slot = screen.getMenu().slots.get(slotIdx);
+                if (slot != null && slot.hasItem()) {
+                    ItemStack stack = slot.getItem();
+                    // If it's not empty and not a gray dye/loading placeholder, it's valid
+                    if (!stack.isEmpty() && !stack.getItem().toString().toLowerCase().contains("gray_dye")
+                            && !stack.getHoverName().getString().toLowerCase().contains("gray dye")) {
+                        foundValidSlot = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!foundValidSlot) {
+            // Equipment GUI open but data not loaded yet
+            ClientUtils.sendDebugMessage(client, "Equipment GUI open but data not loaded yet (no valid equipment slots detected)");
+            return;
+        }
+
         if (!equipmentGuiDetected) {
             equipmentGuiDetected = true;
-            ClientUtils.sendDebugMessage(client, "Equipment GUI detected");
+            ClientUtils.sendDebugMessage(client, "Equipment GUI detected AND VALIDATED as functional");
             equipmentInteractionTime = System.currentTimeMillis();
         }
 
         // Necklace, Cloak/Vest, Belt, Hand (Gloves/Bracelet/Gauntlet)
-        int[] guiSlots = { 10, 19, 28, 37 };
         String[] keywords = { "necklace", "cloak|vest|cape", "belt", "gloves|bracelet|gauntlet" };
 
         int totalSlots = screen.getMenu().slots.size();
