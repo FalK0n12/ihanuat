@@ -210,14 +210,20 @@ public class ProfitHudRenderer {
 
                 String categorizedName = ProfitManager.getCategorizedName(itemName);
                 // Pet XP: show XP total rather than an item count
-                String countDisplay = itemName.startsWith("Pet XP (")
-                        ? String.format("%,d XP", count)
-                        : "x" + String.format("%,d", count);
+                String countDisplay;
+                if (itemName.equals("[Spray] Sprayonator")) {
+                    long sprayQty = ProfitManager.getSprayQuantity(lifetime);
+                    countDisplay = "x" + String.format("%,d", sprayQty);
+                } else if (itemName.startsWith("Pet XP (")) {
+                    countDisplay = String.format("%,d XP", count);
+                } else {
+                    countDisplay = "x" + String.format("%,d", count);
+                }
                 String labelText = categorizedName + " §r(" + countDisplay + ")";
                 String valueText = formatProfit(lineProfit);
 
                 int color;
-                if (itemName.equals("[Visitor] Visitor Cost")) {
+                if (itemName.equals("[Visitor] Visitor Cost") || itemName.equals("[Spray] Sprayonator")) {
                     color = 0xFFFF5555; // red for costs
                 } else if (itemName.startsWith("[Visitor] ")) {
                     color = 0xFFFFFF55; // yellow for visitor gains

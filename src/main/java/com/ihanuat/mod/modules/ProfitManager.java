@@ -21,6 +21,19 @@ public class ProfitManager {
     private static String currentFarmedCrop = "Wheat";
     private static long lastBazaarFetchTime = 0;
 
+    // Spray cost tracking: quantity is tracked separately from coins
+    private static long spraySessionQuantity = 0;
+    private static long sprayLifetimeQuantity = 0;
+    public static volatile boolean isSprayPhaseActive = false;
+
+    public static void startSprayPhase() {
+        isSprayPhaseActive = true;
+    }
+
+    public static void stopSprayPhase() {
+        isSprayPhaseActive = false;
+    }
+
     private static final java.io.File LIFETIME_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()
             .resolve("pest_macro_profit_lifetime.json").toFile();
     private static final com.google.gson.Gson GSON = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
@@ -309,7 +322,25 @@ public class ProfitManager {
         saveLifetime();
     }
 
+    public static void addSprayCost(int quantity, long coins) {
+        String key = "[Spray] Sprayonator";
+        spraySessionQuantity += quantity;
+        sprayLifetimeQuantity += quantity;
+        if (com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
+            sessionCounts.put(key, sessionCounts.getOrDefault(key, 0L) - coins);
+        }
+        lifetimeCounts.put(key, lifetimeCounts.getOrDefault(key, 0L) - coins);
+        saveLifetime();
+    }
+
+    public static long getSprayQuantity(boolean lifetime) {
+        return lifetime ? sprayLifetimeQuantity : spraySessionQuantity;
+    }
+
     public static String getCategorizedName(String name) {
+        if (name.equals("[Spray] Sprayonator")) {
+            return "§c§l[COST] §fSprayonator";
+        }
         if (name.equals("[Visitor] Visitor Cost")) {
             return "§c§l[COST] §fVisitor Cost";
         }
@@ -429,7 +460,7 @@ public class ProfitManager {
                 compact.put("Pets", compact.get("Pets") + (long) profit);
             } else if (MISC_DROPS_SET.contains(name)) {
                 compact.put("Misc Drops", compact.get("Misc Drops") + (long) profit);
-            } else if (name.equals("[Visitor] Visitor Cost")) {
+            } else if (name.equals("[Visitor] Visitor Cost") || name.equals("[Spray] Sprayonator")) {
                 compact.put("Costs", compact.get("Costs") + (long) profit);
             } else if (name.startsWith("[Visitor] ")) {
                 compact.put("Visitor", compact.get("Visitor") + (long) profit);
@@ -500,7 +531,7 @@ public class ProfitManager {
 
     public static double getItemPrice(String itemName) {
         // Visitor cost: count IS the coin amount, so price = 1.0
-        if ("[Visitor] Visitor Cost".equals(itemName)) {
+        if ("[Visitor] Visitor Cost".equals(itemName) || "[Spray] Sprayonator".equals(itemName)) {
             return 1.0;
         }
         // Copper: value based on Green Thumb (1500 copper)
