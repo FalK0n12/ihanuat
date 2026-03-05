@@ -1,3 +1,5 @@
+## JOIN DISCORD FOR SUPPORT: https://discord.gg/BZxsfAcYYW
+
 Feature List:
 
 - Improved wardrobe swap (adds visitor wardrobe, much less delays)
@@ -21,5 +23,3 @@ change the auto direction and should work on most farms, use .ez-listfarms to fi
 <img width="1273" height="716" alt="image" src="https://raw.githubusercontent.com/mizly/ihanuat/refs/heads/main/screenshot.png" />
 dynamic rest works by setting the scripting time and break time, with the offset offsetting that scripting/break time by plus or minus the offset minutes  
 dynamic rest is always on, can disable by setting scripting time very high  
-
-theres a bug where it sometimes doesn't detect max pests. fix this by turning on taunahi pest cleaner and setting range to 7-8
