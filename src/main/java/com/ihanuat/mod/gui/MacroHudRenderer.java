@@ -52,6 +52,7 @@ public class MacroHudRenderer {
     private static final int STATE_RECOVERING = 0xFFFF5555;
     private static final int STATE_VISITING = 0xFF55FFFF; // cyan
     private static final int STATE_AUTOSELLING = 0xFFAA55FF; // purple
+    private static final int STATE_SPRAYING = 0xFFFF55FF; // pink
     private static final int BAR_BG_COLOR = 0xFF1A1A32;
     private static final int BAR_FILL_COLOR = 0xFF6464B4;
 
@@ -185,6 +186,9 @@ public class MacroHudRenderer {
         } else if (state == MacroState.State.AUTOSELLING) {
             stateStr = "autoselling";
             stateColor = STATE_AUTOSELLING;
+        } else if (state == MacroState.State.SPRAYING) {
+            stateStr = "sprayonator";
+            stateColor = STATE_SPRAYING;
         }
 
         long sessionMs = MacroStateManager.getSessionRunningTime();

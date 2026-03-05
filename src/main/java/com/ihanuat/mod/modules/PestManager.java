@@ -35,6 +35,7 @@ public class PestManager {
     public static volatile boolean isPrepSwapping = false;
     public static volatile boolean isBonusInactive = false;
     public static volatile boolean isReactivatingBonus = false;
+    private static long lastZeroPestTime = 0;
 
     public static void reset() {
         isCleaningInProgress = false;
@@ -48,22 +49,16 @@ public class PestManager {
         flightStopTicks = 0;
         isPrepSwapping = false;
         isReactivatingBonus = false;
+        lastZeroPestTime = 0;
         currentPestSessionId++;
     }
 
     public static void checkTabListForPests(Minecraft client, MacroState.State currentState) {
-        if (client.getConnection() == null || !MacroStateManager.isMacroRunning())
+        if (client.getConnection() == null || client.player == null || !MacroStateManager.isMacroRunning())
             return;
 
-        if (isCleaningInProgress) {
-            // Only allow re-entry if we've been in CLEANING state for a long time without
-            // finishing
-            // This is a safety reset for 'stuck' conditions
-            if (currentState == MacroState.State.FARMING) {
-                isCleaningInProgress = false;
-            } else {
-                return;
-            }
+        if (isCleaningInProgress && currentState == MacroState.State.FARMING) {
+            isCleaningInProgress = false;
         }
 
         int aliveCount = -1;
@@ -160,6 +155,28 @@ public class PestManager {
         }
 
         isBonusInactive = bonusFound;
+
+        // Failsafe: if cleaning and 0 pests for 10s, return to farming
+        if (currentState == MacroState.State.CLEANING) {
+            if (aliveCount <= 0) {
+                if (lastZeroPestTime == 0) {
+                    lastZeroPestTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - lastZeroPestTime > 10000) {
+                    client.player.displayClientMessage(
+                            Component.literal("§cFail-safe: No pests detected for 10s. Returning to farm."), true);
+                    lastZeroPestTime = 0;
+                    handlePestCleaningFinished(client);
+                    return;
+                }
+            } else {
+                lastZeroPestTime = 0;
+            }
+        } else {
+            lastZeroPestTime = 0;
+        }
+
+        if (isCleaningInProgress)
+            return;
 
         if (aliveCount >= MacroConfig.pestThreshold || aliveCount >= 8) {
             if (aliveCount >= 8 && aliveCount < 99) {

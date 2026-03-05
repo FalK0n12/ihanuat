@@ -7,7 +7,8 @@ public class MacroState {
         CLEANING,
         RECOVERING,
         VISITING,
-        AUTOSELLING
+        AUTOSELLING,
+        SPRAYING
     }
 
     public enum Location {

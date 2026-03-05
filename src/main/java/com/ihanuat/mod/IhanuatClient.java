@@ -245,8 +245,15 @@ public class IhanuatClient implements ClientModInitializer {
                     return;
                 }
 
+                if (text.contains("Taunahi >>") && text.contains("Let's use sprayonator.")) {
+                    MacroStateManager.setCurrentState(MacroState.State.SPRAYING);
+                    ProfitManager.startSprayPhase();
+                    return;
+                }
+
                 if (text.contains("Pest Cleaner") && text.contains("Finished")) {
-                    if (MacroStateManager.getCurrentState() == MacroState.State.CLEANING) {
+                    if (MacroStateManager.getCurrentState() == MacroState.State.CLEANING
+                            || MacroStateManager.getCurrentState() == MacroState.State.SPRAYING) {
                         ProfitManager.stopSprayPhase();
                         PestManager.handlePestCleaningFinished(Minecraft.getInstance());
                     }
