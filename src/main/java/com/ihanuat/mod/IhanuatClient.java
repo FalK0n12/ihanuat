@@ -27,6 +27,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
+import com.ihanuat.mod.gui.DynamicRestScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -151,14 +153,29 @@ public class IhanuatClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) {
                 hasCheckedPersistenceOnJoin = false;
-                if (client.screen instanceof TitleScreen) {
+                if (client.screen instanceof TitleScreen || client.screen instanceof DisconnectedScreen
+                        || client.screen instanceof DynamicRestScreen) {
                     long reconnectAt = RestStateManager.loadReconnectTime();
                     if (reconnectAt > 0) {
-                        long remaining = reconnectAt - java.time.Instant.now().getEpochSecond();
+                        long now = java.time.Instant.now().getEpochSecond();
+                        long remaining = reconnectAt - now;
                         if (remaining <= 0) {
-                            ReconnectScheduler.scheduleReconnect(5, RestStateManager.shouldResume());
+                            // Reconnect time has passed, but we're still disconnected.
+                            // If not already pending, schedule a retry in 10 seconds.
+                            if (!ReconnectScheduler.isPending()) {
+                                ReconnectScheduler.scheduleReconnect(10, RestStateManager.shouldResume());
+                                if (client.screen instanceof DisconnectedScreen) {
+                                    client.execute(() -> client.setScreen(new DynamicRestScreen(
+                                            java.time.Instant.now().getEpochSecond() * 1000 + 10000, 10000)));
+                                }
+                            }
                         } else if (!ReconnectScheduler.isPending()) {
+                            // Reconnect is in the future and not scheduled yet, schedule it.
                             ReconnectScheduler.scheduleReconnect(remaining, RestStateManager.shouldResume());
+                            if (client.screen instanceof DisconnectedScreen) {
+                                client.execute(() -> client
+                                        .setScreen(new DynamicRestScreen(reconnectAt * 1000, remaining * 1000)));
+                            }
                         }
                     }
                 }

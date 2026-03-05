@@ -6,6 +6,7 @@ import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.ReconnectScheduler;
 import com.ihanuat.mod.util.ClientUtils;
 import net.minecraft.client.Minecraft;
+import com.ihanuat.mod.gui.DynamicRestScreen;
 import net.minecraft.network.chat.Component;
 
 import java.util.Random;
@@ -51,10 +52,10 @@ public class DynamicRestManager {
             // Already scheduled and we want to persist
             return;
         }
-        int base = MacroConfig.restScriptingTime;
-        int offset = MacroConfig.restScriptingTimeOffset;
-        int randomOffset = (offset > 0) ? (new Random().nextInt(offset * 2 + 1) - offset) : 0;
-        scheduledDurationMs = (base + randomOffset) * 60L * 1000L;
+        long baseMs = MacroConfig.restScriptingTime * 60L * 1000L;
+        long offsetMs = MacroConfig.restScriptingTimeOffset * 60L * 1000L;
+        long randomOffsetMs = (offsetMs > 0) ? (long) (new java.util.Random().nextDouble() * offsetMs) : 0;
+        scheduledDurationMs = baseMs + randomOffsetMs;
         nextRestTriggerMs = System.currentTimeMillis() + scheduledDurationMs;
         lastTimeUpdate = System.currentTimeMillis();
         restSequencePending = false;
@@ -117,9 +118,11 @@ public class DynamicRestManager {
                     restSequencePending = true;
                     restSequenceStage = 0;
                     nextStageActionTime = now;
-                    client.player.displayClientMessage(
-                            Component.literal("§6[Ihanuat] Dynamic Rest triggered! Starting shutdown sequence..."),
-                            false);
+                    if (client.player != null) {
+                        client.player.displayClientMessage(
+                                Component.literal("§6[Ihanuat] Dynamic Rest triggered! Starting shutdown sequence..."),
+                                false);
+                    }
                 }
             } else {
                 // Paused state (OFF, RECOVERING): shift the trigger forward to pause the
@@ -152,8 +155,10 @@ public class DynamicRestManager {
                 ClientUtils.sendDebugMessage(client, "Stopping script: Initiating dynamic rest sequence");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                 ClientUtils.forceReleaseKeys(client);
-                client.player.displayClientMessage(
-                        Component.literal("§c[Ihanuat] Dynamic Rest: running /setspawn..."), false);
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal("§c[Ihanuat] Dynamic Rest: running /setspawn..."), false);
+                }
                 com.ihanuat.mod.util.CommandUtils.initiateSetSpawn(client);
                 MacroStateManager.setCurrentState(MacroState.State.OFF);
 
@@ -169,16 +174,19 @@ public class DynamicRestManager {
                 }
 
                 // Disconnect and schedule the reconnect after the break duration
-                int base = MacroConfig.restBreakTime;
-                int offset = MacroConfig.restBreakTimeOffset;
-                int randomOffset = (offset > 0) ? (new Random().nextInt(offset * 2 + 1) - offset) : 0;
-                long breakSeconds = (base + randomOffset) * 60L;
+                long baseSecs = MacroConfig.restBreakTime * 60L;
+                long offsetSecs = MacroConfig.restBreakTimeOffset * 60L;
+                long randomOffsetSecs = (offsetSecs > 0) ? (long) (new java.util.Random().nextDouble() * offsetSecs)
+                        : 0;
+                long breakSeconds = baseSecs + randomOffsetSecs;
 
-                client.player.displayClientMessage(
-                        Component.literal(String.format(
-                                "§c[Ihanuat] Dynamic Rest: disconnecting. Reconnecting in %d minutes...",
-                                breakSeconds / 60)),
-                        false);
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal(String.format(
+                                    "§c[Ihanuat] Dynamic Rest: disconnecting. Reconnecting in %.1f minutes...",
+                                    (double) breakSeconds / 60.0)),
+                            false);
+                }
 
                 // Mark as intentional so the disconnect mixin does not trigger an
                 // unexpected-kick reconnect on top of ours.
@@ -188,8 +196,16 @@ public class DynamicRestManager {
                 ReconnectScheduler.scheduleReconnect(breakSeconds, true);
 
                 // Actually disconnect — use Minecraft#disconnect which cleanly
-                // tears down the connection and returns to the title screen.
-                client.disconnect(new net.minecraft.client.gui.screens.TitleScreen(), false);
+                // tears down the connection and returns to our custom rest screen.
+                // We wrap this in mc.execute to avoid potential nested rendering/blur crashes
+                // in modern Minecraft versions (1.21.x).
+                long durationMs = breakSeconds * 1000;
+                long restEndTimeMs = System.currentTimeMillis() + durationMs;
+
+                // Reset the trigger so scheduleNextRest() can pick up a new time after recovery
+                nextRestTriggerMs = 0;
+
+                client.execute(() -> client.disconnect(new DynamicRestScreen(restEndTimeMs, durationMs), false));
 
                 restSequenceStage = 2;
                 nextStageActionTime = Long.MAX_VALUE; // no further stages needed

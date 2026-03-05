@@ -119,5 +119,6 @@ public class MacroStateManager {
             com.ihanuat.mod.modules.DynamicRestManager.reset();
             com.ihanuat.mod.modules.ProfitManager.reset();
         }
+        ReconnectScheduler.cancel();
     }
 }
