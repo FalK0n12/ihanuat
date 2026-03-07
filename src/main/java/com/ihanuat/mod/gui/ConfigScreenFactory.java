@@ -272,6 +272,24 @@ public class ConfigScreenFactory {
                                 .build());
 
                 autoPest.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("AOTV Roof Pitch (45-90)"),
+                                                MacroConfig.aotvRoofPitch, 45, 90)
+                                .setDefaultValue(MacroConfig.DEFAULT_AOTV_ROOF_PITCH)
+                                .setTooltip(Component.literal(
+                                                "Base upward look angle used for AOTV roof teleport. 90 is straight up."))
+                                .setSaveConsumer(newValue -> MacroConfig.aotvRoofPitch = newValue)
+                                .build());
+
+                autoPest.addEntry(builder.entryBuilder()
+                                .startIntSlider(Component.literal("AOTV Roof Pitch Humanization (0-15)"),
+                                                MacroConfig.aotvRoofPitchHumanization, 0, 15)
+                                .setDefaultValue(MacroConfig.DEFAULT_AOTV_ROOF_PITCH_HUMANIZATION)
+                                .setTooltip(Component.literal(
+                                                "Adds random +/- pitch variation in degrees for more human-like AOTV roof looks."))
+                                .setSaveConsumer(newValue -> MacroConfig.aotvRoofPitchHumanization = newValue)
+                                .build());
+
+                autoPest.addEntry(builder.entryBuilder()
                                 .startStrList(Component.literal("AOTV Roof Plots"),
                                                 MacroConfig.aotvRoofPlots)
                                 .setDefaultValue(MacroConfig.DEFAULT_AOTV_ROOF_PLOTS)

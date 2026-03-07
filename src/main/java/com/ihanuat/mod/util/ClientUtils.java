@@ -310,11 +310,11 @@ public class ClientUtils {
     public static void waitForGearAndGui(Minecraft client) {
         try {
             // Wait for Wardrobe swap
-            while (com.ihanuat.mod.modules.GearManager.isSwappingWardrobe)
+            while (com.ihanuat.mod.modules.WardrobeManager.isSwappingWardrobe)
                 Thread.sleep(50);
 
             // Wait for Equipment swap
-            while (com.ihanuat.mod.modules.GearManager.isSwappingEquipment)
+            while (com.ihanuat.mod.modules.EquipmentManager.isSwappingEquipment)
                 Thread.sleep(50);
 
             // Check for any open GUI (wardrobe, equipment, or any other menu)
@@ -332,7 +332,7 @@ public class ClientUtils {
     public static void waitForWardrobeGui(Minecraft client) {
         try {
             long start = System.currentTimeMillis();
-            while (!com.ihanuat.mod.modules.GearManager.wardrobeGuiDetected
+            while (!com.ihanuat.mod.modules.WardrobeManager.wardrobeGuiDetected
                     && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }
@@ -343,7 +343,7 @@ public class ClientUtils {
     public static void waitForEquipmentGui(Minecraft client) {
         try {
             long start = System.currentTimeMillis();
-            while (!com.ihanuat.mod.modules.GearManager.equipmentGuiDetected
+            while (!com.ihanuat.mod.modules.EquipmentManager.equipmentGuiDetected
                     && System.currentTimeMillis() - start < 5000) {
                 Thread.sleep(50);
             }

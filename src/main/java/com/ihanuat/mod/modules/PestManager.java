@@ -223,20 +223,20 @@ public class PestManager {
                     GearManager.swapToFarmingToolSync(client);
 
                     if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
-                            && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
+                            && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
                         client.player.displayClientMessage(Component.literal(
                                 "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor
                                         + ")..."),
                                 true);
                         GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotVisitor);
-                        if (GearManager.isSwappingWardrobe) {
+                        if (WardrobeManager.isSwappingWardrobe) {
                             ClientUtils.sendDebugMessage(client, "Finisher (Visitor): Waiting for wardrobe GUI...");
                             ClientUtils.waitForWardrobeGui(client);
                             ClientUtils.sendDebugMessage(client,
                                     "Finisher (Visitor): Wardrobe GUI cleared, waiting for swap completion...");
-                            while (GearManager.isSwappingWardrobe)
+                            while (WardrobeManager.isSwappingWardrobe)
                                 MacroWorkerThread.sleep(50);
-                            while (GearManager.wardrobeCleanupTicks > 0)
+                            while (WardrobeManager.wardrobeCleanupTicks > 0)
                                 MacroWorkerThread.sleep(50);
                             MacroWorkerThread.sleep(250);
                         }
@@ -340,19 +340,19 @@ public class PestManager {
                 });
 
                 if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
-                        && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
+                        && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
                     client.player.displayClientMessage(Component.literal(
                             "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor + ")..."),
                             true);
                     GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotVisitor);
-                    if (GearManager.isSwappingWardrobe) {
+                    if (WardrobeManager.isSwappingWardrobe) {
                         ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for wardrobe GUI...");
                         ClientUtils.waitForWardrobeGui(client);
                         ClientUtils.sendDebugMessage(client,
                                 "Finalize (Visitor): Wardrobe GUI cleared, waiting for swap completion...");
-                        while (GearManager.isSwappingWardrobe)
+                        while (WardrobeManager.isSwappingWardrobe)
                             Thread.sleep(50);
-                        while (GearManager.wardrobeCleanupTicks > 0)
+                        while (WardrobeManager.wardrobeCleanupTicks > 0)
                             Thread.sleep(50);
                         Thread.sleep(250);
                     }
@@ -362,7 +362,7 @@ public class PestManager {
                 // visitors)
                 try {
                     ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for final stability...");
-                    while (GearManager.isSwappingWardrobe)
+                    while (WardrobeManager.isSwappingWardrobe)
                         Thread.sleep(50);
                     long guiStart = System.currentTimeMillis();
                     while (client.screen != null && System.currentTimeMillis() - guiStart < 5000) {
@@ -386,7 +386,7 @@ public class PestManager {
             ClientUtils.sendDebugMessage(client, "Finalize: Tool swap done.");
             if (MacroConfig.autoRodReturnToFarm) {
                 ClientUtils.sendDebugMessage(client, "Finalize: Auto Rod - Triggering second rod cast.");
-                GearManager.executeRodSequence(client);
+                RodManager.executeRodSequence(client);
             }
 
             // Only wait for gear swap if equipment swap is enabled (since it's only done
@@ -424,158 +424,23 @@ public class PestManager {
         ClientUtils.sendDebugMessage(client, "Pest cooldown detected. Triggering prep-swap...");
         MacroWorkerThread.getInstance().submit("PrepSwap", () -> {
             try {
-                if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                    prepSwappedForCurrentPestCycle = false;
+                if (shouldAbortPrepSwap(client))
                     return;
-                }
                 ClientUtils.sendDebugMessage(client, "Stopping script: Triggering prep-swap");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
-                // Wait for script to actually stop before attempting wardrobe swap
                 MacroWorkerThread.sleep(400);
-                if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                    prepSwappedForCurrentPestCycle = false;
+                if (shouldAbortPrepSwap(client))
                     return;
-                }
 
-                if (isCleaningInProgress) {
-                    prepSwappedForCurrentPestCycle = false;
+                if (!runPrepWardrobeSwap(client))
                     return;
-                }
-
-                if (isCleaningInProgress) {
-                    prepSwappedForCurrentPestCycle = false;
+                if (!runPrepEquipmentSwap(client))
                     return;
-                }
 
-                // 1. Wardrobe (Synchronous wait)
-                if (MacroConfig.autoWardrobePest && MacroConfig.wardrobeSlotPest > 0) {
-                    ClientUtils.sendDebugMessage(client,
-                            "Prep-swap: Initiating wardrobe swap to slot " + MacroConfig.wardrobeSlotPest);
-                    GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotPest);
-                    if (GearManager.isSwappingWardrobe) {
-                        ClientUtils.sendDebugMessage(client, "Prep-swap: Waiting for wardrobe GUI...");
-                        ClientUtils.waitForWardrobeGui(client);
-
-                        // Check if wardrobe GUI was actually detected
-                        if (!GearManager.wardrobeGuiDetected) {
-                            ClientUtils.sendDebugMessage(client,
-                                    "§cPrep-swap: Wardrobe GUI not detected! Retrying in 1 second...");
-                            MacroWorkerThread.sleep(1000);
-                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                                prepSwappedForCurrentPestCycle = false;
-                                return;
-                            }
-
-                            // Retry wardrobe swap
-                            ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Initiating wardrobe swap to slot "
-                                    + MacroConfig.wardrobeSlotPest);
-                            GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotPest);
-                            if (GearManager.isSwappingWardrobe) {
-                                ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Waiting for wardrobe GUI...");
-                                ClientUtils.waitForWardrobeGui(client);
-
-                                if (!GearManager.wardrobeGuiDetected) {
-                                    ClientUtils.sendDebugMessage(client,
-                                            "§cPrep-swap: Wardrobe GUI still not detected after retry! Aborting prep-swap.");
-                                    prepSwappedForCurrentPestCycle = false;
-                                    return;
-                                } else {
-                                    ClientUtils.sendDebugMessage(client,
-                                            "§aPrep-swap: Retry successful! Wardrobe GUI detected.");
-                                }
-                            }
-                            ClientUtils.sendDebugMessage(client, "§aPrep-swap: Wardrobe GUI detected successfully.");
-                        }
-
-                        while (GearManager.isSwappingWardrobe && !isCleaningInProgress)
-                            MacroWorkerThread.sleep(50);
-                        MacroWorkerThread.sleep(250);
-                        if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                            prepSwappedForCurrentPestCycle = false;
-                            return;
-                        }
-                        ClientUtils.sendDebugMessage(client, "Prep-swap: Wardrobe swap completed.");
-                    } else {
-                        ClientUtils.sendDebugMessage(client,
-                                "Prep-swap: Wardrobe swap not needed (already on correct slot).");
-                    }
-                }
-
-                if (isCleaningInProgress) {
-                    prepSwappedForCurrentPestCycle = false;
-                    return;
-                }
-
-                // 2. Equipment (Synchronous wait)
-                if (MacroConfig.autoEquipment) {
-                    ClientUtils.sendDebugMessage(client, "Prep-swap: Initiating equipment swap to pest gear");
-                    GearManager.ensureEquipment(client, false);
-                    // Give server time to open GUI before we even check
-                    MacroWorkerThread.sleep(200);
-                    if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                        prepSwappedForCurrentPestCycle = false;
-                        return;
-                    }
-                    ClientUtils.sendDebugMessage(client, "Prep-swap: Waiting for equipment GUI...");
-                    ClientUtils.waitForEquipmentGui(client);
-
-                    // Check if equipment GUI was actually detected
-                    if (!GearManager.equipmentGuiDetected) {
-                        ClientUtils.sendDebugMessage(client,
-                                "§cPrep-swap: Equipment GUI not detected! Retrying in 1 second...");
-                        MacroWorkerThread.sleep(1000);
-                        if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                            prepSwappedForCurrentPestCycle = false;
-                            return;
-                        }
-
-                        // Retry equipment swap
-                        ClientUtils.sendDebugMessage(client,
-                                "Prep-swap: Retry - Initiating equipment swap to pest gear");
-                        GearManager.ensureEquipment(client, false);
-                        MacroWorkerThread.sleep(200);
-                        ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Waiting for equipment GUI...");
-                        ClientUtils.waitForEquipmentGui(client);
-
-                        if (!GearManager.equipmentGuiDetected) {
-                            ClientUtils.sendDebugMessage(client,
-                                    "§cPrep-swap: Equipment GUI still not detected after retry! Aborting prep-swap.");
-                            prepSwappedForCurrentPestCycle = false;
-                            return;
-                        } else {
-                            ClientUtils.sendDebugMessage(client,
-                                    "§aPrep-swap: Retry successful! Equipment GUI detected.");
-                        }
-                    } else {
-                        ClientUtils.sendDebugMessage(client, "§aPrep-swap: Equipment GUI detected successfully.");
-                    }
-
-                    while (GearManager.isSwappingEquipment && !isCleaningInProgress)
-                        MacroWorkerThread.sleep(50);
-
-                    // Ensure the screen is actually gone
-                    while (client.screen != null && !isCleaningInProgress) {
-                        MacroWorkerThread.sleep(50);
-                    }
-                    MacroWorkerThread.sleep(250);
-                    if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
-                        prepSwappedForCurrentPestCycle = false;
-                        return;
-                    }
-                    ClientUtils.sendDebugMessage(client, "Prep-swap: Equipment swap completed.");
-                }
-
-                if (isCleaningInProgress) {
-                    prepSwappedForCurrentPestCycle = false;
-                    return;
-                }
-
-                // 3. Rod Sequence (Wait for previous steps confirmed by GearManager checks)
                 if (MacroConfig.autoRodPestCd) {
-                    GearManager.executeRodSequence(client);
+                    RodManager.executeRodSequence(client);
                 }
 
-                // 3. Final Resume
                 if (!isCleaningInProgress) {
                     GearManager.finalResume(client);
                 }
@@ -587,15 +452,112 @@ public class PestManager {
         });
     }
 
+    private static boolean shouldAbortPrepSwap(Minecraft client) {
+        if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING) || isCleaningInProgress) {
+            prepSwappedForCurrentPestCycle = false;
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean runPrepWardrobeSwap(Minecraft client) throws InterruptedException {
+        if (!MacroConfig.autoWardrobePest || MacroConfig.wardrobeSlotPest <= 0)
+            return !shouldAbortPrepSwap(client);
+
+        ClientUtils.sendDebugMessage(client,
+                "Prep-swap: Initiating wardrobe swap to slot " + MacroConfig.wardrobeSlotPest);
+        GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotPest);
+        if (!WardrobeManager.isSwappingWardrobe) {
+            ClientUtils.sendDebugMessage(client, "Prep-swap: Wardrobe swap not needed (already on correct slot).");
+            return !shouldAbortPrepSwap(client);
+        }
+
+        ClientUtils.sendDebugMessage(client, "Prep-swap: Waiting for wardrobe GUI...");
+        ClientUtils.waitForWardrobeGui(client);
+        if (!WardrobeManager.wardrobeGuiDetected) {
+            ClientUtils.sendDebugMessage(client, "§cPrep-swap: Wardrobe GUI not detected! Retrying in 1 second...");
+            MacroWorkerThread.sleep(1000);
+            if (shouldAbortPrepSwap(client))
+                return false;
+
+            GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotPest);
+            if (WardrobeManager.isSwappingWardrobe) {
+                ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Waiting for wardrobe GUI...");
+                ClientUtils.waitForWardrobeGui(client);
+                if (!WardrobeManager.wardrobeGuiDetected) {
+                    ClientUtils.sendDebugMessage(client,
+                            "§cPrep-swap: Wardrobe GUI still not detected after retry! Aborting prep-swap.");
+                    prepSwappedForCurrentPestCycle = false;
+                    return false;
+                }
+            }
+        }
+
+        while (WardrobeManager.isSwappingWardrobe && !isCleaningInProgress) {
+            MacroWorkerThread.sleep(50);
+        }
+        MacroWorkerThread.sleep(250);
+        if (shouldAbortPrepSwap(client))
+            return false;
+
+        ClientUtils.sendDebugMessage(client, "Prep-swap: Wardrobe swap completed.");
+        return true;
+    }
+
+    private static boolean runPrepEquipmentSwap(Minecraft client) throws InterruptedException {
+        if (!MacroConfig.autoEquipment)
+            return !shouldAbortPrepSwap(client);
+
+        ClientUtils.sendDebugMessage(client, "Prep-swap: Initiating equipment swap to pest gear");
+        GearManager.ensureEquipment(client, false);
+        MacroWorkerThread.sleep(200);
+        if (shouldAbortPrepSwap(client))
+            return false;
+
+        ClientUtils.sendDebugMessage(client, "Prep-swap: Waiting for equipment GUI...");
+        ClientUtils.waitForEquipmentGui(client);
+        if (!EquipmentManager.equipmentGuiDetected) {
+            ClientUtils.sendDebugMessage(client,
+                    "§cPrep-swap: Equipment GUI not detected! Retrying in 1 second...");
+            MacroWorkerThread.sleep(1000);
+            if (shouldAbortPrepSwap(client))
+                return false;
+
+            GearManager.ensureEquipment(client, false);
+            MacroWorkerThread.sleep(200);
+            ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Waiting for equipment GUI...");
+            ClientUtils.waitForEquipmentGui(client);
+            if (!EquipmentManager.equipmentGuiDetected) {
+                ClientUtils.sendDebugMessage(client,
+                        "§cPrep-swap: Equipment GUI still not detected after retry! Aborting prep-swap.");
+                prepSwappedForCurrentPestCycle = false;
+                return false;
+            }
+        }
+
+        while (EquipmentManager.isSwappingEquipment && !isCleaningInProgress) {
+            MacroWorkerThread.sleep(50);
+        }
+        while (client.screen != null && !isCleaningInProgress) {
+            MacroWorkerThread.sleep(50);
+        }
+        MacroWorkerThread.sleep(250);
+        if (shouldAbortPrepSwap(client))
+            return false;
+
+        ClientUtils.sendDebugMessage(client, "Prep-swap: Equipment swap completed.");
+        return true;
+    }
+
     public static void startCleaningSequence(Minecraft client, String plot) {
-        if (isCleaningInProgress || GearManager.isSwappingWardrobe || GearManager.isSwappingEquipment)
+        if (isCleaningInProgress || WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment)
             return;
 
         ClientUtils.sendDebugMessage(client,
                 "Stopping script: Pest threshold reached, starting cleaning sequence for plot " + plot);
         com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
         isCleaningInProgress = true;
-        GearManager.shouldRestartFarmingAfterSwap = false;
+        WardrobeManager.shouldRestartFarmingAfterSwap = false;
         com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.CLEANING);
         currentInfestedPlot = plot;
         final int sessionId = ++currentPestSessionId;
@@ -611,36 +573,8 @@ public class PestManager {
                 if (sessionId != currentPestSessionId)
                     return;
 
-                // 1. Gear Restoration
-                if (MacroConfig.autoWardrobePest) {
-                    int targetSlot = MacroConfig.wardrobeSlotFarming;
-                    if ((prepSwappedForCurrentPestCycle || GearManager.trackedWardrobeSlot != targetSlot)
-                            && targetSlot > 0) {
-                        client.player.displayClientMessage(
-                                Component.literal(
-                                        "§eRestoring Farming Wardrobe (Slot " + targetSlot + ") for Vacuuming..."),
-                                true);
-                        client.execute(() -> GearManager.ensureWardrobeSlot(client, targetSlot));
-                        ClientUtils.waitForWardrobeGui(client);
-                        while (GearManager.isSwappingWardrobe)
-                            MacroWorkerThread.sleep(50);
-                        while (GearManager.wardrobeCleanupTicks > 0)
-                            MacroWorkerThread.sleep(50);
-                        MacroWorkerThread.sleep(250);
-                        if (MacroWorkerThread.shouldAbortTask(client))
-                            return;
-                    }
-                }
-
-                if (MacroConfig.autoEquipment) {
-                    GearManager.ensureEquipment(client, true);
-                    ClientUtils.waitForEquipmentGui(client);
-                    while (GearManager.isSwappingEquipment)
-                        MacroWorkerThread.sleep(50);
-                    MacroWorkerThread.sleep(250);
-                    if (MacroWorkerThread.shouldAbortTask(client))
-                        return;
-                }
+                if (!restoreGearForCleaning(client))
+                    return;
 
                 prepSwappedForCurrentPestCycle = false;
                 client.player.displayClientMessage(
@@ -657,97 +591,142 @@ public class PestManager {
                     return;
                 }
 
-                // 2. AOTV and Teleport Logic
-                boolean shouldDoAotv = false;
                 boolean isSamePlot = currentInfestedPlot != null && currentInfestedPlot.equals(currentPlot);
+                boolean shouldDoAotv = shouldDoAotvOnCurrentPlot(client, isSamePlot);
 
-                if (MacroConfig.aotvToRoof) {
-                    if (MacroConfig.aotvRoofPlots.isEmpty()) {
-                        shouldDoAotv = isSamePlot;
-                    } else {
-                        if (MacroConfig.aotvRoofPlots.contains(currentInfestedPlot)) {
-                            ClientUtils.sendDebugMessage(client, "plot in list, performing aotv");
-                            shouldDoAotv = true;
-                        } else {
-                            ClientUtils.sendDebugMessage(client, "plot not in list, skipping aotv");
-                        }
-                    }
-                }
-
-                // Warp to infested plot if not already there
-                if (!isSamePlot && currentInfestedPlot != null && !currentInfestedPlot.equals("0")) {
-                    if (com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot)) {
-                        Thread.sleep(250);
-                        if (MacroWorkerThread.shouldAbortTask(client))
-                            return;
-                    } else {
-                        client.player.displayClientMessage(
-                                Component.literal("§cFailed to warp to plot " + currentInfestedPlot + "!"), true);
-                        shouldDoAotv = false; // Cancel AOTV if warp failed
-                    }
+                if (!warpToInfestedPlotIfNeeded(client, isSamePlot)) {
+                    shouldDoAotv = false;
                 }
 
                 if (shouldDoAotv) {
-                    isSneakingForAotv = true;
-                    Vec3 eyePos = client.player.getEyePosition();
-                    float yawRad = (float) Math.toRadians(client.player.getYRot());
-                    double offsetX = -Math.sin(yawRad) * (0.0008 + Math.random() * 0.0006);
-                    double offsetZ = Math.cos(yawRad) * (0.0008 + Math.random() * 0.0006);
-                    Vec3 targetPos = new Vec3(eyePos.x + offsetX, eyePos.y + (85.0 + Math.random() * 6.0),
-                            eyePos.z + offsetZ);
-                    int rotTime = (int) (MacroConfig.rotationTime * (0.92 + Math.random() * 0.16));
-
-                    RotationManager.initiateRotation(client, targetPos, rotTime);
-                    ClientUtils.waitForRotationToComplete(client, -90.0f, rotTime);
-
-                    int aotvSlot = ClientUtils.findAspectOfTheVoidSlot(client);
-                    if (aotvSlot != -1 && aotvSlot < 9) {
-                        client.execute(() -> ((AccessorInventory) client.player.getInventory()).setSelected(aotvSlot));
-                        Thread.sleep(150);
-                        double startY = client.player.getY();
-                        Thread.sleep(50 + (long) (Math.random() * 80));
-                        client.execute(() -> client.gameMode.useItem(client.player,
-                                net.minecraft.world.InteractionHand.MAIN_HAND));
-
-                        ClientUtils.waitForYChange(client, startY, 1500);
-                        Thread.sleep(40 + (long) (Math.random() * 60));
-                        isSneakingForAotv = false;
-                        client.execute(() -> client.options.keyShift.setDown(false));
-                        Thread.sleep(30 + (long) (Math.random() * 50));
-
-                        // Look forward again
-                        Vec3 postEyePos = client.player.getEyePosition();
-                        float yawPost = (float) Math.toRadians(client.player.getYRot());
-                        double targetPitch = -5.0 + Math.random() * 10.0;
-                        Vec3 forward = new Vec3(postEyePos.x - Math.sin(yawPost) * 100,
-                                postEyePos.y + Math.tan(Math.toRadians(-targetPitch)) * 5.0,
-                                postEyePos.z + Math.cos(yawPost) * 100);
-                        RotationManager.initiateRotation(client, forward, 250 + (int) (Math.random() * 150));
-                    } else {
-                        // Fallback: AOTV failed or not found
-                        isSneakingForAotv = false;
-                        client.execute(() -> client.options.keyShift.setDown(false));
-                        // No redundant plotTp needed here as we already warped above
-                    }
+                    performAotvToRoof(client);
                 }
 
-                // 3. Start Cleaning Script
-                ClientUtils.sendDebugMessage(client, "Ready to start pest cleaner");
-                com.ihanuat.mod.util.CommandUtils.stopScript(client, 50);
-                GearManager.swapToFarmingToolSync(client);
-                if (MacroWorkerThread.shouldAbortTask(client))
-                    return;
-                ClientUtils.sendDebugMessage(client, "Starting pest cleaner script for plot " + currentInfestedPlot);
-                if (MacroConfig.autoRodPestSpawn) {
-                    ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
-                    GearManager.executeRodSequence(client);
-                }
-                com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
+                startPestCleanerScript(client);
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
+    }
+
+    private static boolean restoreGearForCleaning(Minecraft client) throws InterruptedException {
+        if (MacroConfig.autoWardrobePest) {
+            int targetSlot = MacroConfig.wardrobeSlotFarming;
+            if ((prepSwappedForCurrentPestCycle || WardrobeManager.trackedWardrobeSlot != targetSlot)
+                    && targetSlot > 0) {
+                client.player.displayClientMessage(
+                        Component.literal("§eRestoring Farming Wardrobe (Slot " + targetSlot + ") for Vacuuming..."),
+                        true);
+                client.execute(() -> GearManager.ensureWardrobeSlot(client, targetSlot));
+                ClientUtils.waitForWardrobeGui(client);
+                while (WardrobeManager.isSwappingWardrobe)
+                    MacroWorkerThread.sleep(50);
+                while (WardrobeManager.wardrobeCleanupTicks > 0)
+                    MacroWorkerThread.sleep(50);
+                MacroWorkerThread.sleep(250);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return false;
+            }
+        }
+
+        if (MacroConfig.autoEquipment) {
+            GearManager.ensureEquipment(client, true);
+            ClientUtils.waitForEquipmentGui(client);
+            while (EquipmentManager.isSwappingEquipment)
+                MacroWorkerThread.sleep(50);
+            MacroWorkerThread.sleep(250);
+            if (MacroWorkerThread.shouldAbortTask(client))
+                return false;
+        }
+        return true;
+    }
+
+    private static boolean shouldDoAotvOnCurrentPlot(Minecraft client, boolean isSamePlot) {
+        if (!MacroConfig.aotvToRoof)
+            return false;
+
+        if (MacroConfig.aotvRoofPlots.isEmpty())
+            return isSamePlot;
+
+        boolean inAllowedList = MacroConfig.aotvRoofPlots.contains(currentInfestedPlot);
+        ClientUtils.sendDebugMessage(client, inAllowedList ? "plot in list, performing aotv" : "plot not in list, skipping aotv");
+        return inAllowedList;
+    }
+
+    private static boolean warpToInfestedPlotIfNeeded(Minecraft client, boolean isSamePlot) throws InterruptedException {
+        if (isSamePlot || currentInfestedPlot == null || currentInfestedPlot.equals("0"))
+            return true;
+
+        if (com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot)) {
+            Thread.sleep(250);
+            return !MacroWorkerThread.shouldAbortTask(client);
+        }
+
+        client.player.displayClientMessage(Component.literal("§cFailed to warp to plot " + currentInfestedPlot + "!"), true);
+        return false;
+    }
+
+    private static void performAotvToRoof(Minecraft client) throws InterruptedException {
+        isSneakingForAotv = true;
+        Vec3 eyePos = client.player.getEyePosition();
+        float yawRad = (float) Math.toRadians(client.player.getYRot());
+        int baseUpPitch = Math.max(45, Math.min(90, MacroConfig.aotvRoofPitch));
+        int humanization = Math.max(0, Math.min(15, MacroConfig.aotvRoofPitchHumanization));
+        double randomizedUpPitch = baseUpPitch + ((Math.random() * 2.0) - 1.0) * humanization;
+        randomizedUpPitch = Math.max(45.0, Math.min(90.0, randomizedUpPitch));
+        float targetMcPitch = (float) -randomizedUpPitch;
+        double pitchRad = Math.toRadians(targetMcPitch);
+
+        double dirX = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double dirY = -Math.sin(pitchRad);
+        double dirZ = Math.cos(yawRad) * Math.cos(pitchRad);
+        Vec3 targetPos = eyePos.add(dirX * 100.0, dirY * 100.0, dirZ * 100.0);
+        int rotTime = (int) (MacroConfig.rotationTime * (0.92 + Math.random() * 0.16));
+
+        RotationManager.initiateRotation(client, targetPos, rotTime);
+        ClientUtils.waitForRotationToComplete(client, targetMcPitch, rotTime);
+
+        int aotvSlot = ClientUtils.findAspectOfTheVoidSlot(client);
+        if (aotvSlot != -1 && aotvSlot < 9) {
+            client.execute(() -> ((AccessorInventory) client.player.getInventory()).setSelected(aotvSlot));
+            Thread.sleep(150);
+            double startY = client.player.getY();
+            Thread.sleep(50 + (long) (Math.random() * 80));
+            client.execute(() -> client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND));
+
+            ClientUtils.waitForYChange(client, startY, 1500);
+            Thread.sleep(40 + (long) (Math.random() * 60));
+            isSneakingForAotv = false;
+            client.execute(() -> client.options.keyShift.setDown(false));
+            Thread.sleep(30 + (long) (Math.random() * 50));
+
+            Vec3 postEyePos = client.player.getEyePosition();
+            float yawPost = (float) Math.toRadians(client.player.getYRot());
+            double targetPitch = -5.0 + Math.random() * 10.0;
+            Vec3 forward = new Vec3(postEyePos.x - Math.sin(yawPost) * 100,
+                    postEyePos.y + Math.tan(Math.toRadians(-targetPitch)) * 5.0,
+                    postEyePos.z + Math.cos(yawPost) * 100);
+            RotationManager.initiateRotation(client, forward, 250 + (int) (Math.random() * 150));
+        } else {
+            isSneakingForAotv = false;
+            client.execute(() -> client.options.keyShift.setDown(false));
+        }
+    }
+
+    private static void startPestCleanerScript(Minecraft client) {
+        ClientUtils.sendDebugMessage(client, "Ready to start pest cleaner");
+        com.ihanuat.mod.util.CommandUtils.stopScript(client, 50);
+        GearManager.swapToFarmingToolSync(client);
+        if (MacroWorkerThread.shouldAbortTask(client))
+            return;
+
+        ClientUtils.sendDebugMessage(client, "Starting pest cleaner script for plot " + currentInfestedPlot);
+        if (MacroConfig.autoRodPestSpawn) {
+            ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
+            RodManager.executeRodSequence(client);
+        }
+        com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
     }
 
     private static void triggerCleaningNow(Minecraft client, Set<String> infestedPlots) {

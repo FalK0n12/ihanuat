@@ -3,6 +3,7 @@ package com.ihanuat.mod;
 import com.ihanuat.mod.gui.ConfigScreenFactory;
 import com.ihanuat.mod.gui.MacroHudRenderer;
 import com.ihanuat.mod.modules.GearManager;
+import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.modules.PestManager;
 import com.ihanuat.mod.modules.GeorgeManager;
 import com.ihanuat.mod.modules.RecoveryManager;
@@ -10,6 +11,7 @@ import com.ihanuat.mod.modules.DynamicRestManager;
 import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.BoosterCookieManager;
 import com.ihanuat.mod.modules.BookCombineManager;
+import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
 import com.ihanuat.mod.modules.VisitorManager;
 import com.ihanuat.mod.modules.JunkManager;
@@ -415,7 +417,7 @@ public class IhanuatClient implements ClientModInitializer {
                                 return;
                             }
                             if (PestManager.prepSwappedForCurrentPestCycle
-                                    && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
+                                    && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
                                 client.execute(
                                         () -> GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotFarming));
                                 MacroWorkerThread.sleep(800);
@@ -434,7 +436,7 @@ public class IhanuatClient implements ClientModInitializer {
                             GearManager.swapToFarmingToolSync(client);
                             if (MacroConfig.autoRodReturnToFarm) {
                                 ClientUtils.sendDebugMessage(client, "Auto Rod: Executing rod cast during startup.");
-                                GearManager.executeRodSequence(client);
+                                RodManager.executeRodSequence(client);
                             }
                             if (PestManager.isCleaningInProgress || PestManager.isPrepSwapping)
                                 return;
@@ -504,7 +506,7 @@ public class IhanuatClient implements ClientModInitializer {
                 }
             }
 
-            if (GearManager.isHoldingRodUse) {
+            if (RodManager.isHoldingRodUse) {
                 client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND);
             }
 

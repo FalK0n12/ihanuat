@@ -66,7 +66,7 @@ public class JunkManager {
             return;
 
         // Don't trigger if busy
-        if (GearManager.isSwappingWardrobe || GearManager.isSwappingEquipment ||
+        if (WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment ||
                 PestManager.isCleaningInProgress || PestManager.prepSwappedForCurrentPestCycle)
             return;
 

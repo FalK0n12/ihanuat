@@ -110,15 +110,15 @@ public class VisitorManager {
             MacroWorkerThread.sleep(250);
 
             if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
-                    && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
+                    && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
                 client.player.displayClientMessage(Component.literal(
                         "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor + ")..."), true);
                 GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotVisitor);
-                if (GearManager.isSwappingWardrobe) {
+                if (WardrobeManager.isSwappingWardrobe) {
                     ClientUtils.waitForWardrobeGui(client);
-                    while (GearManager.isSwappingWardrobe)
+                    while (WardrobeManager.isSwappingWardrobe)
                         MacroWorkerThread.sleep(50);
-                    while (GearManager.wardrobeCleanupTicks > 0)
+                    while (WardrobeManager.wardrobeCleanupTicks > 0)
                         MacroWorkerThread.sleep(50);
                     MacroWorkerThread.sleep(250);
                 }
@@ -140,18 +140,18 @@ public class VisitorManager {
         MacroWorkerThread.sleep(250);
 
         if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotFarming > 0
-                && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
+                && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
             client.player.displayClientMessage(Component.literal(
                     "\u00A7eRestoring Farming Wardrobe (Slot " + MacroConfig.wardrobeSlotFarming + ")..."), true);
             GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotFarming);
-            if (GearManager.isSwappingWardrobe) {
+            if (WardrobeManager.isSwappingWardrobe) {
                 ClientUtils.sendDebugMessage(client, "finalizeReturnToFarm: Waiting for wardrobe GUI...");
                 ClientUtils.waitForWardrobeGui(client);
                 ClientUtils.sendDebugMessage(client,
                         "finalizeReturnToFarm: Wardrobe GUI detected, waiting for swap to complete...");
-                while (GearManager.isSwappingWardrobe)
+                while (WardrobeManager.isSwappingWardrobe)
                     MacroWorkerThread.sleep(50);
-                while (GearManager.wardrobeCleanupTicks > 0)
+                while (WardrobeManager.wardrobeCleanupTicks > 0)
                     MacroWorkerThread.sleep(50);
                 MacroWorkerThread.sleep(350);
                 ClientUtils.sendDebugMessage(client, "finalizeReturnToFarm: Wardrobe swap fully complete.");
@@ -162,7 +162,7 @@ public class VisitorManager {
 
         if (MacroConfig.autoRodReturnToFarm) {
             ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering second rod cast (VisitorManager)...");
-            GearManager.executeRodSequence(client);
+            RodManager.executeRodSequence(client);
         }
 
         client.player.displayClientMessage(Component.literal("\u00A7aRestarting farming script..."),

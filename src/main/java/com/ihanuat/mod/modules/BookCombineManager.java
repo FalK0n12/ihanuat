@@ -168,7 +168,7 @@ public class BookCombineManager {
             return;
         }
 
-        if (GearManager.isSwappingWardrobe || GearManager.isSwappingEquipment ||
+        if (WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment ||
                 PestManager.isCleaningInProgress || PestManager.prepSwappedForCurrentPestCycle ||
                 GeorgeManager.isSelling || GeorgeManager.isPreparingToSell ||
                 JunkManager.isDropping || JunkManager.isPreparingToDrop ||

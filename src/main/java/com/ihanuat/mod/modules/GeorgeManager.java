@@ -207,7 +207,7 @@ public class GeorgeManager {
 
         // Don't sell if we are currently swapping gear, cleaning pests, or dealing with
         // visitors
-        if (GearManager.isSwappingWardrobe || GearManager.isSwappingEquipment ||
+        if (WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment ||
                 PestManager.isCleaningInProgress || PestManager.prepSwappedForCurrentPestCycle)
             return;
 
