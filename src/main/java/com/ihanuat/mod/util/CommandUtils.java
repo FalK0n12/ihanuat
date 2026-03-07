@@ -2,15 +2,12 @@ package com.ihanuat.mod.util;
 
 import net.minecraft.client.Minecraft;
 
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.Set;
 
 public class CommandUtils {
     private static final Queue<String> chatMessageQueue = new LinkedList<>();
-    private static final long MESSAGE_TIMEOUT_MS = 10000; // 10 second timeout
-    private static final Set<String> awaitingMessages = new HashSet<>();
+    private static final long MESSAGE_TIMEOUT_MS = 3000; // 3 second timeout
 
     /**
      * Register a chat message to the queue.
