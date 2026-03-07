@@ -61,8 +61,12 @@ public class GeorgeManager {
                     if (com.ihanuat.mod.MacroStateManager
                             .getCurrentState() == com.ihanuat.mod.MacroState.State.FARMING) {
                         MacroWorkerThread.getInstance().submit("George-UnexpectedGUI-Restart", () -> {
+                            if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                                return;
                             com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                             MacroWorkerThread.sleep(1000);
+                            if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                                return;
                             ClientUtils.sendDebugMessage(client,
                                     "Restarting script after unexpected George GUI closure");
                             com.ihanuat.mod.util.CommandUtils.startScript(client,
@@ -230,9 +234,15 @@ public class GeorgeManager {
         // Resume farming script if we were farming
         if (com.ihanuat.mod.MacroStateManager.getCurrentState() == com.ihanuat.mod.MacroState.State.FARMING) {
             MacroWorkerThread.getInstance().submit("George-FinishSelling-Resume", () -> {
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 com.ihanuat.mod.util.ClientUtils.waitForGearAndGui(client);
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 client.execute(() -> GearManager.swapToFarmingTool(client));
                 MacroWorkerThread.sleep(150);
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 ClientUtils.sendDebugMessage(client,
                         "Starting farming script after George sell: " + MacroConfig.getFullRestartCommand());
                 com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
@@ -307,12 +317,20 @@ public class GeorgeManager {
 
         MacroWorkerThread.getInstance().submit("George-TriggerSell", () -> {
             try {
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING)) {
+                    isPreparingToSell = false;
+                    return;
+                }
                 ClientUtils.sendDebugMessage(client, "Stopping script: Preparing George sell");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
 
                 boolean success = true;
                 for (int i = 0; i < 50; i++) {
                     MacroWorkerThread.sleep(100);
+                    if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING)) {
+                        success = false;
+                        break;
+                    }
                     if (!isPreparingToSell) {
                         success = false;
                         break;

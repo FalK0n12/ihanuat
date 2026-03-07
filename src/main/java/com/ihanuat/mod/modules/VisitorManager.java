@@ -76,9 +76,13 @@ public class VisitorManager {
                 true);
         MacroWorkerThread.getInstance().submit("VisitorFinished-ReturnToFarm", () -> {
             try {
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 ClientUtils.sendDebugMessage(client, "Warping to garden...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
                 PestManager.isReturningFromPestVisitor = true;
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 ClientUtils.sendDebugMessage(client, "Finalizing return to farm...");
                 finalizeReturnToFarm(client);
             } catch (Exception e) {
@@ -88,6 +92,8 @@ public class VisitorManager {
     }
 
     public static void finalizeReturnToFarm(Minecraft client) {
+        if (MacroWorkerThread.shouldAbortTask(client))
+            return;
         ClientUtils.sendDebugMessage(client,
                 "finalizeReturnToFarm triggered. State: " + MacroStateManager.getCurrentState());
         if (MacroStateManager.getCurrentState() == MacroState.State.OFF)

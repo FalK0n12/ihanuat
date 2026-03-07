@@ -305,12 +305,26 @@ public class IhanuatClient implements ClientModInitializer {
                                 String plot = m.group(1);
                                 if (MacroConfig.pestChatTriggerDelay > 0) {
                                     MacroWorkerThread.getInstance().submit("PestClean-ChatTrigger-" + plot, () -> {
+                                        if (MacroWorkerThread.shouldAbortTask(Minecraft.getInstance(),
+                                                MacroState.State.FARMING)) {
+                                            return;
+                                        }
                                         MacroWorkerThread.sleep(MacroConfig.pestChatTriggerDelay);
+                                        if (MacroWorkerThread.shouldAbortTask(Minecraft.getInstance(),
+                                                MacroState.State.FARMING)) {
+                                            return;
+                                        }
                                         PestManager.startCleaningSequence(Minecraft.getInstance(), plot);
                                     });
                                 } else {
                                     MacroWorkerThread.getInstance().submit("PestClean-ChatTrigger-" + plot,
-                                            () -> PestManager.startCleaningSequence(Minecraft.getInstance(), plot));
+                                            () -> {
+                                                if (MacroWorkerThread.shouldAbortTask(Minecraft.getInstance(),
+                                                        MacroState.State.FARMING)) {
+                                                    return;
+                                                }
+                                                PestManager.startCleaningSequence(Minecraft.getInstance(), plot);
+                                            });
                                 }
                             } else if (MacroConfig.showDebug) {
                                 ClientUtils.sendDebugMessage(Minecraft.getInstance(),
@@ -397,14 +411,23 @@ public class IhanuatClient implements ClientModInitializer {
                     DynamicRestManager.scheduleNextRest();
                     MacroWorkerThread.getInstance().submit("StartScript-KeyPress", () -> {
                         try {
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             if (PestManager.prepSwappedForCurrentPestCycle
                                     && GearManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotFarming) {
                                 client.execute(
                                         () -> GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotFarming));
                                 MacroWorkerThread.sleep(800);
+                                if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                    return;
+                                }
                             }
 
                             ClientUtils.waitForGearAndGui(client);
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             if (PestManager.isCleaningInProgress || PestManager.isPrepSwapping)
                                 return;
 
@@ -417,6 +440,9 @@ public class IhanuatClient implements ClientModInitializer {
                                 return;
 
                             com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             if (PestManager.isCleaningInProgress || PestManager.isPrepSwapping)
                                 return;
 
@@ -549,10 +575,19 @@ public class IhanuatClient implements ClientModInitializer {
                         lastRewarpTime = now;
                         client.player.displayClientMessage(Component.literal("§6Rewarp End Position reached!"), true);
                         MacroWorkerThread.getInstance().submit("PlotTpRewarp", () -> {
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             client.execute(() -> com.ihanuat.mod.util.CommandUtils.stopScript(client, 0));
                             MacroWorkerThread.sleep(300);
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             client.execute(() -> MacroConfig.executePlotTpRewarp(client));
                             MacroWorkerThread.sleep(1200); // Wait for warp
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                return;
+                            }
                             if (MacroStateManager.getCurrentState() == MacroState.State.FARMING) {
                                 client.execute(
                                         () -> com.ihanuat.mod.util.CommandUtils.startScript(client,

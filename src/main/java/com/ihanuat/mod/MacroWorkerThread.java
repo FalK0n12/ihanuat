@@ -114,6 +114,25 @@ public final class MacroWorkerThread {
         return cancelRequested;
     }
 
+    /**
+     * Common checkpoint for long-running worker tasks.
+     * Abort when task cancellation is requested, macro is not running,
+     * or the client/player context is unavailable.
+     */
+    public static boolean shouldAbortTask(Minecraft client) {
+        return getInstance().isCancelled()
+                || !MacroStateManager.isMacroRunning()
+                || client == null
+                || client.player == null;
+    }
+
+    /**
+     * Common checkpoint for tasks that are only valid in a specific macro state.
+     */
+    public static boolean shouldAbortTask(Minecraft client, MacroState.State requiredState) {
+        return shouldAbortTask(client) || MacroStateManager.getCurrentState() != requiredState;
+    }
+
     /** @return true if any task is currently running or pending. */
     public boolean isBusy() {
         return queue.size() > 0 || !currentTaskName.equals("(idle)");

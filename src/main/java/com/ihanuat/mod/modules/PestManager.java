@@ -194,10 +194,14 @@ public class PestManager {
         client.player.displayClientMessage(Component.literal("§aPest cleaning finished detected."), true);
         MacroWorkerThread.getInstance().submit("PestCleaning-Finished", () -> {
             try {
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 if (MacroConfig.unflyMode == MacroConfig.UnflyMode.DOUBLE_TAP_SPACE) {
                     ClientUtils.sendDebugMessage(client, "Finisher: Performing unfly (Double Tap Space)...");
                     performUnfly(client);
                     MacroWorkerThread.sleep(150);
+                    if (MacroWorkerThread.shouldAbortTask(client))
+                        return;
                 }
 
                 int visitors = VisitorManager.getVisitorCount(client);
@@ -257,9 +261,13 @@ public class PestManager {
                 }
 
                 MacroWorkerThread.sleep(150);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 ClientUtils.sendDebugMessage(client, "Finisher: Warping to garden (Return to Farm)...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
                 MacroWorkerThread.sleep(250);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 isReturningFromPestVisitor = true;
                 ClientUtils.sendDebugMessage(client, "Finisher: Calling finalizeReturnToFarm...");
                 finalizeReturnToFarm(client);
@@ -416,10 +424,18 @@ public class PestManager {
         ClientUtils.sendDebugMessage(client, "Pest cooldown detected. Triggering prep-swap...");
         MacroWorkerThread.getInstance().submit("PrepSwap", () -> {
             try {
+                if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                    prepSwappedForCurrentPestCycle = false;
+                    return;
+                }
                 ClientUtils.sendDebugMessage(client, "Stopping script: Triggering prep-swap");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                 // Wait for script to actually stop before attempting wardrobe swap
                 MacroWorkerThread.sleep(400);
+                if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                    prepSwappedForCurrentPestCycle = false;
+                    return;
+                }
 
                 if (isCleaningInProgress) {
                     prepSwappedForCurrentPestCycle = false;
@@ -445,6 +461,10 @@ public class PestManager {
                             ClientUtils.sendDebugMessage(client,
                                     "§cPrep-swap: Wardrobe GUI not detected! Retrying in 1 second...");
                             MacroWorkerThread.sleep(1000);
+                            if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                                prepSwappedForCurrentPestCycle = false;
+                                return;
+                            }
 
                             // Retry wardrobe swap
                             ClientUtils.sendDebugMessage(client, "Prep-swap: Retry - Initiating wardrobe swap to slot "
@@ -470,6 +490,10 @@ public class PestManager {
                         while (GearManager.isSwappingWardrobe && !isCleaningInProgress)
                             MacroWorkerThread.sleep(50);
                         MacroWorkerThread.sleep(250);
+                        if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                            prepSwappedForCurrentPestCycle = false;
+                            return;
+                        }
                         ClientUtils.sendDebugMessage(client, "Prep-swap: Wardrobe swap completed.");
                     } else {
                         ClientUtils.sendDebugMessage(client,
@@ -488,6 +512,10 @@ public class PestManager {
                     GearManager.ensureEquipment(client, false);
                     // Give server time to open GUI before we even check
                     MacroWorkerThread.sleep(200);
+                    if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                        prepSwappedForCurrentPestCycle = false;
+                        return;
+                    }
                     ClientUtils.sendDebugMessage(client, "Prep-swap: Waiting for equipment GUI...");
                     ClientUtils.waitForEquipmentGui(client);
 
@@ -496,6 +524,10 @@ public class PestManager {
                         ClientUtils.sendDebugMessage(client,
                                 "§cPrep-swap: Equipment GUI not detected! Retrying in 1 second...");
                         MacroWorkerThread.sleep(1000);
+                        if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                            prepSwappedForCurrentPestCycle = false;
+                            return;
+                        }
 
                         // Retry equipment swap
                         ClientUtils.sendDebugMessage(client,
@@ -526,6 +558,10 @@ public class PestManager {
                         MacroWorkerThread.sleep(50);
                     }
                     MacroWorkerThread.sleep(250);
+                    if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
+                        prepSwappedForCurrentPestCycle = false;
+                        return;
+                    }
                     ClientUtils.sendDebugMessage(client, "Prep-swap: Equipment swap completed.");
                 }
 
@@ -567,7 +603,11 @@ public class PestManager {
 
         MacroWorkerThread.getInstance().submit("CleaningSequence-" + plot, () -> {
             try {
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 MacroWorkerThread.sleep(850);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 if (sessionId != currentPestSessionId)
                     return;
 
@@ -587,6 +627,8 @@ public class PestManager {
                         while (GearManager.wardrobeCleanupTicks > 0)
                             MacroWorkerThread.sleep(50);
                         MacroWorkerThread.sleep(250);
+                        if (MacroWorkerThread.shouldAbortTask(client))
+                            return;
                     }
                 }
 
@@ -596,12 +638,16 @@ public class PestManager {
                     while (GearManager.isSwappingEquipment)
                         MacroWorkerThread.sleep(50);
                     MacroWorkerThread.sleep(250);
+                    if (MacroWorkerThread.shouldAbortTask(client))
+                        return;
                 }
 
                 prepSwappedForCurrentPestCycle = false;
                 client.player.displayClientMessage(
                         Component.literal("§6Starting Pest Cleaner script (" + currentInfestedPlot + ")..."), true);
                 com.ihanuat.mod.util.CommandUtils.setSpawn(client);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
 
                 if (isBonusInactive) {
                     client.player.displayClientMessage(
@@ -632,6 +678,8 @@ public class PestManager {
                 if (!isSamePlot && currentInfestedPlot != null && !currentInfestedPlot.equals("0")) {
                     if (com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot)) {
                         Thread.sleep(250);
+                        if (MacroWorkerThread.shouldAbortTask(client))
+                            return;
                     } else {
                         client.player.displayClientMessage(
                                 Component.literal("§cFailed to warp to plot " + currentInfestedPlot + "!"), true);
@@ -687,6 +735,8 @@ public class PestManager {
                 ClientUtils.sendDebugMessage(client, "Ready to start pest cleaner");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 50);
                 GearManager.swapToFarmingToolSync(client);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
                 ClientUtils.sendDebugMessage(client, "Starting pest cleaner script for plot " + currentInfestedPlot);
                 if (MacroConfig.autoRodPestSpawn) {
                     ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
@@ -715,11 +765,17 @@ public class PestManager {
                     "§aPhillip message detected! Returning to plot §e" + currentInfestedPlot + "..."), true);
             MacroWorkerThread.getInstance().submit("PhillipReactivation", () -> {
                 try {
+                    if (MacroWorkerThread.shouldAbortTask(client))
+                        return;
                     ClientUtils.sendDebugMessage(client,
                             "Stopping script: Phillip message detected, reactivating bonus");
                     com.ihanuat.mod.util.CommandUtils.stopScript(client, MacroConfig.getRandomizedDelay(250));
+                    if (MacroWorkerThread.shouldAbortTask(client))
+                        return;
                     ClientUtils.sendDebugMessage(client, "Teleporting back to plot " + currentInfestedPlot);
                     com.ihanuat.mod.util.CommandUtils.plotTp(client, currentInfestedPlot);
+                    if (MacroWorkerThread.shouldAbortTask(client))
+                        return;
                     ClientUtils.sendDebugMessage(client, "Starting pest cleaner script after Phillip message");
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 250);
                 } catch (Exception e) {

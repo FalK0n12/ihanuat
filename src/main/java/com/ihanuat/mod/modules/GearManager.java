@@ -54,9 +54,15 @@ public class GearManager {
             ClientUtils.sendDebugMessage(client, "Stopping script: Wardrobe already on target slot, restarting");
             com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
             MacroWorkerThread.getInstance().submit("Wardrobe-AlreadyOnSlot-FastResume", () -> {
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 MacroWorkerThread.sleep(400);
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 client.execute(() -> GearManager.swapToFarmingTool(client));
                 MacroWorkerThread.sleep(250);
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 ClientUtils.sendDebugMessage(client,
                         "Starting farming script after wardrobe swap: " + MacroConfig.getFullRestartCommand());
                 com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
@@ -77,7 +83,11 @@ public class GearManager {
         ClientUtils.sendDebugMessage(client, "Stopping script: Triggering wardrobe swap to slot " + slot);
         com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
         MacroWorkerThread.getInstance().submit("Wardrobe-OpenGui", () -> {
+            if (MacroWorkerThread.shouldAbortTask(client))
+                return;
             MacroWorkerThread.sleep(375);
+            if (MacroWorkerThread.shouldAbortTask(client))
+                return;
             client.execute(() -> ClientUtils.sendCommand(client, "/wardrobe"));
             ClientUtils.waitForWardrobeGui(client);
         });
@@ -198,6 +208,8 @@ public class GearManager {
             client.execute(() -> GearManager.swapToFarmingTool(client));
             MacroWorkerThread.getInstance().submit("WardrobeCompletion-Resume", () -> {
                 // Removed duplicate ClientUtils.waitForGearAndGui(client);
+                if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                    return;
                 if (PestManager.isCleaningInProgress)
                     return;
 
