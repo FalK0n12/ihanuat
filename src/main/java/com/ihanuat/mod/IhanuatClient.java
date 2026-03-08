@@ -1,25 +1,32 @@
 package com.ihanuat.mod;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.lwjgl.glfw.GLFW;
+
 import com.ihanuat.mod.gui.ConfigScreenFactory;
+import com.ihanuat.mod.gui.DynamicRestScreen;
 import com.ihanuat.mod.gui.MacroHudRenderer;
+import com.ihanuat.mod.modules.BookCombineManager;
+import com.ihanuat.mod.modules.BoosterCookieManager;
+import com.ihanuat.mod.modules.DynamicRestManager;
 import com.ihanuat.mod.modules.GearManager;
-import com.ihanuat.mod.modules.WardrobeManager;
-import com.ihanuat.mod.modules.PestManager;
+import com.ihanuat.mod.modules.GeorgeManager;
+import com.ihanuat.mod.modules.JunkManager;
 import com.ihanuat.mod.modules.PestAotvManager;
+import com.ihanuat.mod.modules.PestManager;
 import com.ihanuat.mod.modules.PestPrepSwapManager;
 import com.ihanuat.mod.modules.PestReturnManager;
-import com.ihanuat.mod.modules.GeorgeManager;
+import com.ihanuat.mod.modules.ProfitManager;
 import com.ihanuat.mod.modules.RecoveryManager;
-import com.ihanuat.mod.modules.DynamicRestManager;
 import com.ihanuat.mod.modules.RestartManager;
-import com.ihanuat.mod.modules.BoosterCookieManager;
-import com.ihanuat.mod.modules.BookCombineManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
 import com.ihanuat.mod.modules.VisitorManager;
-import com.ihanuat.mod.modules.JunkManager;
-import com.ihanuat.mod.modules.ProfitManager;
+import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -30,17 +37,12 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screens.DisconnectedScreen;
-import com.ihanuat.mod.gui.DynamicRestScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class IhanuatClient implements ClientModInitializer {
     private static KeyMapping configKey;
@@ -268,7 +270,9 @@ public class IhanuatClient implements ClientModInitializer {
                         && lowerPlainText.contains("finished")
                         && !lowerPlainText.contains("sprayed plot")
                         && !lowerPlainText.contains("plot -")
-                        && !lowerPlainText.matches(".*plot\\s*[#:\\-]\\s*\\d+.*");
+                        && !lowerPlainText.matches(".*plot\\s*[#:\\-]\\s*\\d+.*")
+                        && !lowerPlainText.contains("[debug]") // Prevent infinite loop from our own debug messages
+                        && !lowerPlainText.contains("detected from chat"); // Prevent infinite loop
 
                 if (isPestCleanerFinishSignal) {
                     if (MacroStateManager.getCurrentState() == MacroState.State.CLEANING
