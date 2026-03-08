@@ -58,15 +58,6 @@ public class PestAotvManager {
             Thread.sleep(40 + (long) (Math.random() * 60));
             isSneakingForAotv = false;
             client.execute(() -> client.options.keyShift.setDown(false));
-            Thread.sleep(30 + (long) (Math.random() * 50));
-
-            Vec3 postEyePos = client.player.getEyePosition();
-            float yawPost = (float) Math.toRadians(client.player.getYRot());
-            double targetPitch = -5.0 + Math.random() * 10.0;
-            Vec3 forward = new Vec3(postEyePos.x - Math.sin(yawPost) * 100,
-                    postEyePos.y + Math.tan(Math.toRadians(-targetPitch)) * 5.0,
-                    postEyePos.z + Math.cos(yawPost) * 100);
-            RotationManager.initiateRotation(client, forward, 250 + (int) (Math.random() * 150));
         } else {
             isSneakingForAotv = false;
             client.execute(() -> client.options.keyShift.setDown(false));

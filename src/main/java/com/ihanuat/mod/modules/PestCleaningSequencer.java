@@ -25,6 +25,7 @@ public class PestCleaningSequencer {
 
         MacroWorkerThread.getInstance().submit("CleaningSequence-" + plot, () -> {
             try {
+                com.ihanuat.mod.util.CommandUtils.setSpawn(client);
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
                 MacroWorkerThread.sleep(850);
@@ -39,7 +40,6 @@ public class PestCleaningSequencer {
                 PestPrepSwapManager.prepSwappedForCurrentPestCycle = false;
                 client.player.displayClientMessage(
                         Component.literal("§6Starting Pest Cleaner script (" + currentInfestedPlot + ")..."), true);
-                com.ihanuat.mod.util.CommandUtils.setSpawn(client);
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
 
