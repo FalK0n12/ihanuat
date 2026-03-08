@@ -28,7 +28,8 @@ public class PestCleaningSequencer {
                 com.ihanuat.mod.util.CommandUtils.setSpawn(client);
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
-                MacroWorkerThread.sleep(850);
+                // sleep no longer needed since we use CommandUtils.setSpawn now
+                // MacroWorkerThread.sleep(850);
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
                 if (sessionId != PestManager.currentPestSessionId)
