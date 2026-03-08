@@ -1,13 +1,14 @@
 package com.ihanuat.mod.gui;
 
+import java.util.Map;
+
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.ProfitManager;
+
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-
-import java.util.Map;
 
 /**
  * Renders the Profit Tracker HUD(s).
@@ -236,8 +237,8 @@ public class ProfitHudRenderer {
         int panelH = panelH(mode);
 
         g.pose().pushMatrix();
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1);
+        g.pose().translate(x, y);
+        g.pose().scale(scale, scale);
 
         // Border in edit mode
         if (editMode) {
