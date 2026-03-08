@@ -88,6 +88,7 @@ public class BookCombineManager {
             // No combinable pairs — nothing to do
             pendingSlot0 = -1;
             pendingSlot1 = -1;
+            finishCombining(client);
         }
         // Stage 1: Click the pre-stored second book (same type guaranteed since both
         // slots were frozen in stage 0 before any clicking)
@@ -133,14 +134,25 @@ public class BookCombineManager {
         }
     }
 
+    private static boolean isPriorityEventActive(Minecraft client) {
+        return com.ihanuat.mod.MacroStateManager.getCurrentState() != com.ihanuat.mod.MacroState.State.FARMING
+                || PestManager.isCleaningInProgress
+                || PestPrepSwapManager.prepSwappedForCurrentPestCycle
+                || VisitorManager.getVisitorCount(client) >= MacroConfig.visitorThreshold
+                || WardrobeManager.isSwappingWardrobe
+                || EquipmentManager.isSwappingEquipment
+                || GeorgeManager.isSelling
+                || GeorgeManager.isPreparingToSell
+                || JunkManager.isDropping
+                || JunkManager.isPreparingToDrop;
+    }
+
     public static void update(Minecraft client) {
         if (!MacroConfig.autoBookCombine || client.player == null)
             return;
 
         if (isPreparingToCombine) {
-            if (com.ihanuat.mod.MacroStateManager.getCurrentState() != com.ihanuat.mod.MacroState.State.FARMING
-                    || PestManager.isCleaningInProgress || PestPrepSwapManager.prepSwappedForCurrentPestCycle
-                    || VisitorManager.getVisitorCount(client) >= MacroConfig.visitorThreshold) {
+            if (isPriorityEventActive(client)) {
                 isPreparingToCombine = false;
                 client.player.displayClientMessage(
                         Component.literal("§c[Ihanuat] Aborting Book Combine prep due to priority event."), false);
@@ -149,9 +161,7 @@ public class BookCombineManager {
         }
 
         if (isCombining) {
-            if (com.ihanuat.mod.MacroStateManager.getCurrentState() != com.ihanuat.mod.MacroState.State.FARMING
-                    || PestManager.isCleaningInProgress || PestPrepSwapManager.prepSwappedForCurrentPestCycle
-                    || VisitorManager.getVisitorCount(client) >= MacroConfig.visitorThreshold) {
+            if (isPriorityEventActive(client)) {
                 isCombining = false;
                 client.player.displayClientMessage(
                         Component.literal("§c[Ihanuat] Aborting Book Combine due to priority event."), false);
@@ -168,14 +178,7 @@ public class BookCombineManager {
             return;
         }
 
-        if (WardrobeManager.isSwappingWardrobe || EquipmentManager.isSwappingEquipment ||
-                PestManager.isCleaningInProgress || PestPrepSwapManager.prepSwappedForCurrentPestCycle ||
-                GeorgeManager.isSelling || GeorgeManager.isPreparingToSell ||
-                JunkManager.isDropping || JunkManager.isPreparingToDrop ||
-                (JunkManager.countJunkItems(client) >= MacroConfig.junkThreshold))
-            return;
-
-        if (com.ihanuat.mod.MacroStateManager.getCurrentState() != com.ihanuat.mod.MacroState.State.FARMING)
+        if (isPriorityEventActive(client) || (JunkManager.countJunkItems(client) >= MacroConfig.junkThreshold))
             return;
 
         int bookCount = countBooksInInventory(client);
@@ -272,16 +275,26 @@ public class BookCombineManager {
     }
 
     private static int countBooksInInventory(Minecraft client) {
-        int count = 0;
+        Map<String, Integer> counts = new HashMap<>();
         for (int i = 0; i < 36; i++) {
             ItemStack stack = client.player.getInventory().getItem(i);
             if (!stack.isEmpty() && stack.getItem().toString().toLowerCase().contains("enchanted_book")) {
                 if (!isExemptBook(stack)) {
-                    count++;
+                    String key = getBookKey(stack);
+                    if (key != null && !isMaxLevel(key)) {
+                        counts.put(key, counts.getOrDefault(key, 0) + 1);
+                    }
                 }
             }
         }
-        return count;
+
+        int totalInPairs = 0;
+        for (int count : counts.values()) {
+            if (count >= 2) {
+                totalInPairs += count;
+            }
+        }
+        return totalInPairs;
     }
 
     private static boolean isExemptBook(ItemStack stack) {
