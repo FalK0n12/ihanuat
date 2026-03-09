@@ -99,6 +99,7 @@ public class JunkManager {
         // Check Display Name
         String name = stack.getHoverName().getString().replaceAll("(?i)§.", "");
         for (String j : junkList) {
+            if (j.isBlank()) continue;
             if (name.contains(j))
                 return true;
         }
@@ -109,6 +110,7 @@ public class JunkManager {
             for (net.minecraft.network.chat.Component line : lore.lines()) {
                 String lineText = line.getString().replaceAll("(?i)§.", "");
                 for (String j : junkList) {
+                    if (j.isBlank()) continue;
                     if (lineText.contains(j))
                         return true;
                 }

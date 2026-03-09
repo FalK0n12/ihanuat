@@ -41,6 +41,7 @@ public class BoosterCookieManager {
                 String name = stack.getHoverName().getString().replaceAll("(?i)§.", "").toLowerCase();
 
                 for (String target : MacroConfig.boosterCookieItems) {
+                    if (target.isBlank()) continue;
                     if (name.contains(target.toLowerCase())) {
                         foundSlotIdx = i;
                         break;
