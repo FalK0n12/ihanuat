@@ -13,6 +13,7 @@ public class PestReturnManager {
     public static volatile boolean isReturningFromPestVisitor = false;
     public static volatile boolean isReturnToLocationActive = false;
     public static volatile boolean isStoppingFlight = false;
+    public static volatile boolean isFinishingInProgress = false;
     public static int flightStopStage = 0;
     public static int flightStopTicks = 0;
 
@@ -20,11 +21,17 @@ public class PestReturnManager {
         isReturningFromPestVisitor = false;
         isReturnToLocationActive = false;
         isStoppingFlight = false;
+        isFinishingInProgress = false;
         flightStopStage = 0;
         flightStopTicks = 0;
     }
 
     public static void handlePestCleaningFinished(Minecraft client) {
+        if (isFinishingInProgress) {
+            ClientUtils.sendDebugMessage(client, "Pest cleaning finish already in progress, ignoring duplicate trigger.");
+            return;
+        }
+        isFinishingInProgress = true;
         ClientUtils.sendDebugMessage(client, "Pest cleaning finished sequence started.");
         client.player.displayClientMessage(Component.literal("§aPest cleaning finished detected."), true);
         MacroWorkerThread.getInstance().submit("PestCleaning-Finished", () -> {
@@ -127,6 +134,8 @@ public class PestReturnManager {
                     GearManager.swapToFarmingTool(client);
                     com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
                 });
+            } finally {
+                isFinishingInProgress = false;
             }
         });
     }
