@@ -41,6 +41,15 @@ public class ConfigScreenFactory {
                                 .build());
 
                 general.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("GUI only in Garden"),
+                                                MacroConfig.guiOnlyInGarden)
+                                .setDefaultValue(MacroConfig.DEFAULT_GUI_ONLY_IN_GARDEN)
+                                .setTooltip(Component.literal(
+                                                "If enabled, the macro HUDs will only be visible while you are in the Garden."))
+                                .setSaveConsumer(newValue -> MacroConfig.guiOnlyInGarden = newValue)
+                                .build());
+
+                general.addEntry(builder.entryBuilder()
                                 .startEnumSelector(Component.literal("Unfly Mode (after /warp garden)"),
                                                 MacroConfig.UnflyMode.class,
                                                 MacroConfig.unflyMode)
