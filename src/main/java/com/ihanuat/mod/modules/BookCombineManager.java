@@ -46,31 +46,37 @@ public class BookCombineManager {
         String title = rawTitle.replaceAll("(?i)§.", "").toLowerCase();
 
         if (!isCombining && !isPreparingToCombine) {
-            // Failsafe: if Anvil GUI is open but we aren't combining, close it if we are
-            // farming
-            if (title.contains("anvil") && com.ihanuat.mod.MacroStateManager.isMacroRunning() &&
-                    com.ihanuat.mod.MacroStateManager.getCurrentState() == com.ihanuat.mod.MacroState.State.FARMING) {
+            if (MacroConfig.alwaysActiveCombine && title.contains("anvil")) {
+                isCombining = true;
+                interactionStage = 0;
+                interactionTime = System.currentTimeMillis();
+            } else {
+                // Failsafe: if Anvil GUI is open but we aren't combining, close it if we are
+                // farming
+                if (title.contains("anvil") && com.ihanuat.mod.MacroStateManager.isMacroRunning() &&
+                        com.ihanuat.mod.MacroStateManager.getCurrentState() == com.ihanuat.mod.MacroState.State.FARMING) {
 
-                int bookCount = countBooksInInventory(client);
-                if (bookCount < MacroConfig.bookThreshold) {
-                    client.player.displayClientMessage(
-                            Component.literal("§c[Ihanuat] Unexpected Anvil GUI detected. Restarting script..."),
-                            false);
-                    client.player.closeContainer();
+                    int bookCount = countBooksInInventory(client);
+                    if (bookCount < MacroConfig.bookThreshold) {
+                        client.player.displayClientMessage(
+                                Component.literal("§c[Ihanuat] Unexpected Anvil GUI detected. Restarting script..."),
+                                false);
+                        client.player.closeContainer();
 
-                    MacroWorkerThread.getInstance().submit("BookCombine-UnexpectedGUI-Restart", () -> {
-                        if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
-                            return;
-                        com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
-                        MacroWorkerThread.sleep(1000);
-                        if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
-                            return;
-                        ClientUtils.sendDebugMessage(client, "Restarting script after unexpected Anvil GUI closure");
-                        com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
-                    });
+                        MacroWorkerThread.getInstance().submit("BookCombine-UnexpectedGUI-Restart", () -> {
+                            if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                                return;
+                            com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
+                            MacroWorkerThread.sleep(1000);
+                            if (MacroWorkerThread.shouldAbortTask(client, com.ihanuat.mod.MacroState.State.FARMING))
+                                return;
+                            ClientUtils.sendDebugMessage(client, "Restarting script after unexpected Anvil GUI closure");
+                            com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
+                        });
+                    }
                 }
+                return;
             }
-            return;
         }
 
         if (!MacroConfig.alwaysActiveCombine && !isCombining)
@@ -165,6 +171,9 @@ public class BookCombineManager {
     }
 
     private static boolean isPriorityEventActive(Minecraft client) {
+        if (!com.ihanuat.mod.MacroStateManager.isMacroRunning())
+            return false;
+
         return com.ihanuat.mod.MacroStateManager.getCurrentState() != com.ihanuat.mod.MacroState.State.FARMING
                 || PestManager.isCleaningInProgress
                 || PestPrepSwapManager.prepSwappedForCurrentPestCycle
@@ -229,6 +238,10 @@ public class BookCombineManager {
         }
 
         if (JunkManager.countJunkItems(client) >= MacroConfig.junkThreshold) {
+            return;
+        }
+
+        if (!com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
             return;
         }
 
