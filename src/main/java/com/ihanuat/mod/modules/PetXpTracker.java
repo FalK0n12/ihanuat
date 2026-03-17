@@ -112,13 +112,20 @@ public class PetXpTracker {
     private static final Pattern STRIP_COLOR = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
     private static java.util.Map<String, Long> lastPetXp = new java.util.HashMap<>();
-    private static long[] currentXpTable = null;
+    private static java.util.Map<String, long[]> xpTableCache = new java.util.HashMap<>();
+
+    private static final java.util.Map<String, Pattern> petNamePatternCache = new java.util.HashMap<>();
 
     public static void reset() {
         lastPetXp.clear();
     }
 
-    public static long[] getXpTable(MacroConfig.PetRarity rarity, int maxLevel) {
+    public static long[] getXpTable(com.ihanuat.mod.MacroConfig.PetRarity rarity, int maxLevel) {
+        String cacheKey = rarity.name() + "_" + maxLevel;
+        if (xpTableCache.containsKey(cacheKey)) {
+            return xpTableCache.get(cacheKey);
+        }
+
         long[] base;
         switch (rarity) {
             case COMMON:
@@ -140,43 +147,35 @@ public class PetXpTracker {
                 break;
         }
 
+        long[] table;
         if (maxLevel <= 100 && base.length >= 101) {
-            long[] table = new long[maxLevel + 1];
+            table = new long[maxLevel + 1];
             System.arraycopy(base, 0, table, 0, Math.min(base.length, maxLevel + 1));
-            return table;
-        }
-
-        if (maxLevel > 100) {
-            long[] table = new long[maxLevel + 1];
-            // Fill 1-100 from rarity base
+        } else if (maxLevel > 100) {
+            table = new long[maxLevel + 1];
             System.arraycopy(base, 0, table, 0, 101);
-            // Fill 101-maxLevel using Legendary curve delta
             long base100 = base[100];
             long leg100 = XP_1_200_LEGENDARY[100];
             for (int i = 101; i <= maxLevel; i++) {
                 if (i < XP_1_200_LEGENDARY.length) {
                     table[i] = base100 + (XP_1_200_LEGENDARY[i] - leg100);
                 } else {
-                    table[i] = table[i - 1]; // Cap if out of bounds
+                    table[i] = table[i - 1]; // Cap
                 }
             }
-            return table;
+        } else {
+            table = base;
         }
 
-        return base;
+        xpTableCache.put(cacheKey, table);
+        return table;
     }
 
     public static void update(Minecraft client) {
         if (client.getConnection() == null)
             return;
 
-        Collection<PlayerInfo> players = client.getConnection().getListedOnlinePlayers();
-        List<String> tabLines = new ArrayList<>(players.size());
-        for (PlayerInfo info : players) {
-            String raw = (info.getTabListDisplayName() != null) ? info.getTabListDisplayName().getString() : "";
-            String clean = STRIP_COLOR.matcher(raw).replaceAll("").replace('\u00A0', ' ').trim();
-            tabLines.add(clean);
-        }
+        List<String> tabLines = com.ihanuat.mod.util.TabListCache.getTabLines(client);
 
         MacroConfig.PetInfo activePet = null;
         int detectedLevel = -1;
@@ -185,8 +184,8 @@ public class PetXpTracker {
         // Iterate through all tracked pets to find which one is active in tab list
         for (String petConfig : MacroConfig.petTrackerList) {
             MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
-            Pattern petNamePattern = Pattern.compile("\\[Lvl\\s*(\\d+)]\\s*" + Pattern.quote(info.name),
-                    Pattern.CASE_INSENSITIVE);
+            Pattern petNamePattern = petNamePatternCache.computeIfAbsent(info.name, k -> 
+                Pattern.compile("\\[Lvl\\s*(\\d+)]\\s*" + Pattern.quote(k), Pattern.CASE_INSENSITIVE));
 
             for (int i = 0; i < tabLines.size(); i++) {
                 Matcher m = petNamePattern.matcher(tabLines.get(i));
@@ -204,7 +203,7 @@ public class PetXpTracker {
         if (activePet == null || detectedLevel < 1 || detectedLevel > activePet.maxLevel)
             return;
 
-        currentXpTable = getXpTable(activePet.rarity, activePet.maxLevel);
+        long[] currentXpTable = getXpTable(activePet.rarity, activePet.maxLevel);
 
         for (int i = petLineIndex + 1; i < tabLines.size(); i++) {
             if (MAX_LEVEL_PATTERN.matcher(tabLines.get(i)).find()) {

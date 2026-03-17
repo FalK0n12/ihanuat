@@ -76,7 +76,7 @@ public class IhanuatClient implements ClientModInitializer {
             if (overlay)
                 return;
             String text = message.getString();
-            String cleanText = text.replaceAll("(?i)\u00A7[0-9a-fk-or]", "").trim();
+            String cleanText = com.ihanuat.mod.util.ClientUtils.stripColor(text).trim();
             String lowerClean = cleanText.toLowerCase();
 
             if (lowerClean.contains("offer accepted")) {
@@ -277,7 +277,7 @@ public class IhanuatClient implements ClientModInitializer {
                     return;
                 }
 
-                String plainText = text.replaceAll("(?i)[\u00A7&][0-9a-fk-or]", "");
+                String plainText = com.ihanuat.mod.util.ClientUtils.stripColor(text);
                 String lowerPlainText = plainText.toLowerCase();
 
                 boolean isPestCleanerFinishSignal = lowerPlainText.contains("pest cleaner")

@@ -25,6 +25,10 @@ public class ProfitManager {
     private static long lastCultivatingValue = -1;
     private static String currentFarmedCrop = "Wheat";
     private static long lastBazaarFetchTime = 0;
+
+    private static final Map<String, Map<String, Long>> hudCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Long> hudCacheTime = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long HUD_CACHE_VALIDITY_MS = 250; // Cache HUD data for 250ms
     private static long lastPurseBalance = -1;
     private static String lastDailyResetDate = getCurrentDateString();
 
@@ -264,7 +268,6 @@ public class ProfitManager {
             "charmed\\s+a\\s+Pest\\s+and\\s+captured\\s+(?:its\\s+Shard|(\\d+)\\s+Shards)",
             Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern STRIP_COLOR_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
     private static final Pattern BAZAAR_BUY_PATTERN = Pattern.compile(
             "\\[Bazaar\\] Bought (\\d+)x (.+?) for [\\d,]+ coins!",
@@ -305,7 +308,7 @@ public class ProfitManager {
         }
 
         // Plain text processing for standard drops
-        String plainText = STRIP_COLOR_PATTERN.matcher(text).replaceAll("").trim();
+        String plainText = ClientUtils.stripColor(text).trim();
 
         Matcher overflowMatcher = OVERFLOW_DROP_PATTERN.matcher(plainText);
         if (overflowMatcher.find()) {
@@ -467,7 +470,7 @@ public class ProfitManager {
 
     private static void addDrop(String itemName, long count) {
         // Handle items with suffix counts like "Mutant Nether Wart X9"
-        String processedName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").trim();
+        String processedName = ClientUtils.stripColor(itemName).trim();
         long multiplier = 1;
 
         Matcher suffixMatcher = Pattern.compile("\\s+[xX](\\d+)$").matcher(processedName);
@@ -519,7 +522,7 @@ public class ProfitManager {
     }
 
     public static void addVisitorGain(String itemName, long count) {
-        String cleanName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").replace("+", "").trim();
+        String cleanName = ClientUtils.stripColor(itemName).replace("+", "").trim();
         long multiplier = 1;
         Matcher m = Pattern.compile("\\s+[xX](\\d+)$").matcher(cleanName);
         if (m.find()) {
@@ -661,6 +664,12 @@ public class ProfitManager {
     }
 
     public static Map<String, Long> getActiveDrops(String mode) {
+        String cacheKey = "active_" + mode;
+        long now = System.currentTimeMillis();
+        if (hudCache.containsKey(cacheKey) && (now - hudCacheTime.getOrDefault(cacheKey, 0L) < HUD_CACHE_VALIDITY_MS)) {
+            return hudCache.get(cacheKey);
+        }
+
         Map<String, Long> counts;
         if ("daily".equals(mode)) {
             counts = dailyCounts;
@@ -671,7 +680,7 @@ public class ProfitManager {
         }
 
         // Sort by total profit (count * price) descending
-        return counts.entrySet().stream()
+        Map<String, Long> result = counts.entrySet().stream()
                 .sorted((e1, e2) -> {
                     double p1 = getItemPrice(e1.getKey()) * e1.getValue();
                     double p2 = getItemPrice(e2.getKey()) * e2.getValue();
@@ -682,6 +691,10 @@ public class ProfitManager {
                         Map.Entry::getValue,
                         (v1, v2) -> v1,
                         LinkedHashMap::new));
+
+        hudCache.put(cacheKey, result);
+        hudCacheTime.put(cacheKey, now);
+        return result;
     }
 
     public static Map<String, Long> getCompactDrops() {
@@ -931,7 +944,7 @@ public class ProfitManager {
             net.minecraft.world.item.ItemStack stack = client.player.getInventory().getItem(i);
             if (stack == null || stack.isEmpty())
                 continue;
-            String name = stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+            String name = ClientUtils.stripColor(stack.getHoverName().getString()).trim();
             if (BASE_CROPS.contains(name)) {
                 currentCounts.put(name, currentCounts.getOrDefault(name, 0L) + stack.getCount());
             }

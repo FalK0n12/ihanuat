@@ -1,18 +1,20 @@
 package com.ihanuat.mod.modules;
 
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.PlayerInfo;
 
 public class PestTabListParser {
     private static final Pattern PESTS_ALIVE_PATTERN = Pattern.compile("(?i)(?:Pests|Alive):?\\s*\\(?(\\d+)\\)?");
     private static final Pattern COOLDOWN_PATTERN = Pattern
             .compile("(?i)Cooldown:\\s*\\(?(READY|MAX\\s*PESTS?|(?:(\\d+)m)?\\s*(?:(\\d+)s)?)\\)?");
+    private static final Pattern DIGIT_PATTERN = Pattern.compile("(\\d+)");
+    private static final Pattern BONUS_INACTIVE_PATTERN = Pattern.compile("(?i)BONUS:\\s*INACTIVE");
+    private static final Pattern MAX_PESTS_PATTERN = Pattern.compile("(?i)MAX\\s*PESTS?");
 
     public static class TabListData {
         public int aliveCount = -1;
@@ -27,20 +29,9 @@ public class PestTabListParser {
         if (client.getConnection() == null || client.player == null)
             return data;
 
-        Collection<PlayerInfo> players = client.getConnection().getListedOnlinePlayers();
+        List<String> normalizedLines = com.ihanuat.mod.util.TabListCache.getTabLines(client);
 
-        for (PlayerInfo info : players) {
-            String name = "";
-            if (info.getTabListDisplayName() != null) {
-                name = info.getTabListDisplayName().getString();
-            } else if (info.getProfile() != null) {
-                name = String.valueOf(info.getProfile());
-            }
-
-            String clean = name.replaceAll("(?i)\u00A7[0-9a-fk-or]", "").trim();
-            // Replace non-breaking spaces with normal spaces for easier matching
-            String normalized = clean.replace('\u00A0', ' ');
-
+        for (String normalized : normalizedLines) {
             // Parse alive count
             Matcher aliveMatcher = PESTS_ALIVE_PATTERN.matcher(normalized);
             if (aliveMatcher.find()) {
@@ -49,7 +40,7 @@ public class PestTabListParser {
                     data.aliveCount = found;
             }
 
-            if (normalized.toUpperCase().contains("MAX PESTS")) {
+            if (MAX_PESTS_PATTERN.matcher(normalized).find()) {
                 data.aliveCount = 99; // Explicitly high count to ensure threshold is met
             }
 
@@ -79,14 +70,14 @@ public class PestTabListParser {
 
             // Parse infested plots
             if (normalized.contains("Plot")) {
-                Matcher m = Pattern.compile("(\\d+)").matcher(normalized);
+                Matcher m = DIGIT_PATTERN.matcher(normalized);
                 while (m.find()) {
                     data.infestedPlots.add(m.group(1).trim());
                 }
             }
 
             // Check bonus status
-            if (normalized.toUpperCase().contains("BONUS: INACTIVE")) {
+            if (BONUS_INACTIVE_PATTERN.matcher(normalized).find()) {
                 data.bonusFound = true;
             }
         }
