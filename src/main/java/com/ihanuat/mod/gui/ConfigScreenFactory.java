@@ -625,6 +625,38 @@ public class ConfigScreenFactory {
                                 .setSaveConsumer(newValue -> MacroConfig.showDebug = newValue)
                                 .build());
 
+                qol.addEntry(builder.entryBuilder()
+                                .startBooleanToggle(Component.literal("Log Debug to File"),
+                                                MacroConfig.logDebugToFile)
+                                .setDefaultValue(MacroConfig.DEFAULT_LOG_DEBUG_TO_FILE)
+                                .setTooltip(Component.literal(
+                                                "Write all debug messages to a timestamped .log file in your .minecraft folder."))
+                                .setSaveConsumer(newValue -> {
+                                        MacroConfig.logDebugToFile = newValue;
+                                        if (!newValue) {
+                                                com.ihanuat.mod.DebugLogger.getInstance().close();
+                                        }
+                                })
+                                .build());
+
+                qol.addEntry(new ButtonEntry(
+                                Component.literal("Open Log Folder"),
+                                Component.literal("Opens the .minecraft folder where debug logs are saved."),
+                                button -> {
+                                        try {
+                                                java.awt.Desktop.getDesktop().open(
+                                                        net.fabricmc.loader.api.FabricLoader.getInstance()
+                                                                .getGameDir().toFile());
+                                        } catch (Exception e) {
+                                                Minecraft mc = Minecraft.getInstance();
+                                                if (mc.player != null) {
+                                                        mc.player.displayClientMessage(
+                                                                Component.literal("§cFailed to open folder: " + e.getMessage()),
+                                                                false);
+                                                }
+                                        }
+                                }));
+
                 return builder.build();
         }
 
