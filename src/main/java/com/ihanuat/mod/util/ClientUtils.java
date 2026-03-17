@@ -1,5 +1,6 @@
 package com.ihanuat.mod.util;
 
+import com.ihanuat.mod.DebugLogger;
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroState;
 import net.minecraft.client.Minecraft;
@@ -22,6 +23,9 @@ public class ClientUtils {
     private static final long COMMAND_COOLDOWN_MS = 250;
 
     public static void sendDebugMessage(Minecraft client, String message) {
+        // Always feed the file logger (it checks MacroConfig.logDebugToFile itself)
+        DebugLogger.getInstance().log(message);
+
         if (MacroConfig.showDebug) {
             client.execute(() -> {
                 if (client.player != null) {
