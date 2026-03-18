@@ -47,9 +47,9 @@ public class ProfitManager {
     }
 
     private static final java.io.File LIFETIME_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()
-            .resolve("pest_macro_profit_lifetime.json").toFile();
+            .resolve("ihanuat_profit_lifetime.json").toFile();
     private static final java.io.File DAILY_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir()
-            .resolve("pest_macro_profit_daily.json").toFile();
+            .resolve("ihanuat_profit_daily.json").toFile();
     private static final com.google.gson.Gson GSON = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
 
     private static final Set<String> CROPS_SET = Set.of(
@@ -465,6 +465,22 @@ public class ProfitManager {
         return sb.toString();
     }
 
+    /**
+     * Returns true if this item name matches an entry in the Booster Cookie autosell list.
+     * Such items should NOT be tracked as pest/drop entries — they will be captured via
+     * the purse increase when they are auto-sold through the cookie GUI, preventing double-counting.
+     */
+    private static boolean isAutoSellItem(String name) {
+        if (name == null || MacroConfig.boosterCookieItems == null) return false;
+        String lower = name.toLowerCase();
+        for (String target : MacroConfig.boosterCookieItems) {
+            if (target != null && !target.isBlank() && lower.contains(target.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void addDrop(String itemName, long count) {
         // Handle items with suffix counts like "Mutant Nether Wart X9"
         String processedName = STRIP_COLOR_PATTERN.matcher(itemName).replaceAll("").trim();
@@ -503,6 +519,10 @@ public class ProfitManager {
                 matchedName = normalizeName(processedName);
             }
         }
+
+        // Items in the autosell list are captured via purse increase on sale —
+        // skip drop-category tracking here to prevent double-counting.
+        if (isAutoSellItem(matchedName)) return;
 
         // Check for daily reset
         checkDailyReset();
@@ -785,7 +805,10 @@ public class ProfitManager {
             targetCounts = sessionCounts;
         }
 
+        boolean skipPurse = MacroConfig.excludePurseProfit && "session".equals(mode);
+
         for (Map.Entry<String, Long> entry : targetCounts.entrySet()) {
+            if (skipPurse && "Purse".equals(entry.getKey())) continue;
             double price = getItemPrice(entry.getKey());
             total += price * entry.getValue();
         }
@@ -1031,6 +1054,9 @@ public class ProfitManager {
      */
     public static void printPetXpPriceDebug(net.minecraft.client.Minecraft client) {
         if (client.player == null)
+            return;
+        // If no pets are configured to track, show nothing in chat
+        if (MacroConfig.petTrackerList == null || MacroConfig.petTrackerList.isEmpty())
             return;
 
         client.player.displayClientMessage(

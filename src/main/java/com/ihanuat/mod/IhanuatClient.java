@@ -24,6 +24,7 @@ import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
 import com.ihanuat.mod.modules.VisitorManager;
+import com.ihanuat.mod.modules.QuitThresholdManager;
 import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
 
@@ -53,10 +54,20 @@ public class IhanuatClient implements ClientModInitializer {
     private static boolean hasCheckedUpdate = false;
     private static long lastStashPickupTime = 0;
     private static final long STASH_PICKUP_DELAY_MS = 3300;
+    /** Pre-computed delay for the current stash pickup interval. Recomputed after each send. */
+    private static long currentStashPickupDelay = STASH_PICKUP_DELAY_MS;
+    /** Computes and stores the next stash pickup delay, incorporating the configured random offset. */
+    private static void refreshStashPickupDelay() {
+        int offset = MacroConfig.stashManagerOffsetMs;
+        currentStashPickupDelay = (offset > 0)
+                ? STASH_PICKUP_DELAY_MS + (long)(Math.random() * (offset + 1))
+                : STASH_PICKUP_DELAY_MS;
+    }
     private static long lastRewarpTime = 0;
     private static final long REWARP_COOLDOWN_MS = 5000;
 
     private static boolean isPickingUpStash = false;
+    private static boolean hasPendingStash = false;
     private static String lastScannedVisitorTitle = null;
     private static long lastUnexpectedRecoveryTriggerMs = 0;
     private static final long UNEXPECTED_RECOVERY_COOLDOWN_MS = 7000;
@@ -67,6 +78,7 @@ public class IhanuatClient implements ClientModInitializer {
         ProfitManager.loadLifetime();
         ProfitManager.loadDaily();
         MacroStateManager.syncFromConfig();
+
 
         RestStateManager.clearState();
         MacroHudRenderer.register();
@@ -162,6 +174,8 @@ public class IhanuatClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) {
                 hasCheckedPersistenceOnJoin = false;
+                isPickingUpStash = false;
+                hasPendingStash = false;
 
                 // Failsafe: if macro is still marked active during an unexpected disconnect,
                 // force RECOVERING and ensure reconnect is scheduled.
@@ -214,7 +228,16 @@ public class IhanuatClient implements ClientModInitializer {
                     }
                     RestStateManager.clearState();
                 }
-                DynamicRestManager.reset();
+                // ── Timer persistence on join ───────────────────────────────────────────
+                // Only reset the Dynamic Rest timer if the macro is fully OFF.
+                // If the macro was running (e.g. player left garden and rejoined),
+                // we want the current session timer and next-rest timer to keep
+                // counting from where they left off — never reset on a plain join.
+                // Timers are only zeroed by: (a) pressing K to stop, or (b) a
+                // scheduled Dynamic Rest re-arm after reconnect.
+                if (!MacroStateManager.isMacroRunning()) {
+                    DynamicRestManager.reset();
+                }
                 hasCheckedPersistenceOnJoin = true;
                 MacroStateManager.setIntentionalDisconnect(false);
             }
@@ -282,6 +305,11 @@ public class IhanuatClient implements ClientModInitializer {
                 String plainText = text.replaceAll("(?i)[\u00A7&][0-9a-fk-or]", "");
                 String lowerPlainText = plainText.toLowerCase();
 
+                if (lowerPlainText.contains("script stopped") && lowerPlainText.contains("remote control")) {
+                    MacroStateManager.stopMacro(Minecraft.getInstance());
+                    return;
+                }
+
                 boolean isPestCleanerFinishSignal = lowerPlainText.contains("pest cleaner")
                         && lowerPlainText.contains("finished")
                         && !lowerPlainText.contains("sprayed plot")
@@ -299,6 +327,18 @@ public class IhanuatClient implements ClientModInitializer {
                         }
                         ProfitManager.stopSprayPhase();
                         PestManager.handlePestCleaningFinished(Minecraft.getInstance());
+                    }
+                    // Arm the stash pickup regardless of state — pest cleaner finishing
+                    // is the correct moment to begin sending /pickupstash commands.
+                    if (hasPendingStash && MacroConfig.autoStashManager) {
+                        hasPendingStash = false;
+                        isPickingUpStash = true;
+                        lastStashPickupTime = 0; // send first command immediately
+                        refreshStashPickupDelay();
+                        if (MacroConfig.showDebug) {
+                            ClientUtils.sendDebugMessage(Minecraft.getInstance(),
+                                    "Stash pickup armed after pest cleaner finished.");
+                        }
                     }
                 }
 
@@ -415,11 +455,14 @@ public class IhanuatClient implements ClientModInitializer {
                 }
 
                 if (lowerText.contains("stashed away!")) {
-                    isPickingUpStash = true;
+                    hasPendingStash = true;
+                    // Pickup is deliberately deferred — it starts after pest cleaner finishes,
+                    // not immediately, to avoid interfering with rewarp/cleaning sequences.
                 }
 
                 if (lowerText.contains("your stash isn't holding any items or materials!")) {
                     isPickingUpStash = false;
+                    hasPendingStash = false;
                 }
 
                 ProfitManager.handleChatMessage(message);
@@ -432,6 +475,10 @@ public class IhanuatClient implements ClientModInitializer {
                 isHandlingMessage = false;
             }
         });
+
+        // ── ChatRules handled exclusively in ChatHudMixin.onAddMessage() ─────────────
+        // The previous GAME + CHAT dual-registration here caused every webhook to fire
+        // twice. Removed. See ChatHudMixin for the single authoritative entry point.
 
         ClientSendMessageEvents.COMMAND.register((command) -> {
             if (command.equalsIgnoreCase("call george")) {
@@ -452,6 +499,7 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.reset();
                     JunkManager.reset();
                     RecoveryManager.reset();
+                    QuitThresholdManager.reset(); // re-arm quit threshold for new session
                     MacroStateManager.setCurrentState(MacroState.State.FARMING);
                     ProfitManager.startStartupPriceFetch();
                     ProfitManager.printPetXpPriceDebug(client);
@@ -559,6 +607,7 @@ public class IhanuatClient implements ClientModInitializer {
             JunkManager.update(client);
 
             DynamicRestManager.update(client);
+            QuitThresholdManager.update(client); // check quit threshold each tick
             RestartManager.update(client);
             PestManager.update(client);
             GearManager.cleanupTick(client);
@@ -619,10 +668,11 @@ public class IhanuatClient implements ClientModInitializer {
             if (MacroConfig.autoStashManager && isPickingUpStash && client.player != null) {
                 MacroState.State state = MacroStateManager.getCurrentState();
                 if (client.screen == null && state != MacroState.State.VISITING
-                        && state != MacroState.State.CLEANING && state != MacroState.State.SPRAYING) {
+                    && state != MacroState.State.CLEANING && state != MacroState.State.SPRAYING) {
                     long now = System.currentTimeMillis();
-                    if (now - lastStashPickupTime >= STASH_PICKUP_DELAY_MS) {
+                    if (now - lastStashPickupTime >= currentStashPickupDelay) {
                         lastStashPickupTime = now;
+                        refreshStashPickupDelay(); // compute delay for NEXT interval
                         client.player.connection.sendCommand("pickupstash");
                     }
                 }

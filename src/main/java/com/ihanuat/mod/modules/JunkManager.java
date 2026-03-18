@@ -151,6 +151,16 @@ public class JunkManager {
                 if (!isPreparingToDrop)
                     return;
 
+                // If pest cleaning started during our delay, abort — we must not run
+                // /setspawn now because the player may be mid-AOTV to the roof and a
+                // second /setspawn would permanently overwrite the intended spawn point
+                // with the roof position, breaking the entire pest-return flow.
+                if (PestManager.isCleaningInProgress) {
+                    isPreparingToDrop = false;
+                    ClientUtils.sendDebugMessage(client, "JunkDrop: aborting – pest cleaning started during delay.");
+                    return;
+                }
+
                 ClientUtils.sendDebugMessage(client, "Stopping script: Preparing to drop junk");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
                 MacroWorkerThread.sleep(400); // Small safety delay after stop

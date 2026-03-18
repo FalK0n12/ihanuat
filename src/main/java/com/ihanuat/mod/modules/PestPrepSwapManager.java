@@ -68,7 +68,17 @@ public class PestPrepSwapManager {
                 }
 
                 if (!PestManager.isCleaningInProgress) {
-                    GearManager.finalResume(client);
+                    // Skip farming tool check entirely — farming tool was never changed during prep swap.
+                    ClientUtils.sendDebugMessage(client,
+                            "PrepSwap: skipping finalResume, restarting farming directly.");
+                    client.execute(() -> {
+                        if (!PestManager.isCleaningInProgress) {
+                            com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
+                            GearManager.swapToFarmingTool(client);
+                            com.ihanuat.mod.util.CommandUtils.startScript(
+                                    client, MacroConfig.getFullRestartCommand(), 0);
+                        }
+                    });
                 }
             } catch (Exception e) {
                 e.printStackTrace();

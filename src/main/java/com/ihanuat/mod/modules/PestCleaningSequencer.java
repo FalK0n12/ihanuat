@@ -44,7 +44,12 @@ public class PestCleaningSequencer {
                 if (sessionId != PestManager.currentPestSessionId)
                     return;
 
-                if (!restoreGearForCleaning(client))
+                boolean isSamePlot = currentInfestedPlot != null && currentInfestedPlot.equals(currentPlot);
+                boolean shouldDoAotv = PestAotvManager.shouldDoAotvOnCurrentPlot(client, currentInfestedPlot,
+                        isSamePlot);
+
+                // restoreGearForCleaning restores farming wardrobe/equipment BEFORE movement.
+                if (!restoreGearForCleaning(client, shouldDoAotv))
                     return;
 
                 PestPrepSwapManager.prepSwappedForCurrentPestCycle = false;
@@ -67,10 +72,6 @@ public class PestCleaningSequencer {
                     return;
                 }
 
-                boolean isSamePlot = currentInfestedPlot != null && currentInfestedPlot.equals(currentPlot);
-                boolean shouldDoAotv = PestAotvManager.shouldDoAotvOnCurrentPlot(client, currentInfestedPlot,
-                        isSamePlot);
-
                 if (shouldDoAotv) {
                     // AOTV to roof handles movement — skip /tptoplot
                     PestAotvManager.performAotvToRoof(client);
@@ -87,7 +88,14 @@ public class PestCleaningSequencer {
         });
     }
 
-    private static boolean restoreGearForCleaning(Minecraft client) throws InterruptedException {
+    /**
+     * Restores farming wardrobe and equipment before starting the pest cleaner.
+     *
+     * @param aotvPath  true when the sequence will AOTV to the roof.  In that
+     *                  case wardrobeAotvDelay is used instead of wardrobePostSwapDelay,
+     *                  allowing independent tuning of the AOTV launch cadence.
+     */
+    private static boolean restoreGearForCleaning(Minecraft client, boolean aotvPath) throws InterruptedException {
         if (MacroConfig.autoWardrobePest) {
             int targetSlot = MacroConfig.wardrobeSlotFarming;
             if ((PestPrepSwapManager.prepSwappedForCurrentPestCycle
@@ -98,8 +106,6 @@ public class PestCleaningSequencer {
                         true);
                 client.execute(() -> GearManager.ensureWardrobeSlot(client, targetSlot));
 
-                // client.execute is async; wait for swap state to actually start so later waits
-                // are not skipped.
                 long wardrobeStartWait = System.currentTimeMillis();
                 while (!WardrobeManager.isSwappingWardrobe && System.currentTimeMillis() - wardrobeStartWait < 2000) {
                     if (MacroWorkerThread.shouldAbortTask(client))
@@ -120,7 +126,12 @@ public class PestCleaningSequencer {
 
                 while (WardrobeManager.wardrobeCleanupTicks > 0)
                     MacroWorkerThread.sleep(50);
-                MacroWorkerThread.sleep(250);
+
+                // AOTV path: use the user-configured wardrobeAotvDelay.
+                // Non-AOTV path: use the user-configured wardrobePostSwapDelay.
+                int postSwapWait = aotvPath ? MacroConfig.wardrobeAotvDelay : MacroConfig.wardrobePostSwapDelay;
+                MacroWorkerThread.sleep(postSwapWait);
+
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return false;
             }

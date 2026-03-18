@@ -1,5 +1,6 @@
 package com.ihanuat.mod.gui;
 
+import com.ihanuat.mod.MacroConfig;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -15,11 +16,6 @@ public class DynamicRestScreen extends Screen {
 
     // Matching MacroHudRenderer styles
     private static final int PANEL_W = 230;
-    private static final int BG_COLOR = 0xFF141424;
-    private static final int BAR_BG_COLOR = 0xFF1A1A32;
-    private static final int BAR_FILL_COLOR = 0xFF6464B4;
-    private static final int TITLE_COLOR = 0xFFFFFFFF;
-    private static final int LABEL_COLOR = 0xFFAAAAAA;
 
     public DynamicRestScreen(long restEndTimeMs, long totalDurationMs) {
         super(Component.literal("Dynamic Rest"));
@@ -46,6 +42,14 @@ public class DynamicRestScreen extends Screen {
 
         super.render(graphics, mouseX, mouseY, partialTick);
 
+        // Read colors live from MacroConfig so HUD Colors tab applies here too
+        int BG_COLOR      = 0xFF000000 | MacroConfig.hudBgColor;
+        int BAR_BG_COLOR  = 0xFF000000 | MacroConfig.hudBarBgColor;
+        int BAR_FILL_COLOR= 0xFF000000 | MacroConfig.hudBarFillColor;
+        int TITLE_COLOR   = 0xFF000000 | MacroConfig.hudTitleColor;
+        int LABEL_COLOR   = 0xFF000000 | MacroConfig.hudLabelColor;
+        int ACCENT_COLOR  = 0xFF000000 | MacroConfig.hudAccentColor;
+
         long now = System.currentTimeMillis();
         long remainingMs = Math.max(0, restEndTimeMs - now);
         float progress = totalDurationMs > 0
@@ -64,7 +68,7 @@ public class DynamicRestScreen extends Screen {
         graphics.drawString(this.font, title, x + (PANEL_W - this.font.width(title)) / 2, y + 8, TITLE_COLOR, false);
 
         // Separator
-        graphics.fill(x + 10, y + 22, x + PANEL_W - 10, y + 23, 0xFF4A4A88);
+        graphics.fill(x + 10, y + 22, x + PANEL_W - 10, y + 23, ACCENT_COLOR);
 
         // Status Row
         String label = "reconnecting in";

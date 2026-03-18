@@ -20,7 +20,6 @@ import java.util.function.Supplier;
 
 public class ClickGui extends Screen {
 
-    // colors — pulled from MacroConfig so theme changes apply live
     static int C_BG()     { return MacroConfig.themePanelBg; }
     static int C_HDR()    { return MacroConfig.themePanelHeader; }
     static int C_LINE()   { return MacroConfig.themeAccent; }
@@ -40,23 +39,23 @@ public class ClickGui extends Screen {
 
     static int brighten(int c, int a) {
         return (c & 0xFF000000)
-                | (Math.min(255, ((c>>16)&0xFF)+((a>>16)&0xFF)) << 16)
-                | (Math.min(255, ((c>>8 )&0xFF)+((a>>8 )&0xFF)) << 8)
-                |  Math.min(255, ( c     &0xFF)+( a     &0xFF));
+             | (Math.min(255, ((c>>16)&0xFF)+((a>>16)&0xFF)) << 16)
+             | (Math.min(255, ((c>>8 )&0xFF)+((a>>8 )&0xFF)) << 8)
+             |  Math.min(255, ( c     &0xFF)+( a     &0xFF));
     }
     static int darken(int c, int a) {
         return (c & 0xFF000000)
-                | (Math.max(0, ((c>>16)&0xFF)-((a>>16)&0xFF)) << 16)
-                | (Math.max(0, ((c>>8 )&0xFF)-((a>>8 )&0xFF)) << 8)
-                |  Math.max(0, ( c    &0xFF) -( a     &0xFF));
+             | (Math.max(0, ((c>>16)&0xFF)-((a>>16)&0xFF)) << 16)
+             | (Math.max(0, ((c>>8 )&0xFF)-((a>>8 )&0xFF)) << 8)
+             |  Math.max(0, ( c    &0xFF) -( a     &0xFF));
     }
 
     // theme share code — base64 of 9 hex ints joined by commas
     static String encodeTheme() {
         String s = String.format("%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X",
-                MacroConfig.themePanelBg, MacroConfig.themePanelHeader, MacroConfig.themeAccent,
-                MacroConfig.themeText, MacroConfig.themeTextDim, MacroConfig.themeToggleOn,
-                MacroConfig.themeToggleOff, MacroConfig.themeSliderFill, MacroConfig.themeButtonHover);
+            MacroConfig.themePanelBg, MacroConfig.themePanelHeader, MacroConfig.themeAccent,
+            MacroConfig.themeText, MacroConfig.themeTextDim, MacroConfig.themeToggleOn,
+            MacroConfig.themeToggleOff, MacroConfig.themeSliderFill, MacroConfig.themeButtonHover);
         return Base64.getEncoder().encodeToString(s.getBytes());
     }
 
@@ -237,7 +236,7 @@ public class ClickGui extends Screen {
     private Panel profitPanel(int[] pos) {
         Panel p = new Panel("Profit Calculator", pos[0], pos[1]);
         p.add(toggle("Session HUD",   () -> MacroConfig.showSessionProfitHud,       v -> { MacroConfig.showSessionProfitHud = v; save(); }));
-        p.add(toggle("Daily HUD",     () -> MacroConfig.showDailyHud,               v -> { MacroConfig.showDailyHud = v; save(); }));
+        p.add(toggle("Daily HUD",     () -> MacroConfig.showTotalToday,              v -> { MacroConfig.showTotalToday = v; save(); }));
         p.add(toggle("Lifetime HUD",  () -> MacroConfig.showLifetimeHud,            v -> { MacroConfig.showLifetimeHud = v; save(); }));
         p.add(toggle("HUD While Off", () -> MacroConfig.showProfitHudWhileInactive,  v -> { MacroConfig.showProfitHudWhileInactive = v; save(); }));
         p.add(toggle("Compact",       () -> MacroConfig.compactProfitCalculator,    v -> { MacroConfig.compactProfitCalculator = v; save(); }));

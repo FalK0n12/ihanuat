@@ -434,6 +434,25 @@ public class ClientUtils {
         return -1;
     }
 
+    /**
+     * Searches the hotbar (slots 0-8) for any item whose display name contains
+     * "vacuum" (case-insensitive). Returns the slot index, or -1 if not found.
+     */
+    public static int findVacuumSlot(Minecraft client) {
+        if (client.player == null)
+            return -1;
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.world.item.ItemStack stack = client.player.getInventory().getItem(i);
+            if (stack != null && !stack.isEmpty()) {
+                String name = stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+                if (name.toLowerCase().contains("vacuum")) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
     public static void performShiftRightClick(Minecraft client) {
         if (client.player == null || client.options == null)
             return;

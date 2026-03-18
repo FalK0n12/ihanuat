@@ -182,61 +182,12 @@ public class PestReturnManager {
 
         try {
             ClientUtils.sendDebugMessage(client, "Finalize: Starting return sequence.");
-            // Already handled in handlePestCleaningFinished but just in case it's called
-            // from elsewhere
-            if (MacroConfig.unflyMode == MacroConfig.UnflyMode.SNEAK) {
-                ClientUtils.sendDebugMessage(client, "Finalize: Performing unfly (Sneak)...");
-                performUnfly(client);
-                Thread.sleep(150);
-            }
 
             int visitors = VisitorManager.getVisitorCount(client);
             ClientUtils.sendDebugMessage(client, "Finalize: Visitor count check: " + visitors);
             if (visitors >= MacroConfig.visitorThreshold
                     && !VisitorManager.isVisitorReentryCooldownActive(client, true)) {
-                client.execute(() -> {
-                    GearManager.swapToFarmingTool(client);
-                });
-
-                if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
-                        && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
-                    client.player.displayClientMessage(Component.literal(
-                            "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor + ")..."),
-                            true);
-                    GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotVisitor);
-                    if (WardrobeManager.isSwappingWardrobe) {
-                        ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for wardrobe GUI...");
-                        ClientUtils.waitForWardrobeGui(client);
-                        ClientUtils.sendDebugMessage(client,
-                                "Finalize (Visitor): Wardrobe GUI cleared, waiting for swap completion...");
-                        while (WardrobeManager.isSwappingWardrobe)
-                            Thread.sleep(50);
-                        while (WardrobeManager.wardrobeCleanupTicks > 0)
-                            Thread.sleep(50);
-                        Thread.sleep(250);
-                    }
-                }
-
-                // Wait for any remaining GUIs and wardrobe swap (equipment swap not done for
-                // visitors)
-                try {
-                    ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for final stability...");
-                    while (WardrobeManager.isSwappingWardrobe)
-                        Thread.sleep(50);
-                    long guiStart = System.currentTimeMillis();
-                    while (client.screen != null && System.currentTimeMillis() - guiStart < 5000) {
-                        Thread.sleep(100);
-                    }
-                    Thread.sleep(250);
-                } catch (InterruptedException ignored) {
-                }
-                ClientUtils.sendDebugMessage(client,
-                        "Wardrobe swap done, now triggering visitor macro. Next state: VISITING");
-                ClientUtils.sendDebugMessage(client, "Stopping script: Returning to visitor macro");
-                com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
-                ClientUtils.sendDebugMessage(client, "Starting visitor macro script");
-                com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
-                PestManager.isCleaningInProgress = false;
+                finalizeSwitchToVisitor(client);
                 return;
             }
 
@@ -245,29 +196,22 @@ public class PestReturnManager {
                         "Finalize: Visitor threshold met, but cooldown is active. Continuing farming.");
             }
 
+            // Swap to farming tool before restarting (this is the intended check point)
             ClientUtils.sendDebugMessage(client, "Finalize: Swapping to farming tool...");
             GearManager.swapToFarmingToolSync(client);
             ClientUtils.sendDebugMessage(client, "Finalize: Tool swap done.");
 
-            // Only wait for gear swap if equipment swap is enabled (since it's only done
-            // during cleaning if enabled)
-            if (MacroConfig.autoEquipment) {
-                ClientUtils.sendDebugMessage(client, "Finalize: Waiting for gear/gui checks...");
-                ClientUtils.waitForGearAndGui(client);
-                ClientUtils.sendDebugMessage(client, "Finalize: Gear/gui wait done.");
-            }
+            // Original: also wait for gear/GUI stability if equipment swap is enabled.
+            // Experimental: skip this — we already have the right gear from the clean sequence.
+            // gear/gui wait skipped (experimental pest/gear merged native)
 
             ClientUtils.sendDebugMessage(client, "Pest cleaning sequence completed. Next state: FARMING");
             com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
-            PestPrepSwapManager.prepSwappedForCurrentPestCycle = false; // Ensure flag is reset when returning
+            PestPrepSwapManager.prepSwappedForCurrentPestCycle = false;
             ClientUtils.sendDebugMessage(client, "Stopping script: Pest cleaning finished, returning to farming");
             com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
             PestManager.isCleaningInProgress = false;
-            if (client.player != null) {
-                ClientUtils.sendDebugMessage(client, "Pest cleaner finished.");
-            }
-            com.ihanuat.mod.util.ClientUtils.sendDebugMessage(client,
-                    "Pest cleaning sequence finished. Restarting farming...");
+            ClientUtils.sendDebugMessage(client, "Pest cleaning sequence finished. Restarting farming...");
             client.execute(() -> {
                 GearManager.swapToFarmingTool(client);
                 ClientUtils.sendDebugMessage(client, "Starting farming script: " + MacroConfig.getFullRestartCommand());
@@ -275,5 +219,52 @@ public class PestReturnManager {
             });
         } catch (InterruptedException ignored) {
         }
+    }
+
+    /**
+     * Extracted visitor-switch logic for use in finalizeReturnToFarm.
+     * Swaps to the visitor wardrobe (if configured), waits for stability,
+     * then starts the visitor macro script.
+     */
+    private static void finalizeSwitchToVisitor(Minecraft client) throws InterruptedException {
+        client.execute(() -> GearManager.swapToFarmingTool(client));
+
+        if (MacroConfig.autoWardrobeVisitor && MacroConfig.wardrobeSlotVisitor > 0
+                && WardrobeManager.trackedWardrobeSlot != MacroConfig.wardrobeSlotVisitor) {
+            client.player.displayClientMessage(Component.literal(
+                    "\u00A7eSwapping to Visitor Wardrobe (Slot " + MacroConfig.wardrobeSlotVisitor + ")..."),
+                    true);
+            GearManager.ensureWardrobeSlot(client, MacroConfig.wardrobeSlotVisitor);
+            if (WardrobeManager.isSwappingWardrobe) {
+                ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for wardrobe GUI...");
+                ClientUtils.waitForWardrobeGui(client);
+                ClientUtils.sendDebugMessage(client,
+                        "Finalize (Visitor): Wardrobe GUI cleared, waiting for swap completion...");
+                while (WardrobeManager.isSwappingWardrobe)
+                    Thread.sleep(50);
+                while (WardrobeManager.wardrobeCleanupTicks > 0)
+                    Thread.sleep(50);
+                Thread.sleep(250);
+            }
+        }
+
+        try {
+            ClientUtils.sendDebugMessage(client, "Finalize (Visitor): Waiting for final stability...");
+            while (WardrobeManager.isSwappingWardrobe)
+                Thread.sleep(50);
+            long guiStart = System.currentTimeMillis();
+            while (client.screen != null && System.currentTimeMillis() - guiStart < 5000) {
+                Thread.sleep(100);
+            }
+            Thread.sleep(250);
+        } catch (InterruptedException ignored) {}
+
+        ClientUtils.sendDebugMessage(client,
+                "Wardrobe swap done, now triggering visitor macro. Next state: VISITING");
+        ClientUtils.sendDebugMessage(client, "Stopping script: Returning to visitor macro");
+        com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
+        ClientUtils.sendDebugMessage(client, "Starting visitor macro script");
+        com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
+        PestManager.isCleaningInProgress = false;
     }
 }

@@ -6,6 +6,7 @@ import com.ihanuat.mod.MacroWorkerThread;
 import com.ihanuat.mod.util.ClientUtils;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.Component;
 
 public class RestartManager {
@@ -79,17 +80,23 @@ public class RestartManager {
         } else if (restartSequenceStage == 1) {
             if (com.ihanuat.mod.util.CommandUtils.hasSpawnBeenSet()
                     || System.currentTimeMillis() >= nextRestartActionTime) {
-                client.player.connection.sendChat("/hub");
-                restartSequenceStage = 2;
-                nextRestartActionTime = System.currentTimeMillis() + 10000;
+                // Go to main menu instead of /hub — /hub causes a disconnect back to the
+                // title screen mid-flight which triggers the unexpected-disconnect failsafe.
+                // Instead: mark intentional, switch to RECOVERING (which also pauses the
+                // dynamic-rest timer so "next rest" is preserved), schedule a 3-second
+                // reconnect, then disconnect cleanly.
+                client.player.displayClientMessage(
+                        Component.literal("§c[Ihanuat] Reboot: disconnecting to main menu, reconnecting in 3s..."), false);
+                MacroStateManager.setIntentionalDisconnect(true);
+                // RECOVERING triggers DynamicRestManager.pauseTimer() via setCurrentState,
+                // ensuring the "next rest" timer is NOT reset.
+                MacroStateManager.setCurrentState(MacroState.State.RECOVERING);
+                com.ihanuat.mod.ReconnectScheduler.scheduleReconnect(3, true);
+                client.execute(() -> client.disconnect(
+                        new net.minecraft.client.gui.screens.TitleScreen(), false));
+                restartSequenceStage = 0;
+                isRestartPending = false;
             }
-        } else if (restartSequenceStage == 2 && System.currentTimeMillis() >= nextRestartActionTime) {
-            ClientUtils.sendDebugMessage(client, "Stopping script: Entering recovery mode after server restart");
-            com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
-            MacroStateManager.setCurrentState(MacroState.State.RECOVERING);
-            restartSequenceStage = 0;
-            isRestartPending = true; // Still pending until recovery starts? Actually, let's reset it here.
-            isRestartPending = false;
         }
     }
 

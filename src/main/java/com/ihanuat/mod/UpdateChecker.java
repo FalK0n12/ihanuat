@@ -100,7 +100,7 @@ public final class UpdateChecker {
             MutableComponent prefix = Component.literal("§8[§6ihanuat§8] ");
             MutableComponent message = Component.literal(
                     "§eUpdate available! §7Current: §c" + currentVersion
-                            + " §7→ Latest: §a" + latestTag + " ");
+                    + " §7→ Latest: §a" + latestTag + " ");
             MutableComponent link = Component.literal("§b§n[Download]")
                     .withStyle(Style.EMPTY
                             .withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(RELEASES_URL)))

@@ -9,6 +9,6 @@ public class Ihanuat implements ModInitializer {
 
         @Override
         public void onInitialize() {
-                LOGGER.info("Ihanuat v1 Initialized!");
+                LOGGER.info("Ihanuat Initialized!");
         }
 }

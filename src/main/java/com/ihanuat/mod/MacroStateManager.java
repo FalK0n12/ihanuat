@@ -1,5 +1,6 @@
 package com.ihanuat.mod;
 
+import com.ihanuat.mod.modules.TodayTimeTracker;
 import net.minecraft.client.Minecraft;
 import com.ihanuat.mod.util.ClientUtils;
 
@@ -24,24 +25,18 @@ public class MacroStateManager {
 
     public static void syncFromConfig() {
         lifetimeAccumulated = MacroConfig.lifetimeAccumulated;
+        TodayTimeTracker.syncFromConfig();
     }
 
     public static void periodicUpdate() {
-        if (!isMacroRunning())
-            return;
+        if (!isMacroRunning()) return;
+        // Tick today tracker for day-rollover detection
+        TodayTimeTracker.tick();
 
         long now = System.currentTimeMillis();
-        if (now - lastPeriodicSaveTime > 60000) { // 1 minute
+        if (now - lastPeriodicSaveTime > 60_000) {
             lastPeriodicSaveTime = now;
             long diff = now - lastSessionStartTime;
-
-            if (MacroConfig.persistSessionTimer) {
-                // Keep session timer as is for pause/unpause if enabled
-            } else {
-                // Not actually hit here since we're periodic other than if someone pauses?
-                // Wait, sessionAccumulated is only saved to disk if we want it to survive
-                // RESTART
-            }
             MacroConfig.lifetimeAccumulated = lifetimeAccumulated + diff;
             MacroConfig.save();
         }
@@ -67,44 +62,47 @@ public class MacroStateManager {
         return currentState != MacroState.State.OFF;
     }
 
-    public static boolean isIntentionalDisconnect() {
-        return intentionalDisconnect;
+    public static long getMacroActiveSinceMs() {
+        if (currentState == MacroState.State.OFF) return 0L;
+        return lastSessionStartTime;
     }
 
-    public static void setIntentionalDisconnect(boolean intentional) {
-        intentionalDisconnect = intentional;
-    }
-
-    public static MacroState.State getCurrentState() {
-        return currentState;
-    }
+    public static boolean isIntentionalDisconnect() { return intentionalDisconnect; }
+    public static void setIntentionalDisconnect(boolean v) { intentionalDisconnect = v; }
+    public static MacroState.State getCurrentState() { return currentState; }
 
     public static void setCurrentState(MacroState.State state) {
-        if (currentState == MacroState.State.OFF && state != MacroState.State.OFF
-                && state != MacroState.State.RECOVERING) {
+        MacroState.State prev = currentState;
+        boolean wasActive = prev != MacroState.State.OFF && prev != MacroState.State.RECOVERING;
+        boolean willActive = state != MacroState.State.OFF && state != MacroState.State.RECOVERING;
+
+        if (prev == MacroState.State.OFF && willActive) {
             lastSessionStartTime = System.currentTimeMillis();
-            if (!com.ihanuat.mod.MacroConfig.persistSessionTimer) {
+            if (!MacroConfig.persistSessionTimer) {
                 sessionAccumulated = 0;
                 com.ihanuat.mod.modules.ProfitManager.reset();
             }
             lastPeriodicSaveTime = System.currentTimeMillis();
-        } else if (currentState == MacroState.State.RECOVERING && state != MacroState.State.OFF
-                && state != MacroState.State.RECOVERING) {
-            // Resuming from recovery (e.g. after dynamic rest): restart the timer
+            TodayTimeTracker.onMacroStart();
+
+        } else if (prev == MacroState.State.RECOVERING && willActive) {
             lastSessionStartTime = System.currentTimeMillis();
-        } else if (currentState != MacroState.State.OFF && currentState != MacroState.State.RECOVERING
-                && (state == MacroState.State.OFF || state == MacroState.State.RECOVERING)) {
+            TodayTimeTracker.onMacroStart();
+
+        } else if (wasActive && !willActive) {
             if (lastSessionStartTime != 0) {
                 long diff = System.currentTimeMillis() - lastSessionStartTime;
                 sessionAccumulated += diff;
                 lifetimeAccumulated += diff;
                 lastSessionStartTime = 0;
-
-                // Persist stats
                 MacroConfig.lifetimeAccumulated = lifetimeAccumulated;
                 MacroConfig.save();
             }
+            TodayTimeTracker.onMacroPause();
+            // Pause the dynamic-rest countdown so it doesn't tick while macro is off
+            com.ihanuat.mod.modules.DynamicRestManager.pauseTimer();
         }
+
         currentState = state;
     }
 
@@ -112,11 +110,7 @@ public class MacroStateManager {
         setCurrentState(MacroState.State.OFF);
         MacroWorkerThread.getInstance().cancelCurrent();
         if (client != null) {
-            client.execute(() -> {
-                if (client.screen != null) {
-                    client.setScreen(null);
-                }
-            });
+            client.execute(() -> { if (client.screen != null) client.setScreen(null); });
         }
         ClientUtils.forceReleaseKeys(client);
         ClientUtils.sendDebugMessage(client, "Stopping script: Macro stopped by user");
@@ -131,6 +125,7 @@ public class MacroStateManager {
             com.ihanuat.mod.modules.DynamicRestManager.reset();
             com.ihanuat.mod.modules.ProfitManager.reset();
         }
+        // pauseTimer already called by setCurrentState(OFF) above when persistSessionTimer=true
         ReconnectScheduler.cancel();
     }
 }
