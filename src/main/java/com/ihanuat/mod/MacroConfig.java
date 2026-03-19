@@ -19,6 +19,11 @@ public class MacroConfig {
         SNEAK, DOUBLE_TAP_SPACE
     }
 
+    // text style for both the clickgui and HUD — none, drop shadow, or outline
+    public enum TextStyle {
+        NONE, SHADOW, OUTLINE
+    }
+
     // ── Defaults ──────────────────────────────────────────────────────────────
     public static final int DEFAULT_PEST_THRESHOLD = 5;
     public static final boolean DEFAULT_TRIGGER_PEST_ON_CHAT = true;
@@ -264,6 +269,11 @@ public class MacroConfig {
     public static int themeToggleOff   = 0xFF2A2A3A;
     public static int themeSliderFill  = 0xFF3A3A99;
     public static int themeButtonHover = 0xFF4444BB;
+    public static TextStyle themeTextStyle = TextStyle.NONE;
+    // outline pixel radius (1-3), shadow uses this as nothing extra needed
+    public static int themeOutlineSize = 1;
+    // shadow color opacity (0-255), 0 = fully transparent, 255 = fully opaque black
+    public static int themeShadowOpacity = 180;
 
     // ── HUD colors (0xRRGGBB — no alpha channel stored) ──────────────────────
     public static int hudBgColor            = DEFAULT_HUD_BG_COLOR;
@@ -299,6 +309,43 @@ public class MacroConfig {
 
     /** Formats 0xRRGGBB as 6-char uppercase hex string. */
     public static String toHexString(int rgb) { return String.format("%06X", rgb & 0xFFFFFF); }
+
+    /**
+     * draws text respecting the current themeTextStyle
+     * shadow = built-in mc shadow, outline = manual 1px outline trick
+     */
+    public static void drawStyledText(net.minecraft.client.gui.GuiGraphics g, net.minecraft.client.gui.Font font, String text, int x, int y, int color) {
+        switch (themeTextStyle) {
+            case SHADOW:
+                // shadow — mc built-in shadow but we tint it with themeShadowOpacity
+                // mc doesn't let us control shadow color directly so we fake it:
+                // draw a semi-transparent black offset copy then the real text on top
+                if (themeShadowOpacity > 0) {
+                    int shadowColor = (themeShadowOpacity << 24) | 0x000000;
+                    g.drawString(font, text, x + 1, y + 1, shadowColor, false);
+                }
+                g.drawString(font, text, x, y, color, false);
+                break;
+            case OUTLINE: {
+                // outline — draw shadow color at each pixel in the outline radius, then text on top
+                int shadowColor = (themeShadowOpacity << 24) | 0x000000;
+                int r = Math.max(1, Math.min(3, themeOutlineSize));
+                for (int ox = -r; ox <= r; ox++) {
+                    for (int oy = -r; oy <= r; oy++) {
+                        if (ox == 0 && oy == 0) continue;
+                        // skip corners for sizes > 1 to get a rounder look
+                        if (r > 1 && Math.abs(ox) == r && Math.abs(oy) == r) continue;
+                        g.drawString(font, text, x + ox, y + oy, shadowColor, false);
+                    }
+                }
+                g.drawString(font, text, x, y, color, false);
+                break;
+            }
+            default:
+                g.drawString(font, text, x, y, color, false);
+                break;
+        }
+    }
 
     private static long sanitizeLifetimeAccumulated(long savedValue) {
         long normalized = Math.max(0L, savedValue);
@@ -418,6 +465,9 @@ public class MacroConfig {
         d.themeToggleOff   = themeToggleOff;
         d.themeSliderFill  = themeSliderFill;
         d.themeButtonHover = themeButtonHover;
+        d.themeTextStyle   = themeTextStyle;
+        d.themeOutlineSize    = themeOutlineSize;
+        d.themeShadowOpacity  = themeShadowOpacity;
         d.persistSessionTimer = persistSessionTimer;
         d.compactProfitCalculator = compactProfitCalculator;
         d.showProfitHudWhileInactive = showProfitHudWhileInactive;
@@ -537,6 +587,9 @@ public class MacroConfig {
             themeToggleOff   = d.themeToggleOff;
             themeSliderFill  = d.themeSliderFill;
             themeButtonHover = d.themeButtonHover;
+            if (d.themeTextStyle != null) themeTextStyle = d.themeTextStyle;
+            themeOutlineSize   = Math.max(1, Math.min(3, d.themeOutlineSize > 0 ? d.themeOutlineSize : 1));
+            themeShadowOpacity = Math.max(0, Math.min(255, d.themeShadowOpacity));
             persistSessionTimer = d.persistSessionTimer;
             compactProfitCalculator = d.compactProfitCalculator;
             showProfitHudWhileInactive = d.showProfitHudWhileInactive;
@@ -710,6 +763,9 @@ public class MacroConfig {
         int themeToggleOff   = 0xFF2A2A3A;
         int themeSliderFill  = 0xFF3A3A99;
         int themeButtonHover = 0xFF4444BB;
+        TextStyle themeTextStyle = TextStyle.NONE;
+        int themeOutlineSize   = 1;
+        int themeShadowOpacity = 180;
         boolean persistSessionTimer = DEFAULT_PERSIST_SESSION_TIMER;
         boolean compactProfitCalculator = DEFAULT_COMPACT_PROFIT_CALCULATOR;
         boolean showProfitHudWhileInactive = DEFAULT_SHOW_PROFIT_HUD_WHILE_INACTIVE;
