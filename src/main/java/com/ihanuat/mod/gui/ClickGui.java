@@ -255,7 +255,7 @@ public class ClickGui extends Screen {
         p.add(toggle("HUD While Off", () -> MacroConfig.showProfitHudWhileInactive,  v -> { MacroConfig.showProfitHudWhileInactive = v; save(); }));
         p.add(toggle("Compact",       () -> MacroConfig.compactProfitCalculator,    v -> { MacroConfig.compactProfitCalculator = v; save(); }));
         p.add(listSetting("Pet XP List", () -> MacroConfig.petXpTrackedPets,
-                v -> { MacroConfig.petXpTrackedPets = new ArrayList<>(v); save(); },
+                v -> { MacroConfig.petXpTrackedPets = new ArrayList<>(v); ProfitManager.refreshConfiguredPetXpPrices(); save(); },
                 "Pet Name, Max Level (100/200), Level 1 Price,",
                 "Max Level Price, Rarity" + String.join(", ", java.util.Arrays.stream(MacroConfig.PetRarity.values()).map(Enum::name).toList())));
         p.add(button("Reset Session",  () -> { MacroStateManager.resetSession(); notifyMsg("Session reset!"); }));

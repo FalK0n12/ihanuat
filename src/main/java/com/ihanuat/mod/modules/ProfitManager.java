@@ -1079,7 +1079,7 @@ public class ProfitManager {
             MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
             long lvl1 = info.level1Price;
             long lvlMax = info.maxLevelPrice;
-            double pricePerXp = bazaarPrices.getOrDefault("Pet XP (" + info.name + ")", 0.0);
+            double pricePerXp = getConfiguredPetXpPrice(info);
 
             String lvl1Str = lvl1 > 0 ? String.format("%,d", lvl1) : "not set";
             String lvlMaxStr = lvlMax > 0 ? String.format("%,d", lvlMax) : "not set";
@@ -1105,6 +1105,23 @@ public class ProfitManager {
 
     public static void startStartupPriceFetch() {
         fetchBazaarPrices();
+    }
+
+    /**
+     * Rebuilds configured pet XP prices immediately from the current config.
+     * This keeps the debug output in sync when the user edits the tracked pet list.
+     */
+    public static synchronized void refreshConfiguredPetXpPrices() {
+        updateConfiguredPetXpPrices();
+    }
+
+    private static double getConfiguredPetXpPrice(MacroConfig.PetInfo info) {
+        long[] table = PetXpTracker.getXpTable(info.rarity, info.maxLevel);
+        long totalXp = table[info.maxLevel];
+        if (totalXp <= 0 || info.level1Price <= 0 || info.maxLevelPrice <= info.level1Price) {
+            return 0.0;
+        }
+        return (double) (info.maxLevelPrice - info.level1Price) / totalXp;
     }
 
     private static synchronized void fetchBazaarPrices() {
@@ -1255,18 +1272,15 @@ public class ProfitManager {
     }
 
     private static void updateConfiguredPetXpPrices() {
+        bazaarPrices.keySet().removeIf(key -> key.startsWith("Pet XP (") && key.endsWith(")"));
         for (String petConfig : MacroConfig.petXpTrackedPets) {
             MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
-            long[] table = PetXpTracker.getXpTable(info.rarity, info.maxLevel);
-            long totalXp = table[info.maxLevel];
-            if (totalXp <= 0 || info.level1Price <= 0 || info.maxLevelPrice <= info.level1Price) {
+            double pricePerXp = getConfiguredPetXpPrice(info);
+            if (pricePerXp <= 0) {
                 bazaarPrices.remove("Pet XP (" + info.name + ")");
                 continue;
             }
-            double pricePerXp = (double) (info.maxLevelPrice - info.level1Price) / totalXp;
-            if (pricePerXp > 0) {
-                bazaarPrices.put("Pet XP (" + info.name + ")", pricePerXp);
-            }
+            bazaarPrices.put("Pet XP (" + info.name + ")", pricePerXp);
         }
     }
 
