@@ -254,6 +254,10 @@ public class ClickGui extends Screen {
         p.add(toggle("Lifetime HUD",  () -> MacroConfig.showLifetimeHud,            v -> { MacroConfig.showLifetimeHud = v; save(); }));
         p.add(toggle("HUD While Off", () -> MacroConfig.showProfitHudWhileInactive,  v -> { MacroConfig.showProfitHudWhileInactive = v; save(); }));
         p.add(toggle("Compact",       () -> MacroConfig.compactProfitCalculator,    v -> { MacroConfig.compactProfitCalculator = v; save(); }));
+        p.add(listSetting("Pet XP List", () -> MacroConfig.petXpTrackedPets,
+                v -> { MacroConfig.petXpTrackedPets = new ArrayList<>(v); save(); },
+                "Pet Name, Max Level (100/200), Level 1 Price,",
+                "Max Level Price, Rarity" + String.join(", ", java.util.Arrays.stream(MacroConfig.PetRarity.values()).map(Enum::name).toList())));
         p.add(button("Reset Session",  () -> { MacroStateManager.resetSession(); notifyMsg("Session reset!"); }));
         p.add(button("Reset Daily",    () -> { ProfitManager.resetDaily();       notifyMsg("Daily reset!"); }));
         p.add(button("Reset Lifetime", () -> { ProfitManager.resetLifetime();    notifyMsg("Lifetime reset!"); }));
@@ -333,6 +337,7 @@ public class ClickGui extends Screen {
     private static TextSettingEntry textSetting(String l, Supplier<String> g, Consumer<String> s) { return new TextSettingEntry(l, g, s); }
     private static TextSettingEntry csvTextSetting(String l, Supplier<String> g, Consumer<String> s, String placeholder) { return new TextSettingEntry(l, g, s, placeholder); }
     private static ListSettingEntry listSetting(String l, Supplier<List<String>> g, Consumer<List<String>> s) { return new ListSettingEntry(l, g, s); }
+    private static ListSettingEntry listSetting(String l, Supplier<List<String>> g, Consumer<List<String>> s, String... hints) { return new ListSettingEntry(l, g, s, hints); }
     private static IntFieldEntry intField(String l, Supplier<Integer> g, Consumer<Integer> s, String u) { return new IntFieldEntry(l, g, s, u); }
     private static ButtonEntry button(String l, Runnable a) { return new ButtonEntry(l, a); }
     private static ColorEntry colorEntry(String l, Supplier<Integer> g, Consumer<Integer> s) { return new ColorEntry(l, g, s); }
@@ -548,8 +553,8 @@ public class ClickGui extends Screen {
     }
 
     static class ListSettingEntry implements Entry {
-        final String label; final Supplier<List<String>> getter; final Consumer<List<String>> setter;
-        ListSettingEntry(String l, Supplier<List<String>> g, Consumer<List<String>> s) { label=l; getter=g; setter=s; }
+        final String label; final Supplier<List<String>> getter; final Consumer<List<String>> setter; final String[] hints;
+        ListSettingEntry(String l, Supplier<List<String>> g, Consumer<List<String>> s, String... hints) { label=l; getter=g; setter=s; this.hints = hints == null ? new String[0] : hints; }
         @Override public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
             List<String> values = getter.get();
             String summary;
@@ -564,7 +569,7 @@ public class ClickGui extends Screen {
         }
         @Override public void onClick(int mx, int my) {}
         @Override public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
-            return new ListInputSubPanel(mx, my, sw, sh, label, getter.get(), setter);
+            return new ListInputSubPanel(mx, my, sw, sh, label, getter.get(), setter, hints);
         }
     }
 
@@ -893,15 +898,17 @@ public class ClickGui extends Screen {
         final String label;
         final StringBuilder value;
         final Consumer<List<String>> setter;
-        final int x, y, w = 300, h = 96;
+        final String[] hints;
+        final int x, y, w = 300, h = 122;
         boolean cursorVisible = true;
         long lastBlink = System.currentTimeMillis();
         int cursorIndex;
         int scrollLine = 0;
 
-        ListInputSubPanel(int mx, int my, int sw, int sh, String label, List<String> initial, Consumer<List<String>> setter) {
+        ListInputSubPanel(int mx, int my, int sw, int sh, String label, List<String> initial, Consumer<List<String>> setter, String... hints) {
             this.label = label;
             this.setter = setter;
+            this.hints = hints == null ? new String[0] : hints;
             this.value = new StringBuilder(initial == null ? "" : String.join("\n", initial));
             this.cursorIndex = this.value.length();
             this.x = Math.min(mx, sw - w - 4);
@@ -909,7 +916,7 @@ public class ClickGui extends Screen {
         }
 
         private int textLeft() { return x + 6; }
-        private int textTop() { return y + 26; }
+        private int textTop() { return y + 22 + hints.length * 10; }
         private int textRight() { return x + w - 6; }
         private int textBottom() { return y + h - 8; }
         private int lineStep(net.minecraft.client.gui.Font font) { return font.lineHeight + 1; }
@@ -992,7 +999,12 @@ public class ClickGui extends Screen {
             fillRoundRect(g, x-2, y-2, w+4, h+4, 4, C_SPBD());
             fillRoundRect(g, x, y, w, h, 3, C_SPBG());
             g.drawString(font, label, x+5, y+6, C_TXT(), false);
-            g.fill(x+4, y+20, x+w-4, y+h-6, C_SBGR());
+            int hintY = y + 16;
+            for (String hint : hints) {
+                g.drawString(font, hint, x + 6, hintY, C_DIM(), false);
+                hintY += 10;
+            }
+            g.fill(x+4, y+18 + hints.length * 10, x+w-4, y+h-6, C_SBGR());
             g.fill(x+4, y+h-6, x+w-4, y+h-5, C_ACC());
             if (System.currentTimeMillis() - lastBlink > 500) { cursorVisible = !cursorVisible; lastBlink = System.currentTimeMillis(); }
 
@@ -1017,7 +1029,7 @@ public class ClickGui extends Screen {
             if (maxScrollLine(font) > 0) {
                 int trackX0 = x + w - 5;
                 int trackX1 = x + w - 3;
-                int trackY0 = y + 22;
+                int trackY0 = y + 20 + hints.length * 10;
                 int trackY1 = y + h - 8;
                 int trackH = trackY1 - trackY0;
                 int totalLines = lines.size();
@@ -1031,7 +1043,7 @@ public class ClickGui extends Screen {
 
         @Override public boolean contains(int mx, int my) { return mx >= x-2 && mx <= x+w+2 && my >= y-2 && my <= y+h+2; }
         @Override public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            if (mx >= x + 4 && mx <= x + w - 4 && my >= y + 20 && my <= y + h - 6) {
+            if (mx >= x + 4 && mx <= x + w - 4 && my >= y + 18 + hints.length * 10 && my <= y + h - 6) {
                 int step = lineStep(font);
                 clampScroll(font);
                 int line = scrollLine + Math.max(0, (my - textTop()) / Math.max(1, step));

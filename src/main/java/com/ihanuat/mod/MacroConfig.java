@@ -106,7 +106,7 @@ public class MacroConfig {
 
     // Pet Tracker
     public static final java.util.List<String> DEFAULT_PET_TRACKER_LIST =
-            java.util.Arrays.asList("PET_ROSE_DRAGON:Rose Dragon:200:LEGENDARY");
+            java.util.Arrays.asList("Rose Dragon, 200, 670000000, 1250000000, Legendary");
 
     // HUD layout
     public static final int DEFAULT_HUD_X = 10;
@@ -214,6 +214,8 @@ public class MacroConfig {
     public static boolean excludePurseProfit = DEFAULT_EXCLUDE_PURSE_PROFIT;
     public static double quitThresholdHours = DEFAULT_QUIT_THRESHOLD_HOURS;
     public static boolean forceQuitMinecraft = DEFAULT_FORCE_QUIT_MINECRAFT;
+    public static java.util.List<String> petXpTrackedPets = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
+    // Legacy field kept only for backward compatibility with older config files.
     public static java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
     public static final java.util.List<String> DEFAULT_CHAT_RULES = java.util.Collections.emptyList();
     public static java.util.List<String> chatRules = new java.util.ArrayList<>(DEFAULT_CHAT_RULES);
@@ -432,6 +434,7 @@ public class MacroConfig {
         d.excludePurseProfit = excludePurseProfit;
         d.quitThresholdHours = quitThresholdHours;
         d.forceQuitMinecraft = forceQuitMinecraft;
+        d.petXpTrackedPets = new java.util.ArrayList<>(petXpTrackedPets);
         d.petTrackerList = new java.util.ArrayList<>(petTrackerList);
         d.chatRules = new java.util.ArrayList<>(chatRules);
         d.hudX = hudX; d.hudY = hudY; d.hudScale = hudScale; d.showHud = showHud;
@@ -550,6 +553,7 @@ public class MacroConfig {
             excludePurseProfit = d.excludePurseProfit;
             quitThresholdHours = Math.max(0.0, d.quitThresholdHours);
             forceQuitMinecraft = d.forceQuitMinecraft;
+            if (d.petXpTrackedPets != null) petXpTrackedPets = new java.util.ArrayList<>(d.petXpTrackedPets);
             if (d.petTrackerList != null) petTrackerList = new java.util.ArrayList<>(d.petTrackerList);
             if (d.chatRules != null) chatRules = new java.util.ArrayList<>(d.chatRules);
             hudX = d.hudX; hudY = d.hudY;
@@ -587,14 +591,42 @@ public class MacroConfig {
     // ── PetInfo ───────────────────────────────────────────────────────────────
 
     public static class PetInfo {
-        public String tag, name; public int maxLevel; public PetRarity rarity;
+        private static final java.util.regex.Pattern NEW_FORMAT = java.util.regex.Pattern.compile(
+                "^\\s*(.+?)\\s*,\\s*(100|200)\\s*,\\s*([\\d,]+)\\s*,\\s*([\\d,]+)\\s*,\\s*([A-Za-z]+)\\s*$");
+        public String tag; public String name; public int maxLevel; public long level1Price; public long maxLevelPrice; public PetRarity rarity;
         public PetInfo(String config) {
-            String[] p = config.split(":");
-            if (p.length >= 4) {
-                tag = p[0].trim(); name = cap(p[1].trim());
-                try { maxLevel = Integer.parseInt(p[2].trim()); } catch (NumberFormatException e) { maxLevel = 100; }
-                try { rarity = PetRarity.valueOf(p[3].trim().toUpperCase()); } catch (IllegalArgumentException e) { rarity = PetRarity.LEGENDARY; }
-            } else { tag = "UNKNOWN"; name = "Unknown Pet"; maxLevel = 100; rarity = PetRarity.LEGENDARY; }
+            java.util.regex.Matcher m = NEW_FORMAT.matcher(config == null ? "" : config);
+            if (m.matches()) {
+                tag = "";
+                name = cap(m.group(1).trim());
+                try { maxLevel = Integer.parseInt(m.group(2).trim()); } catch (NumberFormatException e) { maxLevel = 100; }
+                level1Price = parseCoins(m.group(3), 0L);
+                maxLevelPrice = parseCoins(m.group(4), 0L);
+                try { rarity = PetRarity.valueOf(m.group(5).trim().toUpperCase()); } catch (IllegalArgumentException e) { rarity = PetRarity.LEGENDARY; }
+            } else {
+                String[] p = config == null ? new String[0] : config.split(":");
+                if (p.length >= 4) {
+                    tag = p[0].trim();
+                    name = cap(p[1].trim());
+                    try { maxLevel = Integer.parseInt(p[2].trim()); } catch (NumberFormatException e) { maxLevel = 100; }
+                    rarity = parseLegacyRarity(p[3]);
+                } else {
+                    tag = "";
+                    name = "Rose Dragon";
+                    maxLevel = 200;
+                    rarity = PetRarity.LEGENDARY;
+                }
+                level1Price = 670_000_000L;
+                maxLevelPrice = 1_250_000_000L;
+            }
+        }
+        private static PetRarity parseLegacyRarity(String raw) {
+            try { return PetRarity.valueOf(raw.trim().toUpperCase()); }
+            catch (IllegalArgumentException e) { return PetRarity.LEGENDARY; }
+        }
+        private static long parseCoins(String raw, long fallback) {
+            try { return Long.parseLong(raw.replace(",", "").trim()); }
+            catch (NumberFormatException e) { return fallback; }
         }
         private String cap(String s) {
             if (s == null || s.isEmpty()) return s;
@@ -602,7 +634,9 @@ public class MacroConfig {
             for (String w : s.split("\\s+")) if (!w.isEmpty()) { sb.append(Character.toUpperCase(w.charAt(0))); if (w.length()>1) sb.append(w.substring(1).toLowerCase()); sb.append(' '); }
             return sb.toString().trim();
         }
-        @Override public String toString() { return tag+":"+name+":"+maxLevel+":"+rarity; }
+        @Override public String toString() {
+            return String.format("%s, %d, %,d, %,d, %s", name, maxLevel, level1Price, maxLevelPrice, cap(rarity.name()));
+        }
     }
 
     // ── ConfigData ────────────────────────────────────────────────────────────
@@ -690,6 +724,7 @@ public class MacroConfig {
         boolean excludePurseProfit = DEFAULT_EXCLUDE_PURSE_PROFIT;
         double quitThresholdHours = DEFAULT_QUIT_THRESHOLD_HOURS;
         boolean forceQuitMinecraft = DEFAULT_FORCE_QUIT_MINECRAFT;
+        java.util.List<String> petXpTrackedPets = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
         java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
         java.util.List<String> chatRules = new java.util.ArrayList<>(DEFAULT_CHAT_RULES);
         int hudX = DEFAULT_HUD_X, hudY = DEFAULT_HUD_Y;

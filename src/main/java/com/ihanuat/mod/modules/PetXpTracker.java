@@ -182,7 +182,7 @@ public class PetXpTracker {
         int petLineIndex = -1;
 
         // Iterate through all tracked pets to find which one is active in tab list
-        for (String petConfig : MacroConfig.petTrackerList) {
+        for (String petConfig : MacroConfig.petXpTrackedPets) {
             MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
             Pattern petNamePattern = petNamePatternCache.computeIfAbsent(info.name, k -> 
                 Pattern.compile("\\[Lvl\\s*(\\d+)]\\s*" + Pattern.quote(k), Pattern.CASE_INSENSITIVE));
