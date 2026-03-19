@@ -252,7 +252,7 @@ public class MacroConfig {
     public static double rewarpEndZ = 0;
     public static boolean rewarpEndPosSet = false;
     public static boolean armorSwapVisitor = false;
-    public static int[][] clickGuiPanelPositions = new int[13][2];
+    public static int[][] clickGuiPanelPositions = new int[13][3];
     public static int themePanelBg     = 0xF0101018;
     public static int themePanelHeader = 0xFF18182C;
     public static int themeAccent      = 0xFF5050A0;
@@ -695,7 +695,7 @@ public class MacroConfig {
         double rewarpEndX = 0, rewarpEndY = 0, rewarpEndZ = 0;
         boolean rewarpEndPosSet = false;
         boolean armorSwapVisitor = false;
-        int[][] clickGuiPanelPositions = new int[13][2];
+        int[][] clickGuiPanelPositions = new int[13][3];
         int themePanelBg     = 0xF0101018;
         int themePanelHeader = 0xFF18182C;
         int themeAccent      = 0xFF5050A0;
