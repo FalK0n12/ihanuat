@@ -350,6 +350,8 @@ public class ClickGui extends Screen {
         p.add(intField("Script Offset", () -> MacroConfig.restScriptingTimeOffset, v -> { MacroConfig.restScriptingTimeOffset = v; save(); }, "min"));
         p.add(intField("Break Time",    () -> MacroConfig.restBreakTime,           v -> { MacroConfig.restBreakTime = v; save(); }, "min"));
         p.add(intField("Break Offset",  () -> MacroConfig.restBreakTimeOffset,     v -> { MacroConfig.restBreakTimeOffset = v; save(); }, "min"));
+        p.add(toggle("Show Daily Total", () -> MacroConfig.showTotalToday,         v -> { MacroConfig.showTotalToday = v; save(); }));
+        p.add(doubleField("Quit Threshold", () -> MacroConfig.quitThresholdHours,  v -> { MacroConfig.quitThresholdHours = Math.max(0.0, v); save(); }, "hr"));
         return p;
     }
 
@@ -454,6 +456,7 @@ public class ClickGui extends Screen {
     private static ListSettingEntry listSetting(String l, Supplier<List<String>> g, Consumer<List<String>> s) { return new ListSettingEntry(l, g, s); }
     private static ListSettingEntry listSetting(String l, Supplier<List<String>> g, Consumer<List<String>> s, String... hints) { return new ListSettingEntry(l, g, s, hints); }
     private static IntFieldEntry intField(String l, Supplier<Integer> g, Consumer<Integer> s, String u) { return new IntFieldEntry(l, g, s, u); }
+    private static DoubleFieldEntry doubleField(String l, Supplier<Double> g, Consumer<Double> s, String u) { return new DoubleFieldEntry(l, g, s, u); }
     private static ButtonEntry button(String l, Runnable a) { return new ButtonEntry(l, a); }
     private static ColorEntry colorEntry(String l, Supplier<Integer> g, Consumer<Integer> s) { return new ColorEntry(l, g, s); }
 
@@ -617,6 +620,7 @@ public class ClickGui extends Screen {
             if (e instanceof TextSettingEntry te) return te.label;
             if (e instanceof ListSettingEntry le) return le.label;
             if (e instanceof IntFieldEntry ie) return ie.label;
+            if (e instanceof DoubleFieldEntry de) return de.label;
             if (e instanceof ButtonEntry be) return be.label;
             if (e instanceof ColorEntry ce) return ce.label;
             if (e instanceof ImportCodeEntry) return "Paste Theme Code";
@@ -793,6 +797,18 @@ public class ClickGui extends Screen {
         }
         @Override public void onClick(int mx, int my) {}
         @Override public SubPanel openSubPanel(int mx, int my, int sw, int sh) { return new IntInputSubPanel(mx, my, sw, sh, label, getter.get(), Integer.MIN_VALUE, Integer.MAX_VALUE, v -> { setter.accept(v); save(); }); }
+    }
+
+    static class DoubleFieldEntry implements Entry {
+        final String label; final Supplier<Double> getter; final Consumer<Double> setter; final String unit;
+        DoubleFieldEntry(String l, Supplier<Double> g, Consumer<Double> s, String u) { label=l; getter=g; setter=s; unit=u; }
+        @Override public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
+            String val = String.format("%.2f %s", getter.get(), unit); int vw = font.width(val); int mid = y + h / 2 - 4;
+            g.drawString(font, label, x + 2, mid, hov ? C_TXT() : C_DIM(), false);
+            g.drawString(font, val, x + w - vw - 2, mid, C_ON2(), false);
+        }
+        @Override public void onClick(int mx, int my) {}
+        @Override public SubPanel openSubPanel(int mx, int my, int sw, int sh) { return new DoubleInputSubPanel(mx, my, sw, sh, label, getter.get(), v -> { setter.accept(v); save(); }); }
     }
 
     static class ButtonEntry implements Entry {
@@ -1089,6 +1105,53 @@ public class ClickGui extends Screen {
         @Override public void commit() {
             try { int v=Integer.parseInt(raw); setter.accept(min==Integer.MIN_VALUE?v:Math.max(min,Math.min(max,v))); }
             catch (NumberFormatException ignored) {}
+        }
+    }
+
+    static class DoubleInputSubPanel implements SubPanel {
+        final String label; String raw; final Consumer<Double> setter;
+        final int x, y, w = 220, h = 50;
+        boolean cursorVisible = true; long lastBlink = System.currentTimeMillis();
+        DoubleInputSubPanel(int mx, int my, int sw, int sh, String label, double initial, Consumer<Double> setter) {
+            this.label = label; this.raw = trimDouble(initial); this.setter = setter;
+            this.x = Math.min(mx, sw - w - 4); this.y = Math.min(my, sh - h - 4);
+        }
+        @Override public void render(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
+            fillRoundRect(g, x-2, y-2, w+4, h+4, 4, C_SPBD());
+            fillRoundRect(g, x, y, w, h, 3, C_SPBG());
+            g.drawString(font, label, x+5, y+6, C_TXT(), false);
+            g.fill(x+4, y+20, x+w-4, y+42, C_SBGR());
+            g.fill(x+4, y+42, x+w-4, y+43, C_ACC());
+            if (System.currentTimeMillis()-lastBlink>500) { cursorVisible=!cursorVisible; lastBlink=System.currentTimeMillis(); }
+            g.drawString(font, raw+(cursorVisible?"|":""), x+6, y+26, C_TXT(), false);
+        }
+        @Override public boolean contains(int mx, int my) { return mx>=x-2&&mx<=x+w+2&&my>=y-2&&my<=y+h+2; }
+        @Override public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) { return true; }
+        @Override public void scroll(int dir) {}
+        @Override public boolean keyPressed(int key, int scan, int mods) {
+            if (key==259&&!raw.isEmpty()) { raw=raw.substring(0,raw.length()-1); return true; }
+            if (key==257||key==335) { commit(); return true; }
+            if ((mods & GLFW.GLFW_MOD_CONTROL) == 0) {
+                String name = GLFW.glfwGetKeyName(key, scan);
+                if (name != null && name.length() == 1) {
+                    char c = name.charAt(0);
+                    if (Character.isDigit(c)||(c=='-'&&raw.isEmpty())||(c=='.'&&!raw.contains("."))) { raw+=c; return true; }
+                }
+            }
+            return false;
+        }
+        @Override public boolean charTyped(char c, int mods) {
+            if (Character.isDigit(c)||(c=='-'&&raw.isEmpty())||(c=='.'&&!raw.contains("."))) { raw+=c; return true; }
+            return false;
+        }
+        @Override public void commit() {
+            try { setter.accept(Double.parseDouble(raw)); }
+            catch (NumberFormatException ignored) {}
+        }
+        private static String trimDouble(double value) {
+            String formatted = String.format("%.2f", value);
+            if (formatted.contains(".")) formatted = formatted.replaceAll("0+$", "").replaceAll("\\.$", "");
+            return formatted;
         }
     }
 
