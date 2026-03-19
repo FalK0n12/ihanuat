@@ -50,6 +50,39 @@ public class ClickGui extends Screen {
              |  Math.max(0, ( c    &0xFF) -( a     &0xFF));
     }
 
+    static Character fallbackCharFromKey(int key, int scan, int mods) {
+        if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return null;
+        String name = GLFW.glfwGetKeyName(key, scan);
+        if (name == null || name.length() != 1) return null;
+        char c = name.charAt(0);
+        if ((mods & GLFW.GLFW_MOD_SHIFT) == 0) return c;
+        if (Character.isLetter(c)) return Character.toUpperCase(c);
+        return switch (c) {
+            case '`' -> '~';
+            case '1' -> '!';
+            case '2' -> '@';
+            case '3' -> '#';
+            case '4' -> '$';
+            case '5' -> '%';
+            case '6' -> '^';
+            case '7' -> '&';
+            case '8' -> '*';
+            case '9' -> '(';
+            case '0' -> ')';
+            case '-' -> '_';
+            case '=' -> '+';
+            case '[' -> '{';
+            case ']' -> '}';
+            case '\\' -> '|';
+            case ';' -> ':';
+            case '\'' -> '"';
+            case ',' -> '<';
+            case '.' -> '>';
+            case '/' -> '?';
+            default -> c;
+        };
+    }
+
     // theme share code — base64 of 9 hex ints joined by commas
     static String encodeTheme() {
         String s = String.format("%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X",
@@ -761,16 +794,10 @@ public class ClickGui extends Screen {
                     return true;
                 }
                 // GLFW fallback for typing since charTyped may not fire
-                if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) == 0) {
-                    String name = org.lwjgl.glfw.GLFW.glfwGetKeyName(key, scan);
-                    if (name != null && name.length() == 1) {
-                        char c = name.charAt(0);
-                        if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0) c = Character.toUpperCase(c);
-                        if (Character.isDigit(c) || (c>='a'&&c<='f') || (c>='A'&&c<='F')) {
-                            if (hexBuffer.length() < 8) hexBuffer += c;
-                            return true;
-                        }
-                    }
+                Character c = fallbackCharFromKey(key, scan, mods);
+                if (c != null && (Character.isDigit(c) || (c>='a'&&c<='f') || (c>='A'&&c<='F'))) {
+                    if (hexBuffer.length() < 8) hexBuffer += c;
+                    return true;
                 }
                 return true; // swallow all keys while editing hex
             }
@@ -836,14 +863,8 @@ public class ClickGui extends Screen {
                 if (clip != null) value += clip;
                 return true;
             }
-            if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) == 0) {
-                String name = org.lwjgl.glfw.GLFW.glfwGetKeyName(key, scan);
-                if (name != null && name.length() == 1) {
-                    char c = name.charAt(0);
-                    if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0) c = Character.toUpperCase(c);
-                    value += c; return true;
-                }
-            }
+            Character c = fallbackCharFromKey(key, scan, mods);
+            if (c != null) { value += c; return true; }
             return false;
         }
         @Override public boolean charTyped(char c, int mods) { value+=c; return true; }
@@ -1119,15 +1140,11 @@ public class ClickGui extends Screen {
                 ensureCursorVisible(font);
                 return true;
             }
-            if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) == 0) {
-                String name = org.lwjgl.glfw.GLFW.glfwGetKeyName(key, scan);
-                if (name != null && name.length() == 1) {
-                    char c = name.charAt(0);
-                    if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0) c = Character.toUpperCase(c);
-                    insertText(String.valueOf(c));
-                    ensureCursorVisible(font);
-                    return true;
-                }
+            Character c = fallbackCharFromKey(key, scan, mods);
+            if (c != null) {
+                insertText(String.valueOf(c));
+                ensureCursorVisible(font);
+                return true;
             }
             return false;
         }
