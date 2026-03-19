@@ -218,8 +218,9 @@ public class IhanuatClient implements ClientModInitializer {
             } else if (!hasCheckedPersistenceOnJoin) {
                 long reconnectAt = RestStateManager.loadReconnectTime();
                 if (reconnectAt != 0) {
-                    long nowSecs = java.time.Instant.now().getEpochSecond();
-                    if (reconnectAt > nowSecs && RestStateManager.shouldResume() && MacroConfig.autoResumeAfterDynamicRest) {
+                    // Rejoin can complete a few seconds after the scheduled reconnect time,
+                    // so the saved resume flag is the reliable signal here.
+                    if (RestStateManager.shouldResume() && MacroConfig.autoResumeAfterDynamicRest) {
                         client.player.displayClientMessage(
                                 Component.literal(
                                         "\u00A76[Ihanuat] Session persistence detected! Initializing recovery..."),
