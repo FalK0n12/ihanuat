@@ -11,7 +11,7 @@ import java.nio.file.Path;
 
 public class RestStateManager {
     private static final Path STATE_FILE = FabricLoader.getInstance()
-            .getGameDir().resolve("macro_rest_state.json");
+            .getGameDir().resolve("ihanuat_rest_state.json");
 
     public static void saveReconnectTime(long epochSeconds, boolean shouldResume) {
         try {

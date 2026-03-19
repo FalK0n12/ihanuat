@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.ihanuat.mod.gui.ConfigScreenFactory;
+import com.ihanuat.mod.gui.ClickGui;
 import com.ihanuat.mod.gui.DynamicRestScreen;
 import com.ihanuat.mod.gui.MacroHudRenderer;
 import com.ihanuat.mod.modules.BookCombineManager;
@@ -24,6 +24,7 @@ import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
 import com.ihanuat.mod.modules.VisitorManager;
+import com.ihanuat.mod.modules.QuitThresholdManager;
 import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
 
@@ -50,12 +51,23 @@ public class IhanuatClient implements ClientModInitializer {
 
     private static boolean isHandlingMessage = false;
     private static boolean hasCheckedPersistenceOnJoin = false;
+    private static boolean hasCheckedUpdate = false;
     private static long lastStashPickupTime = 0;
     private static final long STASH_PICKUP_DELAY_MS = 3300;
+    /** Pre-computed delay for the current stash pickup interval. Recomputed after each send. */
+    private static long currentStashPickupDelay = STASH_PICKUP_DELAY_MS;
+    /** Computes and stores the next stash pickup delay, incorporating the configured random offset. */
+    private static void refreshStashPickupDelay() {
+        int offset = MacroConfig.stashManagerOffsetMs;
+        currentStashPickupDelay = (offset > 0)
+                ? STASH_PICKUP_DELAY_MS + (long)(Math.random() * (offset + 1))
+                : STASH_PICKUP_DELAY_MS;
+    }
     private static long lastRewarpTime = 0;
-    private static final long REWARP_COOLDOWN_MS = 5000; // 5 seconds cooldown
+    private static final long REWARP_COOLDOWN_MS = 5000;
 
     private static boolean isPickingUpStash = false;
+    private static boolean hasPendingStash = false;
     private static String lastScannedVisitorTitle = null;
     private static long lastUnexpectedRecoveryTriggerMs = 0;
     private static final long UNEXPECTED_RECOVERY_COOLDOWN_MS = 7000;
@@ -66,6 +78,8 @@ public class IhanuatClient implements ClientModInitializer {
         ProfitManager.loadLifetime();
         ProfitManager.loadDaily();
         MacroStateManager.syncFromConfig();
+
+
         RestStateManager.clearState();
         MacroHudRenderer.register();
         com.ihanuat.mod.gui.ProfitHudRenderer.register();
@@ -80,7 +94,6 @@ public class IhanuatClient implements ClientModInitializer {
             String lowerClean = cleanText.toLowerCase();
 
             if (lowerClean.contains("offer accepted")) {
-                // Extract visitor name after "with" if present
                 String visitorName = cleanText;
                 int withIdx = cleanText.toLowerCase().indexOf("with");
                 if (withIdx >= 0) {
@@ -102,14 +115,11 @@ public class IhanuatClient implements ClientModInitializer {
                 MacroHudRenderer.renderInEditMode(graphics, Minecraft.getInstance());
                 com.ihanuat.mod.gui.ProfitHudRenderer.renderInEditMode(graphics, Minecraft.getInstance());
 
-                // ── Visitor ROI: scan visitor GUI for costs/rewards ──
                 if (scr instanceof AbstractContainerScreen) {
                     AbstractContainerScreen<?> containerScr = (AbstractContainerScreen<?>) scr;
                     String title = containerScr.getTitle().getString().trim();
-                    // Only scan once per unique GUI title, and only if macro is running
                     if (!title.equals(lastScannedVisitorTitle)
                             && com.ihanuat.mod.MacroStateManager.isMacroRunning()) {
-                        // Check if slot 29 has loaded (has items)
                         if (containerScr.getMenu().slots.size() > 29) {
                             net.minecraft.world.inventory.Slot slot = containerScr.getMenu().getSlot(29);
                             if (slot != null && slot.hasItem()) {
@@ -126,7 +136,6 @@ public class IhanuatClient implements ClientModInitializer {
                 }
             });
 
-            // Fabric 0.141+: mouse event object carries x, y, button and modifiers
             ScreenMouseEvents.allowMouseClick(screen).register((scr, event) -> {
                 if (event.button() == 0) {
                     if (MacroHudRenderer.isHovered(event.x(), event.y())) {
@@ -165,16 +174,22 @@ public class IhanuatClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) {
                 hasCheckedPersistenceOnJoin = false;
+                isPickingUpStash = false;
+                hasPendingStash = false;
 
                 // Failsafe: if macro is still marked active during an unexpected disconnect,
                 // force RECOVERING and ensure reconnect is scheduled.
                 if (MacroStateManager.isMacroRunning()
                         && MacroStateManager.getCurrentState() != MacroState.State.RECOVERING
                         && !MacroStateManager.isIntentionalDisconnect()) {
-                    if (!ReconnectScheduler.isPending()) {
-                        ReconnectScheduler.scheduleReconnect(10, true);
+                    if (MacroConfig.autoRecoverUnexpectedDisconnect) {
+                        if (!ReconnectScheduler.isPending()) {
+                            ReconnectScheduler.scheduleReconnect(10, true);
+                        }
+                        MacroStateManager.setCurrentState(MacroState.State.RECOVERING);
+                    } else {
+                        MacroStateManager.stopMacro(client);
                     }
-                    MacroStateManager.setCurrentState(MacroState.State.RECOVERING);
                 }
 
                 if (client.screen instanceof TitleScreen || client.screen instanceof DisconnectedScreen
@@ -184,8 +199,6 @@ public class IhanuatClient implements ClientModInitializer {
                         long now = java.time.Instant.now().getEpochSecond();
                         long remaining = reconnectAt - now;
                         if (remaining <= 0) {
-                            // Reconnect time has passed, but we're still disconnected.
-                            // If not already pending, schedule a retry in 10 seconds.
                             if (!ReconnectScheduler.isPending()) {
                                 ReconnectScheduler.scheduleReconnect(10, RestStateManager.shouldResume());
                                 if (client.screen instanceof DisconnectedScreen) {
@@ -194,7 +207,6 @@ public class IhanuatClient implements ClientModInitializer {
                                 }
                             }
                         } else if (!ReconnectScheduler.isPending()) {
-                            // Reconnect is in the future and not scheduled yet, schedule it.
                             ReconnectScheduler.scheduleReconnect(remaining, RestStateManager.shouldResume());
                             if (client.screen instanceof DisconnectedScreen) {
                                 client.execute(() -> client
@@ -206,7 +218,8 @@ public class IhanuatClient implements ClientModInitializer {
             } else if (!hasCheckedPersistenceOnJoin) {
                 long reconnectAt = RestStateManager.loadReconnectTime();
                 if (reconnectAt != 0) {
-                    if (RestStateManager.shouldResume()) {
+                    long nowSecs = java.time.Instant.now().getEpochSecond();
+                    if (reconnectAt > nowSecs && RestStateManager.shouldResume() && MacroConfig.autoResumeAfterDynamicRest) {
                         client.player.displayClientMessage(
                                 Component.literal(
                                         "\u00A76[Ihanuat] Session persistence detected! Initializing recovery..."),
@@ -215,8 +228,22 @@ public class IhanuatClient implements ClientModInitializer {
                     }
                     RestStateManager.clearState();
                 }
+                // ── Timer persistence on join ───────────────────────────────────────────
+                // Only reset the Dynamic Rest timer if the macro is fully OFF.
+                // If the macro was running (e.g. player left garden and rejoined),
+                // we want the current session timer and next-rest timer to keep
+                // counting from where they left off — never reset on a plain join.
+                // Timers are only zeroed by: (a) pressing K to stop, or (b) a
+                // scheduled Dynamic Rest re-arm after reconnect.
+                if (!MacroStateManager.isMacroRunning()) {
+                    DynamicRestManager.reset();
+                }
                 hasCheckedPersistenceOnJoin = true;
                 MacroStateManager.setIntentionalDisconnect(false);
+            }
+            if (!hasCheckedUpdate && client.player != null) {
+                hasCheckedUpdate = true;
+                UpdateChecker.checkAndNotify(client);
             }
         });
 
@@ -250,9 +277,7 @@ public class IhanuatClient implements ClientModInitializer {
 
                 if (lowerText.contains("autosell") && lowerText.contains("script stopped")) {
                     if (MacroStateManager.getCurrentState() == MacroState.State.AUTOSELLING) {
-                        MacroStateManager.setCurrentState(MacroState.State.FARMING); // Fallback to farming or whatever
-                                                                                     // was before? User didn't specify,
-                                                                                     // but usually it's farming.
+                        MacroStateManager.setCurrentState(MacroState.State.FARMING);
                     }
                     return;
                 }
@@ -260,7 +285,8 @@ public class IhanuatClient implements ClientModInitializer {
                 if (text.contains("You were spawned in Limbo.") || text
                         .contains("A disconnect occurred in your connection, so you were put in the SkyBlock Lobby!")) {
                     if (MacroStateManager.getCurrentState() != MacroState.State.OFF
-                            && MacroStateManager.getCurrentState() != MacroState.State.RECOVERING) {
+                            && MacroStateManager.getCurrentState() != MacroState.State.RECOVERING
+                            && MacroConfig.autoRecoverUnexpectedDisconnect) {
                         Minecraft.getInstance().player.displayClientMessage(Component
                                 .literal("\u00A7c[Ihanuat] Disconnect detected! Starting recovery sequence..."), false);
                         MacroStateManager.stopMacro(Minecraft.getInstance());
@@ -271,8 +297,7 @@ public class IhanuatClient implements ClientModInitializer {
 
                 if (text.contains("Taunahi >>") && text.contains("Let's use sprayonator.")) {
                     MacroStateManager.setCurrentState(MacroState.State.SPRAYING);
-                    PestManager.isCleaningInProgress = true; // Prevent checkTabListForPests from re-triggering
-                                                             // startCleaningSequence
+                    PestManager.isCleaningInProgress = true;
                     ProfitManager.startSprayPhase();
                     return;
                 }
@@ -280,13 +305,18 @@ public class IhanuatClient implements ClientModInitializer {
                 String plainText = com.ihanuat.mod.util.ClientUtils.stripColor(text);
                 String lowerPlainText = plainText.toLowerCase();
 
+                if (lowerPlainText.contains("script stopped") && lowerPlainText.contains("remote control")) {
+                    MacroStateManager.stopMacro(Minecraft.getInstance());
+                    return;
+                }
+
                 boolean isPestCleanerFinishSignal = lowerPlainText.contains("pest cleaner")
                         && lowerPlainText.contains("finished")
                         && !lowerPlainText.contains("sprayed plot")
                         && !lowerPlainText.contains("plot -")
                         && !lowerPlainText.matches(".*plot\\s*[#:\\-]\\s*\\d+.*")
-                        && !lowerPlainText.contains("[debug]") // Prevent infinite loop from our own debug messages
-                        && !lowerPlainText.contains("detected from chat"); // Prevent infinite loop
+                        && !lowerPlainText.contains("[debug]")
+                        && !lowerPlainText.contains("detected from chat");
 
                 if (isPestCleanerFinishSignal) {
                     if (MacroStateManager.getCurrentState() == MacroState.State.CLEANING
@@ -297,6 +327,18 @@ public class IhanuatClient implements ClientModInitializer {
                         }
                         ProfitManager.stopSprayPhase();
                         PestManager.handlePestCleaningFinished(Minecraft.getInstance());
+                    }
+                    // Arm the stash pickup regardless of state — pest cleaner finishing
+                    // is the correct moment to begin sending /pickupstash commands.
+                    if (hasPendingStash && MacroConfig.autoStashManager) {
+                        hasPendingStash = false;
+                        isPickingUpStash = true;
+                        lastStashPickupTime = 0; // send first command immediately
+                        refreshStashPickupDelay();
+                        if (MacroConfig.showDebug) {
+                            ClientUtils.sendDebugMessage(Minecraft.getInstance(),
+                                    "Stash pickup armed after pest cleaner finished.");
+                        }
                     }
                 }
 
@@ -326,14 +368,13 @@ public class IhanuatClient implements ClientModInitializer {
                             "Diagnose: Seen YUCK in chat. Text: " + plainText);
                 }
 
-                if (MacroConfig.triggerPestOnChat && lowerText.contains("yuck") && lowerText.contains("plot")) {
+                if (MacroConfig.triggerPestOnChat && MacroStateManager.isMacroRunning() && lowerText.contains("yuck") && lowerText.contains("plot")) {
                     if (MacroConfig.showDebug) {
                         ClientUtils.sendDebugMessage(Minecraft.getInstance(),
                                 "YUCK detected. State: " + MacroStateManager.getCurrentState());
                     }
                     if (lowerText.contains("spawned") || lowerText.contains("phillip")) {
                         if (MacroStateManager.getCurrentState() == MacroState.State.FARMING) {
-                            // Match format: "Plot - 14" or "Plot #14" or "Plot: 6"
                             Pattern p = Pattern.compile("Plot\\s*[\\-#:]\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
                             Matcher m = p.matcher(plainText);
                             if (m.find()) {
@@ -383,9 +424,6 @@ public class IhanuatClient implements ClientModInitializer {
                     }
                 }
 
-                // Debug: log all visitor-related messages when in VISITING/CLEANING/SPRAYING
-                // state
-                // Guard: skip our own debug messages to avoid a feedback loop
                 if (MacroConfig.showDebug && plainText.toLowerCase().contains("visitor")
                         && !plainText.startsWith("[Debug]")) {
                     ClientUtils.sendDebugMessage(Minecraft.getInstance(),
@@ -399,7 +437,7 @@ public class IhanuatClient implements ClientModInitializer {
                 if ((MacroStateManager.getCurrentState() == MacroState.State.VISITING
                         || MacroStateManager.getCurrentState() == MacroState.State.CLEANING
                         || MacroStateManager.getCurrentState() == MacroState.State.SPRAYING)
-                        && !plainText.startsWith("[Debug]") // Never trigger on our own debug messages
+                        && !plainText.startsWith("[Debug]")
                         && plainText.toLowerCase().contains("visitor") && plainText.toLowerCase().contains("script")
                         && (plainText.toLowerCase().contains("finished") || plainText.toLowerCase().contains("stopped"))
                         && !plainText.contains("sequence complete")) {
@@ -417,24 +455,30 @@ public class IhanuatClient implements ClientModInitializer {
                 }
 
                 if (lowerText.contains("stashed away!")) {
-                    isPickingUpStash = true;
+                    hasPendingStash = true;
+                    // Pickup is deliberately deferred — it starts after pest cleaner finishes,
+                    // not immediately, to avoid interfering with rewarp/cleaning sequences.
                 }
 
                 if (lowerText.contains("your stash isn't holding any items or materials!")) {
                     isPickingUpStash = false;
+                    hasPendingStash = false;
                 }
 
                 ProfitManager.handleChatMessage(message);
                 PestManager.handlePhillipMessage(Minecraft.getInstance(), text);
                 com.ihanuat.mod.modules.CropFeverManager.handleChatMessage(Minecraft.getInstance(), plainText);
 
-                // Notify CommandUtils about the chat message for command synchronization
                 com.ihanuat.mod.util.CommandUtils.onChatMessage(plainText);
 
             } finally {
                 isHandlingMessage = false;
             }
         });
+
+        // ── ChatRules handled exclusively in ChatHudMixin.onAddMessage() ─────────────
+        // The previous GAME + CHAT dual-registration here caused every webhook to fire
+        // twice. Removed. See ChatHudMixin for the single authoritative entry point.
 
         ClientSendMessageEvents.COMMAND.register((command) -> {
             if (command.equalsIgnoreCase("call george")) {
@@ -446,7 +490,7 @@ public class IhanuatClient implements ClientModInitializer {
             if (client.player == null)
                 return;
             while (configKey.consumeClick())
-                client.setScreen(ConfigScreenFactory.createConfigScreen(client.screen));
+                client.setScreen(new ClickGui());
             while (startScriptKey.consumeClick()) {
                 if (MacroStateManager.getCurrentState() == MacroState.State.OFF) {
                     PestManager.reset();
@@ -455,6 +499,7 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.reset();
                     JunkManager.reset();
                     RecoveryManager.reset();
+                    QuitThresholdManager.reset(); // re-arm quit threshold for new session
                     MacroStateManager.setCurrentState(MacroState.State.FARMING);
                     ProfitManager.startStartupPriceFetch();
                     ProfitManager.printPetXpPriceDebug(client);
@@ -515,8 +560,6 @@ public class IhanuatClient implements ClientModInitializer {
             if (client.player == null)
                 return;
 
-            // Failsafe: if we are in a non-farming active state but no longer in Garden,
-            // transition to recovery so macro cannot remain stuck as CLEANING/VISITING.
             MacroState.State macroState = MacroStateManager.getCurrentState();
             if (macroState != MacroState.State.OFF
                     && macroState != MacroState.State.RECOVERING
@@ -564,6 +607,7 @@ public class IhanuatClient implements ClientModInitializer {
             JunkManager.update(client);
 
             DynamicRestManager.update(client);
+            QuitThresholdManager.update(client); // check quit threshold each tick
             RestartManager.update(client);
             PestManager.update(client);
             GearManager.cleanupTick(client);
@@ -579,12 +623,11 @@ public class IhanuatClient implements ClientModInitializer {
                 }
             }
 
-
             // Double-tap Space Flight Toggle
             if (PestReturnManager.isStoppingFlight) {
                 PestReturnManager.flightStopTicks++;
                 switch (PestReturnManager.flightStopStage) {
-                    case 0: // Press
+                    case 0:
                         if (client.options.keyJump != null)
                             net.minecraft.client.KeyMapping.set(client.options.keyJump.getDefaultKey(), true);
                         if (PestReturnManager.flightStopTicks >= 2) {
@@ -592,7 +635,7 @@ public class IhanuatClient implements ClientModInitializer {
                             PestReturnManager.flightStopTicks = 0;
                         }
                         break;
-                    case 1: // Release
+                    case 1:
                         if (client.options.keyJump != null)
                             net.minecraft.client.KeyMapping.set(client.options.keyJump.getDefaultKey(), false);
                         if (PestReturnManager.flightStopTicks >= 3) {
@@ -600,7 +643,7 @@ public class IhanuatClient implements ClientModInitializer {
                             PestReturnManager.flightStopTicks = 0;
                         }
                         break;
-                    case 2: // Press
+                    case 2:
                         if (client.options.keyJump != null)
                             net.minecraft.client.KeyMapping.set(client.options.keyJump.getDefaultKey(), true);
                         if (PestReturnManager.flightStopTicks >= 2) {
@@ -608,7 +651,7 @@ public class IhanuatClient implements ClientModInitializer {
                             PestReturnManager.flightStopTicks = 0;
                         }
                         break;
-                    case 3: // Done
+                    case 3:
                         if (client.options.keyJump != null)
                             net.minecraft.client.KeyMapping.set(client.options.keyJump.getDefaultKey(), false);
                         PestReturnManager.isStoppingFlight = false;
@@ -624,12 +667,12 @@ public class IhanuatClient implements ClientModInitializer {
             // Stash Pickup Logic
             if (MacroConfig.autoStashManager && isPickingUpStash && client.player != null) {
                 MacroState.State state = MacroStateManager.getCurrentState();
-                // Only perform stash pickup when NOT in a GUI and NOT in a sensitive state
-                if (client.screen == null && state != MacroState.State.VISITING 
+                if (client.screen == null && state != MacroState.State.VISITING
                     && state != MacroState.State.CLEANING && state != MacroState.State.SPRAYING) {
                     long now = System.currentTimeMillis();
-                    if (now - lastStashPickupTime >= STASH_PICKUP_DELAY_MS) {
+                    if (now - lastStashPickupTime >= currentStashPickupDelay) {
                         lastStashPickupTime = now;
+                        refreshStashPickupDelay(); // compute delay for NEXT interval
                         client.player.connection.sendCommand("pickupstash");
                     }
                 }
@@ -645,7 +688,7 @@ public class IhanuatClient implements ClientModInitializer {
                     double dz = client.player.getZ() - MacroConfig.rewarpEndZ;
                     double distanceSq = dx * dx + dy * dy + dz * dz;
 
-                    if (distanceSq <= 1.5 * 1.5) { // Within 1.5 blocks
+                    if (distanceSq <= 1.5 * 1.5) {
                         lastRewarpTime = now;
                         client.player.displayClientMessage(Component.literal("§6Rewarp End Position reached!"), true);
                         MacroWorkerThread.getInstance().submit("PlotTpRewarp", () -> {
@@ -658,16 +701,15 @@ public class IhanuatClient implements ClientModInitializer {
                                 return;
                             }
                             client.execute(() -> MacroConfig.executePlotTpRewarp(client));
-                            MacroWorkerThread.sleep(1200); // Wait for warp
+                            MacroWorkerThread.sleep(1200);
                             if (MacroWorkerThread.shouldAbortTask(client, MacroState.State.FARMING)) {
                                 return;
                             }
 
-                            // Hold W until wall hit if enabled
                             if (MacroConfig.holdWUntilWall) {
                                 client.execute(() -> client.options.keyUp.setDown(true));
-                                MacroWorkerThread.sleep(200); // let movement start
-                                long wallTimeout = System.currentTimeMillis() + 5000; // 5s safety timeout
+                                MacroWorkerThread.sleep(200);
+                                long wallTimeout = System.currentTimeMillis() + 5000;
                                 double lastX = client.player.getX();
                                 double lastZ = client.player.getZ();
                                 while (System.currentTimeMillis() < wallTimeout) {
@@ -680,7 +722,7 @@ public class IhanuatClient implements ClientModInitializer {
                                     double currZ = client.player.getZ();
                                     double moved = Math.sqrt(
                                             (currX - lastX) * (currX - lastX) + (currZ - lastZ) * (currZ - lastZ));
-                                    if (moved < 0.03) { // nearly stopped → hit a wall
+                                    if (moved < 0.03) {
                                         break;
                                     }
                                     lastX = currX;

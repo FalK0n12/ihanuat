@@ -51,29 +51,24 @@ public class GearManager {
         if (PestManager.isCleaningInProgress)
             return;
 
-        ClientUtils.waitForGearAndGui(client);
-        swapToFarmingToolSync(client);
-
-        if (!waitForContainerCloseSync(client, 3500)) {
-            ClientUtils.sendDebugMessage(client,
-                    "§cFinalizing gear swap aborted: container did not close in time. Not restarting script yet.");
-            scheduleFinalResumeRetry(client);
-            return;
-        }
-
-        pendingFinalResumeRetries = 0;
-
-        if (PestManager.isCleaningInProgress)
-            return;
-
-        client.execute(() -> {
+        // When experimental mode is ON: skip the full gear/container-wait dance
+        // and restart directly. Farming tool is already equipped after a wardrobe
+        // swap — checking it again wastes time and causes visible artefacts.
+        // Experimental pest/gear is now always active (merged native)
+        {
             if (PestManager.isCleaningInProgress)
                 return;
-            com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
-            swapToFarmingTool(client);
-            ClientUtils.sendDebugMessage(client, "Finalizing gear swap. Restarting farming script...");
-            com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
-        });
+            ClientUtils.sendDebugMessage(client,
+                    "finalResume: skipping gear check, restarting farming directly.");
+            client.execute(() -> {
+                if (PestManager.isCleaningInProgress)
+                    return;
+                com.ihanuat.mod.MacroStateManager.setCurrentState(com.ihanuat.mod.MacroState.State.FARMING);
+                swapToFarmingTool(client);
+                com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
+            });
+            return;
+        }
     }
 
     private static void scheduleFinalResumeRetry(Minecraft client) {

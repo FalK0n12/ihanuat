@@ -16,13 +16,17 @@ import net.minecraft.network.chat.Component;
  * Implements the Dynamic Rest feature.
  *
  * Flow:
- * 1. Timer counts down only while in FARMING state.
- * 2. When the timer expires, a staged shutdown begins (still gated on FARMING):
- * Stage 0 — send /setspawn, stop the macro script, force-release keys.
- * Stage 1 — disconnect from the server (intentional) and schedule reconnect
- * via ReconnectScheduler for the configured break duration.
+ * 1. Timer counts down while macro is running in any active state
+ *    (FARMING, CLEANING, VISITING, SPRAYING, etc.) — no longer pauses on
+ *    non-farming states.
+ * 2. When the timer expires, a staged shutdown begins (still gated on FARMING
+ *    for safe execution — it will wait until the current pest/visitor sequence
+ *    finishes):
+ *    Stage 0 — send /setspawn, stop the macro script, force-release keys.
+ *    Stage 1 — disconnect from the server (intentional) and schedule reconnect
+ *    via ReconnectScheduler for the configured break duration.
  * 3. After the break the existing reconnect → recovery path runs normally,
- * which warps back to the Garden and restarts the script.
+ *    which warps back to the Garden and restarts the script.
  */
 public class DynamicRestManager {
 
@@ -32,23 +36,35 @@ public class DynamicRestManager {
     private static long nextRestTriggerMs = 0;
 
     /**
-     * Total duration of the current scripting period (ms). Used for the progress
-     * bar.
+     * Total duration of the current scripting period (ms). Used to compute
+     * progress if ever needed again.
      */
     private static long scheduledDurationMs = 0;
+
+    /**
+     * When the timer is paused (macro stopped/off) we store how many ms remain
+     * so we can restore the trigger on resume. -1 = not paused.
+     */
+    private static long pausedRemainingMs = -1;
 
     private static boolean restSequencePending = false;
     private static int restSequenceStage = 0;
     private static long nextStageActionTime = 0;
-    private static long lastTimeUpdate = 0;
 
     // ── Public API ───────────────────────────────────────────────────────────
 
     /**
      * Called when the macro starts (or after a recovery reconnect).
-     * Schedules the next rest timer using the configured scripting time ± offset.
+     * If the timer was paused, resumes from where it left off.
+     * Otherwise schedules a fresh timer using the configured scripting time ± offset.
      */
     public static void scheduleNextRest() {
+        if (pausedRemainingMs >= 0) {
+            // Resume from saved remaining time
+            nextRestTriggerMs = System.currentTimeMillis() + pausedRemainingMs;
+            pausedRemainingMs = -1;
+            return;
+        }
         if (MacroConfig.persistSessionTimer && nextRestTriggerMs != 0) {
             // Already scheduled and we want to persist
             return;
@@ -58,22 +74,33 @@ public class DynamicRestManager {
         long randomOffsetMs = (offsetMs > 0) ? (long) (new Random().nextDouble() * offsetMs) : 0;
         scheduledDurationMs = baseMs + randomOffsetMs;
         nextRestTriggerMs = System.currentTimeMillis() + scheduledDurationMs;
-        lastTimeUpdate = System.currentTimeMillis();
         restSequencePending = false;
         restSequenceStage = 0;
         nextStageActionTime = 0;
     }
 
     /**
-     * Clears the rest timer entirely (called when the macro is stopped manually).
+     * Called when the macro is paused/stopped (not a dynamic-rest disconnect).
+     * Saves remaining ms so the timer can resume exactly where it left off.
+     */
+    public static void pauseTimer() {
+        if (nextRestTriggerMs > 0 && !restSequencePending) {
+            pausedRemainingMs = Math.max(0, nextRestTriggerMs - System.currentTimeMillis());
+            nextRestTriggerMs = 0;
+        }
+    }
+
+    /**
+     * Clears the rest timer entirely (called when the macro is stopped manually
+     * and persistSessionTimer is off, or during a dynamic-rest disconnect).
      */
     public static void reset() {
         nextRestTriggerMs = 0;
         scheduledDurationMs = 0;
+        pausedRemainingMs = -1;
         restSequencePending = false;
         restSequenceStage = 0;
         nextStageActionTime = 0;
-        lastTimeUpdate = 0;
     }
 
     /** Returns true while a rest sequence is actively in progress. */
@@ -81,9 +108,12 @@ public class DynamicRestManager {
         return restSequencePending;
     }
 
-    /** Returns the scheduled rest trigger time (epoch ms), or 0 if not set. */
+    /** Returns the scheduled rest trigger time (epoch ms), or 0 if not set.
+     *  When the timer is paused, returns a synthetic epoch-ms based on the saved remainder. */
     public static long getNextRestTriggerMs() {
-        return nextRestTriggerMs;
+        if (nextRestTriggerMs > 0) return nextRestTriggerMs;
+        if (pausedRemainingMs >= 0) return System.currentTimeMillis() + pausedRemainingMs;
+        return 0;
     }
 
     /**
@@ -99,6 +129,11 @@ public class DynamicRestManager {
     /**
      * Must be called every client END_CLIENT_TICK while player != null.
      * Handles both the countdown HUD and the shutdown sequence.
+     *
+     * The timer now ticks during ALL active macro states (FARMING, CLEANING,
+     * VISITING, SPRAYING, AUTOSELLING) — it only stops when the macro is OFF
+     * or RECOVERING. This ensures the dynamic rest schedule reflects total
+     * active macro time, not just pure farming time.
      */
     public static void update(Minecraft client) {
         if (client.player == null)
@@ -106,34 +141,27 @@ public class DynamicRestManager {
 
         MacroState.State currentState = MacroStateManager.getCurrentState();
         boolean isFarming = currentState == MacroState.State.FARMING;
+        boolean macroActive = currentState != MacroState.State.OFF
+                && currentState != MacroState.State.RECOVERING;
         long now = System.currentTimeMillis();
 
         // === Timer Logic ===
-        if (nextRestTriggerMs > 0 && !restSequencePending) {
-            if (isFarming) {
-                if (now >= nextRestTriggerMs) {
-                    restSequencePending = true;
-                    restSequenceStage = 0;
-                    nextStageActionTime = now;
-                    if (client.player != null) {
-                        client.player.displayClientMessage(
-                                Component.literal("§6[Ihanuat] Dynamic Rest triggered! Starting shutdown sequence..."),
-                                false);
-                    }
-                }
-            } else {
-                // Pause countdown when not farming by moving trigger forward by the elapsed gap.
-                if (lastTimeUpdate != 0) {
-                    long gap = now - lastTimeUpdate;
-                    if (gap > 0) {
-                        nextRestTriggerMs += gap;
-                    }
+        // Timer ticks whenever the macro is in any active state.
+        // No longer pauses during CLEANING, VISITING, SPRAYING, etc.
+        if (nextRestTriggerMs > 0 && !restSequencePending && macroActive) {
+            if (now >= nextRestTriggerMs) {
+                restSequencePending = true;
+                restSequenceStage = 0;
+                nextStageActionTime = now;
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                            Component.literal("§6[Ihanuat] Dynamic Rest triggered! Starting shutdown sequence..."),
+                            false);
                 }
             }
-            lastTimeUpdate = now;
         }
 
-        // === Shutdown sequence — runs once pending and in Farming state ===
+        // === Shutdown sequence — waits until in FARMING state to execute safely ===
         if (!restSequencePending)
             return;
 
@@ -142,7 +170,8 @@ public class DynamicRestManager {
 
         switch (restSequenceStage) {
             case 0: {
-                // Wait until we are farming again to execute the first stage
+                // Wait until we are back in FARMING state before executing.
+                // This prevents interrupting active pest/visitor sequences.
                 if (!isFarming) {
                     return;
                 }
@@ -184,24 +213,17 @@ public class DynamicRestManager {
                             false);
                 }
 
-                // Mark as intentional so the disconnect mixin does not trigger an
-                // unexpected-kick reconnect on top of ours.
-                MacroStateManager.setIntentionalDisconnect(true);
-
-                // Schedule reconnect (shouldResume = true → recovery will fire on rejoin)
-                ReconnectScheduler.scheduleReconnect(breakSeconds, true);
-
-                // Actually disconnect — use Minecraft#disconnect which cleanly
-                // tears down the connection and returns to our custom rest screen.
-                // We wrap this in mc.execute to avoid potential nested rendering/blur crashes
-                // in modern Minecraft versions (1.21.x).
                 long durationMs = breakSeconds * 1000;
                 long restEndTimeMs = System.currentTimeMillis() + durationMs;
 
                 // Reset the trigger so scheduleNextRest() can pick up a new time after recovery
                 nextRestTriggerMs = 0;
 
-                client.execute(() -> client.disconnect(new DynamicRestScreen(restEndTimeMs, durationMs), false));
+                client.execute(() -> {
+                    MacroStateManager.setIntentionalDisconnect(true);
+                    ReconnectScheduler.scheduleReconnect(breakSeconds, true);
+                    client.disconnect(new DynamicRestScreen(restEndTimeMs, durationMs), false);
+                });
 
                 restSequenceStage = 2;
                 nextStageActionTime = Long.MAX_VALUE; // no further stages needed

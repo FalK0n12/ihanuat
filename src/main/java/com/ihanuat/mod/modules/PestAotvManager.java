@@ -29,9 +29,6 @@ public class PestAotvManager {
 
     public static void performAotvToRoof(Minecraft client) throws InterruptedException {
         if (MacroConfig.breakBlocksBeforeAotv && client.options != null && client.gameMode != null) {
-            // Ensure we are on the farming tool first
-            GearManager.swapToFarmingToolSync(client);
-            
             client.execute(() -> client.options.keyAttack.setDown(true));
             Thread.sleep(250); // 5 ticks
             client.execute(() -> client.options.keyAttack.setDown(false));
@@ -68,6 +65,21 @@ public class PestAotvManager {
             ClientUtils.waitForYChange(client, startY, 1500);
             isSneakingForAotv = false;
             client.execute(() -> client.options.keyShift.setDown(false));
+
+            // After landing on roof, wait configured delay then equip vacuum tool
+            // (happens BEFORE pest cleaner starts — the cleaner starts when this method returns)
+            int vacuumDelay = MacroConfig.aotvVacuumDelay;
+            if (vacuumDelay > 0) {
+                Thread.sleep(vacuumDelay);
+            }
+            int vacuumSlot = ClientUtils.findVacuumSlot(client);
+            if (vacuumSlot != -1) {
+                final int vs = vacuumSlot;
+                client.execute(() -> ((AccessorInventory) client.player.getInventory()).setSelected(vs));
+                ClientUtils.sendDebugMessage(client, "Equipped vacuum in slot " + vs + " before pest cleaner.");
+            } else {
+                ClientUtils.sendDebugMessage(client, "No vacuum found in hotbar — starting pest cleaner without vacuum swap.");
+            }
         } else {
             isSneakingForAotv = false;
             client.execute(() -> client.options.keyShift.setDown(false));

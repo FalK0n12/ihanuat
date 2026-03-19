@@ -13,8 +13,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
 /**
- * Renders the Profit Tracker HUD(s).
- * Supports both Session and Lifetime modes.
+ * Renders the Profit Tracker HUDs (Session and Lifetime).
+ * Daily HUD removed; all colors read from MacroConfig at render time.
  */
 public class ProfitHudRenderer {
 
@@ -25,323 +25,172 @@ public class ProfitHudRenderer {
     private static final int ROW_HEIGHT = 11;
     private static final int CORNER_RADIUS = 6;
 
-    private static final int BG_COLOR = 0xFF141424;
-    private static final int SEP_COLOR = 0xFF4A4A88;
-    private static final int TITLE_COLOR = 0xFFFFFFFF;
-    private static final int LABEL_COLOR = 0xFFAAAAAA;
-    private static final int VALUE_COLOR = 0xFFFFFFFF;
-    private static final int BORDER_IDLE = 0xFF6464B4;
-    private static final int BORDER_DRAG = 0xFFAAAAFF;
+    // Fixed UI chrome colors (not user-configurable — consistent look)
+    private static final int BORDER_IDLE   = 0xFF6464B4;
+    private static final int BORDER_DRAG   = 0xFFAAAAFF;
     private static final int BORDER_RESIZE = 0xFFFFAA00;
 
-    // Drag / resize state for Session HUD
-    private static boolean isDraggingSession = false;
-    private static boolean isResizingSession = false;
-    private static int dragOffsetXSession = 0;
-    private static int dragOffsetYSession = 0;
+    // Drag / resize — Session HUD
+    private static boolean isDraggingSession = false, isResizingSession = false;
+    private static int dragOffsetXSession = 0, dragOffsetYSession = 0;
     private static float resizeStartScaleSession = 1f;
     private static double resizeStartMouseXSession = 0;
 
-    // Drag / resize state for Daily HUD
-    private static boolean isDraggingDaily = false;
-    private static boolean isResizingDaily = false;
-    private static int dragOffsetXDaily = 0;
-    private static int dragOffsetYDaily = 0;
-    private static float resizeStartScaleDaily = 1f;
-    private static double resizeStartMouseXDaily = 0;
-
-    // Drag / resize state for Lifetime HUD
-    private static boolean isDraggingLifetime = false;
-    private static boolean isResizingLifetime = false;
-    private static int dragOffsetXLifetime = 0;
-    private static int dragOffsetYLifetime = 0;
+    // Drag / resize — Lifetime HUD
+    private static boolean isDraggingLifetime = false, isResizingLifetime = false;
+    private static int dragOffsetXLifetime = 0, dragOffsetYLifetime = 0;
     private static float resizeStartScaleLifetime = 1f;
     private static double resizeStartMouseXLifetime = 0;
 
+    // ── Registration ─────────────────────────────────────────────────────────
     public static void register() {
         HudRenderCallback.EVENT.register((guiGraphics, delta) -> {
             Minecraft client = Minecraft.getInstance();
-            if (MacroConfig.guiOnlyInGarden && ClientUtils.getCurrentLocation(client) != MacroState.Location.GARDEN) {
+            if (MacroConfig.guiOnlyInGarden && ClientUtils.getCurrentLocation(client) != MacroState.Location.GARDEN)
                 return;
-            }
-            boolean running = MacroStateManager.isMacroRunning();
-            boolean showAny = running || MacroConfig.showProfitHudWhileInactive;
-
+            boolean showAny = MacroStateManager.isMacroRunning() || MacroConfig.showProfitHudWhileInactive;
             if (showAny) {
-                if (MacroConfig.showSessionProfitHud) {
-                    render(guiGraphics, client, "session", false);
-                }
-                if (MacroConfig.showDailyHud) {
-                    render(guiGraphics, client, "daily", false);
-                }
-                if (MacroConfig.showLifetimeHud) {
-                    render(guiGraphics, client, "lifetime", false);
-                }
+                if (MacroConfig.showSessionProfitHud) render(guiGraphics, client, "session", false);
+                if (MacroConfig.showLifetimeHud)      render(guiGraphics, client, "lifetime", false);
             }
         });
     }
 
+    // ── Edit-mode render ──────────────────────────────────────────────────────
     public static void renderInEditMode(GuiGraphics g, Minecraft client) {
-        if (MacroConfig.showSessionProfitHud) {
-            render(g, client, "session", true);
-        }
-        if (MacroConfig.showDailyHud) {
-            render(g, client, "daily", true);
-        }
-        if (MacroConfig.showLifetimeHud) {
-            render(g, client, "lifetime", true);
-        }
+        if (MacroConfig.showSessionProfitHud) render(g, client, "session", true);
+        if (MacroConfig.showLifetimeHud)      render(g, client, "lifetime", true);
     }
 
+    // ── Interaction ───────────────────────────────────────────────────────────
     public static boolean isInteracting() {
-        return isDraggingSession || isResizingSession || isDraggingDaily || isResizingDaily
-                || isDraggingLifetime || isResizingLifetime;
+        return isDraggingSession || isResizingSession || isDraggingLifetime || isResizingLifetime;
     }
 
     public static boolean isHovered(double mouseX, double mouseY) {
-        if (MacroConfig.showSessionProfitHud && isHoveredInternal(mouseX, mouseY, "session"))
-            return true;
-        if (MacroConfig.showDailyHud && isHoveredInternal(mouseX, mouseY, "daily"))
-            return true;
-        if (MacroConfig.showLifetimeHud && isHoveredInternal(mouseX, mouseY, "lifetime"))
-            return true;
+        if (MacroConfig.showSessionProfitHud && isHoveredInternal(mouseX, mouseY, "session")) return true;
+        if (MacroConfig.showLifetimeHud      && isHoveredInternal(mouseX, mouseY, "lifetime")) return true;
         return false;
     }
 
-    private static boolean isHoveredInternal(double mouseX, double mouseY, String mode) {
-        float scale;
-        int x, y;
-        
-        if ("daily".equals(mode)) {
-            scale = MacroConfig.dailyHudScale;
-            x = MacroConfig.dailyHudX;
-            y = MacroConfig.dailyHudY;
-        } else if ("lifetime".equals(mode)) {
-            scale = MacroConfig.lifetimeHudScale;
-            x = MacroConfig.lifetimeHudX;
-            y = MacroConfig.lifetimeHudY;
-        } else {
-            scale = MacroConfig.sessionProfitHudScale;
-            x = MacroConfig.sessionProfitHudX;
-            y = MacroConfig.sessionProfitHudY;
-        }
-
-        double localX = (mouseX - x) / scale;
-        double localY = (mouseY - y) / scale;
-        return localX >= 0 && localX <= PANEL_W && localY >= 0 && localY <= panelH(mode);
+    private static boolean isHoveredInternal(double mx, double my, String mode) {
+        float scale; int x, y;
+        if ("lifetime".equals(mode)) { scale = MacroConfig.lifetimeHudScale; x = MacroConfig.lifetimeHudX; y = MacroConfig.lifetimeHudY; }
+        else                         { scale = MacroConfig.sessionProfitHudScale; x = MacroConfig.sessionProfitHudX; y = MacroConfig.sessionProfitHudY; }
+        double lx = (mx - x) / scale, ly = (my - y) / scale;
+        return lx >= 0 && lx <= PANEL_W && ly >= 0 && ly <= panelH(mode);
     }
 
-    public static void startDrag(double mouseX, double mouseY, boolean ctrl) {
-        if (isHoveredInternal(mouseX, mouseY, "lifetime")) {
-            if (ctrl) {
-                isResizingLifetime = true;
-                resizeStartScaleLifetime = MacroConfig.lifetimeHudScale;
-                resizeStartMouseXLifetime = mouseX;
-            } else {
-                isDraggingLifetime = true;
-                dragOffsetXLifetime = (int) (mouseX - MacroConfig.lifetimeHudX);
-                dragOffsetYLifetime = (int) (mouseY - MacroConfig.lifetimeHudY);
-            }
-        } else if (isHoveredInternal(mouseX, mouseY, "daily")) {
-            if (ctrl) {
-                isResizingDaily = true;
-                resizeStartScaleDaily = MacroConfig.dailyHudScale;
-                resizeStartMouseXDaily = mouseX;
-            } else {
-                isDraggingDaily = true;
-                dragOffsetXDaily = (int) (mouseX - MacroConfig.dailyHudX);
-                dragOffsetYDaily = (int) (mouseY - MacroConfig.dailyHudY);
-            }
-        } else if (isHoveredInternal(mouseX, mouseY, "session")) {
-            if (ctrl) {
-                isResizingSession = true;
-                resizeStartScaleSession = MacroConfig.sessionProfitHudScale;
-                resizeStartMouseXSession = mouseX;
-            } else {
-                isDraggingSession = true;
-                dragOffsetXSession = (int) (mouseX - MacroConfig.sessionProfitHudX);
-                dragOffsetYSession = (int) (mouseY - MacroConfig.sessionProfitHudY);
-            }
+    public static void startDrag(double mx, double my, boolean ctrl) {
+        if (isHoveredInternal(mx, my, "lifetime")) {
+            if (ctrl) { isResizingLifetime = true; resizeStartScaleLifetime = MacroConfig.lifetimeHudScale; resizeStartMouseXLifetime = mx; }
+            else       { isDraggingLifetime = true; dragOffsetXLifetime = (int)(mx - MacroConfig.lifetimeHudX); dragOffsetYLifetime = (int)(my - MacroConfig.lifetimeHudY); }
+        } else if (isHoveredInternal(mx, my, "session")) {
+            if (ctrl) { isResizingSession = true; resizeStartScaleSession = MacroConfig.sessionProfitHudScale; resizeStartMouseXSession = mx; }
+            else       { isDraggingSession = true; dragOffsetXSession = (int)(mx - MacroConfig.sessionProfitHudX); dragOffsetYSession = (int)(my - MacroConfig.sessionProfitHudY); }
         }
     }
 
-    public static void drag(double mouseX, double mouseY) {
+    public static void drag(double mx, double my) {
         Minecraft mc = Minecraft.getInstance();
-        int sw = mc.getWindow().getGuiScaledWidth();
-        int sh = mc.getWindow().getGuiScaledHeight();
-
+        int sw = mc.getWindow().getGuiScaledWidth(), sh = mc.getWindow().getGuiScaledHeight();
         if (isDraggingSession) {
-            MacroConfig.sessionProfitHudX = (int) (mouseX - dragOffsetXSession);
-            MacroConfig.sessionProfitHudY = (int) (mouseY - dragOffsetYSession);
-            float s = MacroConfig.sessionProfitHudScale;
-            MacroConfig.sessionProfitHudX = Math.max(0,
-                    Math.min(MacroConfig.sessionProfitHudX, sw - (int) (PANEL_W * s)));
-            MacroConfig.sessionProfitHudY = Math.max(0,
-                    Math.min(MacroConfig.sessionProfitHudY, sh - (int) (panelH("session") * s)));
+            MacroConfig.sessionProfitHudX = Math.max(0, Math.min((int)(mx - dragOffsetXSession), sw - (int)(PANEL_W * MacroConfig.sessionProfitHudScale)));
+            MacroConfig.sessionProfitHudY = Math.max(0, Math.min((int)(my - dragOffsetYSession), sh - (int)(panelH("session") * MacroConfig.sessionProfitHudScale)));
         } else if (isResizingSession) {
-            double delta = mouseX - resizeStartMouseXSession;
-            MacroConfig.sessionProfitHudScale = Math.max(0.5f,
-                    Math.min(2.5f, resizeStartScaleSession + (float) (delta * 0.005)));
-        } else if (isDraggingDaily) {
-            MacroConfig.dailyHudX = (int) (mouseX - dragOffsetXDaily);
-            MacroConfig.dailyHudY = (int) (mouseY - dragOffsetYDaily);
-            float s = MacroConfig.dailyHudScale;
-            MacroConfig.dailyHudX = Math.max(0, Math.min(MacroConfig.dailyHudX, sw - (int) (PANEL_W * s)));
-            MacroConfig.dailyHudY = Math.max(0, Math.min(MacroConfig.dailyHudY, sh - (int) (panelH("daily") * s)));
-        } else if (isResizingDaily) {
-            double delta = mouseX - resizeStartMouseXDaily;
-            MacroConfig.dailyHudScale = Math.max(0.5f,
-                    Math.min(2.5f, resizeStartScaleDaily + (float) (delta * 0.005)));
+            MacroConfig.sessionProfitHudScale = Math.max(0.5f, Math.min(2.5f, resizeStartScaleSession + (float)((mx - resizeStartMouseXSession) * 0.005)));
         } else if (isDraggingLifetime) {
-            MacroConfig.lifetimeHudX = (int) (mouseX - dragOffsetXLifetime);
-            MacroConfig.lifetimeHudY = (int) (mouseY - dragOffsetYLifetime);
-            float s = MacroConfig.lifetimeHudScale;
-            MacroConfig.lifetimeHudX = Math.max(0, Math.min(MacroConfig.lifetimeHudX, sw - (int) (PANEL_W * s)));
-            MacroConfig.lifetimeHudY = Math.max(0, Math.min(MacroConfig.lifetimeHudY, sh - (int) (panelH("lifetime") * s)));
+            MacroConfig.lifetimeHudX = Math.max(0, Math.min((int)(mx - dragOffsetXLifetime), sw - (int)(PANEL_W * MacroConfig.lifetimeHudScale)));
+            MacroConfig.lifetimeHudY = Math.max(0, Math.min((int)(my - dragOffsetYLifetime), sh - (int)(panelH("lifetime") * MacroConfig.lifetimeHudScale)));
         } else if (isResizingLifetime) {
-            double delta = mouseX - resizeStartMouseXLifetime;
-            MacroConfig.lifetimeHudScale = Math.max(0.5f,
-                    Math.min(2.5f, resizeStartScaleLifetime + (float) (delta * 0.005)));
+            MacroConfig.lifetimeHudScale = Math.max(0.5f, Math.min(2.5f, resizeStartScaleLifetime + (float)((mx - resizeStartMouseXLifetime) * 0.005)));
         }
     }
 
     public static void endDrag() {
-        if (isDraggingSession || isResizingSession || isDraggingDaily || isResizingDaily
-                || isDraggingLifetime || isResizingLifetime) {
-            isDraggingSession = false;
-            isResizingSession = false;
-            isDraggingDaily = false;
-            isResizingDaily = false;
-            isDraggingLifetime = false;
-            isResizingLifetime = false;
+        if (isInteracting()) {
+            isDraggingSession = false; isResizingSession = false;
+            isDraggingLifetime = false; isResizingLifetime = false;
             MacroConfig.save();
         }
     }
 
+    // ── Rendering ────────────────────────────────────────────────────────────
     private static void render(GuiGraphics g, Minecraft client, String mode, boolean editMode) {
-        if (client.player == null)
-            return;
+        if (client.player == null) return;
 
-        int x, y;
-        float scale;
-        
-        if ("daily".equals(mode)) {
-            x = MacroConfig.dailyHudX;
-            y = MacroConfig.dailyHudY;
-            scale = MacroConfig.dailyHudScale;
-        } else if ("lifetime".equals(mode)) {
-            x = MacroConfig.lifetimeHudX;
-            y = MacroConfig.lifetimeHudY;
-            scale = MacroConfig.lifetimeHudScale;
-        } else {
-            x = MacroConfig.sessionProfitHudX;
-            y = MacroConfig.sessionProfitHudY;
-            scale = MacroConfig.sessionProfitHudScale;
-        }
-        
+        // Resolve colors from config
+        int bgColor    = MacroConfig.toArgb(MacroConfig.hudBgColor);
+        int sepColor   = MacroConfig.toArgb(MacroConfig.hudAccentColor);
+        int titleColor = MacroConfig.toArgb(MacroConfig.hudTitleColor);
+        int labelColor = MacroConfig.toArgb(MacroConfig.hudLabelColor);
+        int valueColor = MacroConfig.toArgb(MacroConfig.hudValueColor);
+
+        float scale; int x, y;
+        if ("lifetime".equals(mode)) { scale = MacroConfig.lifetimeHudScale; x = MacroConfig.lifetimeHudX; y = MacroConfig.lifetimeHudY; }
+        else                         { scale = MacroConfig.sessionProfitHudScale; x = MacroConfig.sessionProfitHudX; y = MacroConfig.sessionProfitHudY; }
+
         int panelH = panelH(mode);
-
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(scale, scale);
 
-        // Border in edit mode
         if (editMode) {
-            boolean dragging, resizing;
-            if ("daily".equals(mode)) {
-                dragging = isDraggingDaily;
-                resizing = isResizingDaily;
-            } else if ("lifetime".equals(mode)) {
-                dragging = isDraggingLifetime;
-                resizing = isResizingLifetime;
-            } else {
-                dragging = isDraggingSession;
-                resizing = isResizingSession;
-            }
-            int borderColor = dragging ? BORDER_DRAG : resizing ? BORDER_RESIZE : BORDER_IDLE;
-            fillRoundedRect(g, -1, -1, PANEL_W + 2, panelH + 2, CORNER_RADIUS + 1, borderColor);
+            boolean drag = "lifetime".equals(mode) ? isDraggingLifetime : isDraggingSession;
+            boolean resi = "lifetime".equals(mode) ? isResizingLifetime : isResizingSession;
+            int bColor = drag ? BORDER_DRAG : resi ? BORDER_RESIZE : BORDER_IDLE;
+            fillRoundedRect(g, -1, -1, PANEL_W + 2, panelH + 2, CORNER_RADIUS + 1, bColor);
         }
 
-        fillRoundedRect(g, 0, 0, PANEL_W, panelH, CORNER_RADIUS, BG_COLOR);
+        fillRoundedRect(g, 0, 0, PANEL_W, panelH, CORNER_RADIUS, bgColor);
 
-        String title;
-        if ("daily".equals(mode)) {
-            title = "Daily Session Profit";
-        } else if ("lifetime".equals(mode)) {
-            title = "Lifetime Profit";
-        } else {
-            title = "Session Profit";
-        }
-        
-        int titleAnchorX = (PANEL_W - client.font.width(title)) / 2;
-        g.drawString(client.font, title, titleAnchorX, PADDING_V, TITLE_COLOR, false);
+        String title = "lifetime".equals(mode) ? "Lifetime Profit" : "Session Profit";
+        g.drawString(client.font, title, (PANEL_W - client.font.width(title)) / 2, PADDING_V, titleColor, false);
 
         int rowY = PADDING_V + FONT_H + 3;
-        g.fill(PADDING_H, rowY, PANEL_W - PADDING_H, rowY + 1, SEP_COLOR);
+        g.fill(PADDING_H, rowY, PANEL_W - PADDING_H, rowY + 1, sepColor);
         rowY += 4;
 
         if (MacroConfig.compactProfitCalculator) {
-            Map<String, Long> compactDrops = ProfitManager.getCompactDrops(mode);
-            for (Map.Entry<String, Long> entry : compactDrops.entrySet()) {
-                if (entry.getValue() != 0) {
-                    String label = ProfitManager.getCompactCategoryLabel(entry.getKey());
-                    int valColor = entry.getKey().equals("Costs") ? 0xFFFF5555 : 0xFFFFFF55;
-                    drawRow(g, client, rowY, label, formatProfit(entry.getValue()), valColor);
+            Map<String, Long> drops = ProfitManager.getCompactDrops(mode);
+            for (Map.Entry<String, Long> e : drops.entrySet()) {
+                if (e.getValue() != 0) {
+                    int vc = e.getKey().equals("Costs") ? 0xFFFF5555 : 0xFFFFFF55;
+                    drawRow(g, client, rowY, ProfitManager.getCompactCategoryLabel(e.getKey()), formatProfit(e.getValue()), vc, labelColor);
                     rowY += ROW_HEIGHT;
                 }
             }
         } else {
             Map<String, Long> drops = ProfitManager.getActiveDrops(mode);
-            for (Map.Entry<String, Long> entry : drops.entrySet()) {
-                String itemName = entry.getKey();
-                long count = entry.getValue();
-                double price = ProfitManager.getItemPrice(itemName);
-                long lineProfit = (long) (price * count);
-
-                String categorizedName = ProfitManager.getCategorizedName(itemName);
-                // Pet XP: show XP total rather than an item count
+            for (Map.Entry<String, Long> e : drops.entrySet()) {
+                String item = e.getKey(); long count = e.getValue();
+                double price = ProfitManager.getItemPrice(item);
+                long lineProfit = (long)(price * count);
                 String countDisplay;
-                if (itemName.equals("[Spray] Sprayonator")) {
-                    long sprayQty = ProfitManager.getSprayQuantity(mode);
-                    countDisplay = "x" + String.format("%,d", sprayQty);
-                } else if (itemName.startsWith("Pet XP (")) {
-                    countDisplay = String.format("%,d XP", count);
-                } else {
-                    countDisplay = "x" + String.format("%,d", count);
-                }
-                String labelText = categorizedName + " §r(" + countDisplay + ")";
-                String valueText = formatProfit(lineProfit);
-
-                int color;
-                if (itemName.equals("[Visitor] Visitor Cost") || itemName.equals("[Spray] Sprayonator")) {
-                    color = 0xFFFF5555; // red for costs
-                } else if (itemName.startsWith("[Visitor] ")) {
-                    color = 0xFFFFFF55; // yellow for visitor gains
-                } else {
-                    color = ProfitManager.isPredefinedTrackedItem(itemName) ? 0xFFFFFF55 : VALUE_COLOR;
-                }
-                drawRow(g, client, rowY, labelText, valueText, color);
+                if (item.equals("[Spray] Sprayonator")) countDisplay = "x" + String.format("%,d", ProfitManager.getSprayQuantity(mode));
+                else if (item.startsWith("Pet XP ("))   countDisplay = String.format("%,d XP", count);
+                else                                     countDisplay = "x" + String.format("%,d", count);
+                String lbl = ProfitManager.getCategorizedName(item) + " §r(" + countDisplay + ")";
+                int vc;
+                if (item.equals("[Visitor] Visitor Cost") || item.equals("[Spray] Sprayonator")) vc = 0xFFFF5555;
+                else if (item.startsWith("[Visitor] ")) vc = 0xFFFFFF55;
+                else vc = ProfitManager.isPredefinedTrackedItem(item) ? 0xFFFFFF55 : valueColor;
+                drawRow(g, client, rowY, lbl, formatProfit(lineProfit), vc, labelColor);
                 rowY += ROW_HEIGHT;
             }
         }
 
-        // Total Profit row
+        // Total / CPH rows
         if (rowY > PADDING_V + FONT_H + 3 + 4) {
-            g.fill(PADDING_H, rowY + 1, PANEL_W - PADDING_H, rowY + 2, SEP_COLOR);
+            g.fill(PADDING_H, rowY + 1, PANEL_W - PADDING_H, rowY + 2, sepColor);
             rowY += 4;
             long total = ProfitManager.getTotalProfit(mode);
-            drawRow(g, client, rowY, "Total Profit", formatProfit(total), 0xFFFFAA00);
+            drawRow(g, client, rowY, "Total Profit", formatProfit(total), 0xFFFFAA00, labelColor);
             rowY += ROW_HEIGHT;
-
-            // Session only: Coins per Hour
             if ("session".equals(mode)) {
-                long sessionMs = com.ihanuat.mod.MacroStateManager.getSessionRunningTime();
-                long cph = 0;
-                if (sessionMs > 0) {
-                    double hours = sessionMs / 3600000.0;
-                    cph = (long) (total / hours);
-                }
-                drawRow(g, client, rowY, "Coins per Hour", formatProfit(cph), 0xFF55FFFF);
+                long sessionMs = MacroStateManager.getSessionRunningTime();
+                long cph = sessionMs > 0 ? (long)(total / (sessionMs / 3_600_000.0)) : 0;
+                drawRow(g, client, rowY, "Coins per Hour", formatProfit(cph), 0xFF55FFFF, labelColor);
             }
         }
 
@@ -350,43 +199,30 @@ public class ProfitHudRenderer {
 
     private static int panelH(String mode) {
         int baseH = PADDING_V + FONT_H + 3 + 4;
-        int itemCount = 0;
-        if (MacroConfig.compactProfitCalculator) {
-            Map<String, Long> compactDrops = ProfitManager.getCompactDrops(mode);
-            itemCount = (int) compactDrops.values().stream().filter(v -> v != 0).count();
-        } else {
-            itemCount = ProfitManager.getActiveDrops(mode).size();
-        }
-
+        int itemCount = MacroConfig.compactProfitCalculator
+                ? (int) ProfitManager.getCompactDrops(mode).values().stream().filter(v -> v != 0).count()
+                : ProfitManager.getActiveDrops(mode).size();
         if (itemCount > 0) {
-            int extraRows = "session".equals(mode) ? 1 : 0; // Session HUD has CPH row
-            baseH += itemCount * ROW_HEIGHT + 4 + ROW_HEIGHT + (extraRows * ROW_HEIGHT) + PADDING_V;
+            int extra = "session".equals(mode) ? 1 : 0;
+            baseH += itemCount * ROW_HEIGHT + 4 + ROW_HEIGHT + extra * ROW_HEIGHT + PADDING_V;
         } else {
-            baseH += ROW_HEIGHT + PADDING_V; // Show at least one empty row or just the title
+            baseH += ROW_HEIGHT + PADDING_V;
         }
         return baseH;
     }
 
-    private static void drawRow(GuiGraphics g, Minecraft client, int y, String label, String value, int valueColor) {
-        g.drawString(client.font, label, PADDING_H, y, LABEL_COLOR, false);
-        int valueX = PANEL_W - PADDING_H - client.font.width(value);
-        g.drawString(client.font, value, valueX, y, valueColor, false);
+    private static void drawRow(GuiGraphics g, Minecraft client, int y, String label, String value, int valueColor, int labelColor) {
+        g.drawString(client.font, label, PADDING_H, y, labelColor, false);
+        g.drawString(client.font, value, PANEL_W - PADDING_H - client.font.width(value), y, valueColor, false);
     }
 
-    private static String formatProfit(long amount) {
-        return String.format("%,d", amount);
-    }
+    private static String formatProfit(long amount) { return String.format("%,d", amount); }
 
     private static void fillRoundedRect(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         for (int row = 0; row < h; row++) {
             int indent = 0;
-            if (row < r) {
-                double d = r - row - 0.5;
-                indent = (int) Math.ceil(r - 0.5 - Math.sqrt(r * r - d * d));
-            } else if (row >= h - r) {
-                double d = row - (h - r) + 0.5;
-                indent = (int) Math.ceil(r - 0.5 - Math.sqrt(r * r - d * d));
-            }
+            if (row < r) { double d = r - row - 0.5; indent = (int)Math.ceil(r - 0.5 - Math.sqrt(r*r - d*d)); }
+            else if (row >= h - r) { double d = row - (h - r) + 0.5; indent = (int)Math.ceil(r - 0.5 - Math.sqrt(r*r - d*d)); }
             g.fill(x + indent, y + row, x + w - indent, y + row + 1, color);
         }
     }

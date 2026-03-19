@@ -1,5 +1,6 @@
 package com.ihanuat.mod.util;
 
+import com.ihanuat.mod.DebugLogger;
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroWorkerThread;
@@ -31,6 +32,9 @@ public class ClientUtils {
     }
 
     public static void sendDebugMessage(Minecraft client, String message) {
+        // Always feed the file logger (it checks MacroConfig.logDebugToFile itself)
+        DebugLogger.getInstance().log(message);
+
         if (MacroConfig.showDebug) {
             client.execute(() -> {
                 if (client.player != null) {
@@ -445,6 +449,25 @@ public class ClientUtils {
                 String itemName = stripColor(stack.getHoverName().getString()).trim();
                 String lowercaseName = itemName.toLowerCase();
                 if (lowercaseName.contains("aspect of the void") || lowercaseName.contains("aspect of the end")) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Searches the hotbar (slots 0-8) for any item whose display name contains
+     * "vacuum" (case-insensitive). Returns the slot index, or -1 if not found.
+     */
+    public static int findVacuumSlot(Minecraft client) {
+        if (client.player == null)
+            return -1;
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.world.item.ItemStack stack = client.player.getInventory().getItem(i);
+            if (stack != null && !stack.isEmpty()) {
+                String name = stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+                if (name.toLowerCase().contains("vacuum")) {
                     return i;
                 }
             }
