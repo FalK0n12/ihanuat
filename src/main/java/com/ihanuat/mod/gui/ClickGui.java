@@ -1,23 +1,25 @@
 package com.ihanuat.mod.gui;
 
-import com.ihanuat.mod.MacroConfig;
-import com.ihanuat.mod.MacroStateManager;
-import com.ihanuat.mod.modules.ProfitManager;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
-import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
-
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
+
+import com.ihanuat.mod.MacroConfig;
+import com.ihanuat.mod.MacroStateManager;
+import com.ihanuat.mod.modules.ProfitManager;
+
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public class ClickGui extends Screen {
 
@@ -2268,7 +2270,8 @@ public class ClickGui extends Screen {
             if (w < 0) {
                 int base = font.width(label) + 60;
                 for (String hint : hints) base = Math.max(base, font.width(hint) + 20);
-                w = Math.max(260, base);
+                // Increase minimum width to 340 for better default text handling
+                w = Math.max(340, base);
             }
         }
         private int rx() { return Math.min(x, screenW - w - 4); }
