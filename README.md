@@ -12,7 +12,7 @@ Feature List:
 - Support for farms that start with /plottp
 - Custom NPC sell
 - Junk dropper
-- Themes
+- Themes (check [discord](https://discord.gg/BZxsfAcYYW) #gui-themes)
 - Webhook support
 - Profit calculator
 
