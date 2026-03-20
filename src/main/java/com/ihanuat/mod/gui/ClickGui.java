@@ -1,25 +1,23 @@
 package com.ihanuat.mod.gui;
 
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import org.jetbrains.annotations.NotNull;
-import org.lwjgl.glfw.GLFW;
-
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.ProfitManager;
-
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class ClickGui extends Screen {
 
@@ -275,21 +273,6 @@ public class ClickGui extends Screen {
     private String searchQuery = "";
     private boolean searchActive = false;
 
-    // ── Helper panel ─────────────────────────────────────────────────────────
-    /** Which topic the helper is currently showing. null = no topic. */
-    private static String helperTopic = null;
-    /** Human-readable title shown in the helper header, e.g. "Chat Rules". */
-    private static String helperTitle = null;
-    /** Position of the helper panel (persisted across openings via static). */
-    private static int helperX = -1;
-    private static int helperY = -1;
-    private static boolean helperDragging = false;
-    private static int helperDragOffX, helperDragOffY;
-    private static int helperScrollOffset = 0;
-    private static final int HELPER_W = 270; // ~1.5× panel width
-    /** Max visible content height — approximately the Delays tab height (13 lines × 12px + padding). */
-    private static final int HELPER_MAX_CONTENT_H = 168;
-
     private final List<Panel> panels = new ArrayList<>();
     private SubPanel activeSubPanel = null;
     private Panel draggingPanel = null;
@@ -361,7 +344,6 @@ public class ClickGui extends Screen {
         panels.add(dynamicRestPanel(pos(saved, 10, nextPos)));
         panels.add(qolPanel(pos(saved, 11, nextPos)));
         panels.add(themePanel(pos(saved, 12, nextPos)));
-        panels.add(chatRulesPanel(pos(saved, 13, nextPos)));
     }
 
     private static int[] pos(int[][] saved, int i, Supplier<int[]> fallback) {
@@ -452,6 +434,10 @@ public class ClickGui extends Screen {
             MacroConfig.rodSwapDelay = v;
             save();
         }, "ms"));
+        p.add(slider("Garden Warp", "gardenWarpDelay", 0, 3000, () -> MacroConfig.gardenWarpDelay, v -> {
+            MacroConfig.gardenWarpDelay = v;
+            save();
+        }, "ms"));
         p.add(slider("Pest Chat", "pestChatTriggerDelay", 0, 3000, () -> MacroConfig.pestChatTriggerDelay, v -> {
             MacroConfig.pestChatTriggerDelay = v;
             save();
@@ -460,20 +446,12 @@ public class ClickGui extends Screen {
             MacroConfig.bookCombineDelay = v;
             save();
         }, "ms"));
+        p.add(slider("Junk Drop", "junkItemDropDelay", 0, 1000, () -> MacroConfig.junkItemDropDelay, v -> {
+            MacroConfig.junkItemDropDelay = v;
+            save();
+        }, "ms"));
         p.add(slider("Autosell Click", "autosellClickDelay", 100, 2000, () -> MacroConfig.autosellClickDelay, v -> {
             MacroConfig.autosellClickDelay = v;
-            save();
-        }, "ms"));
-        p.add(slider("Wardrobe Post-Swap", "wardrobePostSwapDelay", 0, 2000, () -> MacroConfig.wardrobePostSwapDelay, v -> {
-            MacroConfig.wardrobePostSwapDelay = v;
-            save();
-        }, "ms"));
-        p.add(slider("Wardrobe AOTV", "wardrobeAotvDelay", 0, 2000, () -> MacroConfig.wardrobeAotvDelay, v -> {
-            MacroConfig.wardrobeAotvDelay = v;
-            save();
-        }, "ms"));
-        p.add(slider("AOTV Vacuum", "aotvVacuumDelay", 0, 2000, () -> MacroConfig.aotvVacuumDelay, v -> {
-            MacroConfig.aotvVacuumDelay = v;
             save();
         }, "ms"));
         return p;
@@ -666,20 +644,20 @@ public class ClickGui extends Screen {
 
     private Panel dynamicRestPanel(int[] pos) {
         Panel p = makePanel("Dynamic Rest", pos);
-        p.add(intField("Farming Min", "restScriptingTimeMin", () -> MacroConfig.restScriptingTimeMin, v -> {
-            MacroConfig.restScriptingTimeMin = Math.max(1, v);
+        p.add(intField("Script Time", "restScriptingTime", () -> MacroConfig.restScriptingTime, v -> {
+            MacroConfig.restScriptingTime = v;
             save();
         }, "min"));
-        p.add(intField("Farming Max", "restScriptingTimeMax", () -> MacroConfig.restScriptingTimeMax, v -> {
-            MacroConfig.restScriptingTimeMax = Math.max(1, v);
+        p.add(intField("Script Offset", "restScriptingTimeOffset", () -> MacroConfig.restScriptingTimeOffset, v -> {
+            MacroConfig.restScriptingTimeOffset = v;
             save();
         }, "min"));
-        p.add(intField("Break Min", "restBreakTimeMin", () -> MacroConfig.restBreakTimeMin, v -> {
-            MacroConfig.restBreakTimeMin = Math.max(1, v);
+        p.add(intField("Break Time", "restBreakTime", () -> MacroConfig.restBreakTime, v -> {
+            MacroConfig.restBreakTime = v;
             save();
         }, "min"));
-        p.add(intField("Break Max", "restBreakTimeMax", () -> MacroConfig.restBreakTimeMax, v -> {
-            MacroConfig.restBreakTimeMax = Math.max(1, v);
+        p.add(intField("Break Offset", "restBreakTimeOffset", () -> MacroConfig.restBreakTimeOffset, v -> {
+            MacroConfig.restBreakTimeOffset = v;
             save();
         }, "min"));
         p.add(toggle("Show Daily Total", () -> MacroConfig.showTotalToday, v -> {
@@ -690,10 +668,6 @@ public class ClickGui extends Screen {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
             save();
         }, "hr"));
-        p.add(toggle("Force Quit MC", () -> MacroConfig.forceQuitMinecraft, v -> {
-            MacroConfig.forceQuitMinecraft = v;
-            save();
-        }));
         return p;
     }
 
@@ -867,21 +841,6 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateSprayingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("Helper BG", () -> MacroConfig.toArgb(MacroConfig.helperBgColor), v -> {
-            MacroConfig.helperBgColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Header", () -> MacroConfig.toArgb(MacroConfig.helperHdrColor), v -> {
-            MacroConfig.helperHdrColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Text", () -> MacroConfig.toArgb(MacroConfig.helperTxt1Color), v -> {
-            MacroConfig.helperTxt1Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Highlight", () -> MacroConfig.toArgb(MacroConfig.helperTxt2Color), v -> {
-            MacroConfig.helperTxt2Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Dim", () -> MacroConfig.toArgb(MacroConfig.helperTxt3Color), v -> {
-            MacroConfig.helperTxt3Color = v & 0xFFFFFF; save();
-        }));
         p.add(button("Copy Theme Code", () -> {
             String code = encodeTheme();
             Minecraft mc = Minecraft.getInstance();
@@ -913,16 +872,11 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateVisitingColor = MacroConfig.DEFAULT_HUD_STATE_VISITING_COLOR;
             MacroConfig.hudStateAutosellingColor = MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR;
             MacroConfig.hudStateSprayingColor = MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR;
-            MacroConfig.helperBgColor   = MacroConfig.DEFAULT_HELPER_BG_COLOR;
-            MacroConfig.helperHdrColor  = MacroConfig.DEFAULT_HELPER_HDR_COLOR;
-            MacroConfig.helperTxt1Color = MacroConfig.DEFAULT_HELPER_TXT1_COLOR;
-            MacroConfig.helperTxt2Color = MacroConfig.DEFAULT_HELPER_TXT2_COLOR;
-            MacroConfig.helperTxt3Color = MacroConfig.DEFAULT_HELPER_TXT3_COLOR;
             save();
             notifyMsg("Theme reset!");
         }));
         p.add(button("Reset Panel Positions", () -> {
-            MacroConfig.clickGuiPanelPositions = new int[14][3];
+            MacroConfig.clickGuiPanelPositions = new int[13][3];
             save();
             panels.clear();
             buildPanels();
@@ -931,12 +885,6 @@ public class ClickGui extends Screen {
         return p;
     }
 
-
-    private Panel chatRulesPanel(int[] pos) {
-        Panel p = makePanel("Chat Rules", pos);
-        p.add(new ChatRulesEntry());
-        return p;
-    }
 
     private static ToggleEntry toggle(String l, Supplier<Boolean> g, Consumer<Boolean> s) {
         return new ToggleEntry(l, g, s);
@@ -998,297 +946,10 @@ public class ClickGui extends Screen {
         for (int i = panels.size() - 1; i >= 0; i--) panels.get(i).render(g, mx, my, font, searchQuery);
         if (activeSubPanel != null) activeSubPanel.render(g, mx, my, font);
         g.drawString(font, "ihanuat  shift+scroll=pan", 3, height - 9, 0xFF333355, false);
-        renderHelperPanel(g, mx, my, font);
-    }
-
-    private static void updateHelperForPanel(String panelTitle) {
-        String newTopic = switch (panelTitle) {
-            case "General"      -> "general";
-            case "Delays"       -> "delays";
-            case "Dynamic Rest" -> "dynamicrest";
-            case "QOL"          -> "qol";
-            case "Chat Rules"   -> "chatrules";
-            default             -> null;
-        };
-        if (newTopic != null && !newTopic.equals(helperTopic)) {
-            helperTopic      = newTopic;
-            helperTitle      = panelTitle;
-            helperScrollOffset = 0; // reset scroll when switching topics
-        }
-    }
-
-    // ── Helper panel lines by topic ─────────────────────────────────────────
-    // Format: "LABEL — description"
-    // Label is rendered in helperTxt2Color, " — description" in helperTxt3Color.
-    // Lines with no " — " separator are rendered in helperTxt1Color (plain info).
-    private static String[] getHelperLines(String topic) {
-        return switch (topic) {
-            case "chatrules" -> new String[]{
-                "Name — Label shown in the Discord alert.",
-                "Pattern — Exact text to scan for in each chat message.",
-                "Contains/Equals/Starts/Ends — How the pattern is matched.",
-                "Case — When lit, matching is case-sensitive.",
-                "Active — Rule only fires when lit.",
-                "Any match sends a Discord webhook alert.",
-                "Set webhook URL in QOL panel. First match wins.",
-            };
-            case "delays" -> new String[]{
-                "Rand Delay — Extra random ms added on top of every timed action via getRandomizedDelay(). Acts as a global humanization jitter across most sequences.",
-                "Rotation — How long the macro spends rotating to look at the crop before it starts farming. Higher values look more human but slow cycle time.",
-                "GUI Click — Throttle between each simulated click inside menus (wardrobe, anvil, George, junk drop UI). Shared across all GUI interactions.",
-                "Equip Swap — Pause after swapping your Equipment loadout slot. Gives the server time to apply the new loadout before the next action.",
-                "Rod Swap — Pause after switching to the fishing rod. Only applies when Auto Rod is enabled (pest CD / pest spawn / return to farm triggers).",
-                "Pest Chat — How long to wait after a pest chat message before the macro reacts and begins the pest clean sequence. Useful for letting the chat settle.",
-                "Book Combine — Throttle between each simulated click at the anvil during book combining. Keep this above ~150ms to avoid missed clicks.",
-                "Autosell Click — Throttle between each Booster Cookie menu click during autosell. Keep above 100ms to avoid the server dropping clicks.",
-                "Wardrobe Post-Swap — Wait after the wardrobe GUI closes on the non-AOTV path. Increase this if the macro resumes farming before armor is fully equipped.",
-                "Wardrobe AOTV — Wait after the wardrobe GUI closes on the AOTV path. Usually shorter since AOTV fires immediately after; tweak if you get swap timing issues.",
-                "AOTV Vacuum — Wait between triggering the AOTV vacuum sweep and actually firing the AOTV teleport. Too low and the vacuum misses pests before the warp.",
-            };
-            case "dynamicrest" -> new String[]{
-                "Farming Min/Max — Randomly pick a farming session length in this minute range.",
-                "Break Min/Max — Randomly pick a break (disconnect) duration in this minute range.",
-                "Show Daily Total — Display today's profit total in the HUD.",
-                "Quit Threshold — Stop the macro when session time exceeds this many hours (0 = off).",
-                "Force Quit MC — Fully close Minecraft when the quit threshold is hit.",
-            };
-            case "qol" -> new String[]{
-                "Book Combine — Auto-combine enchanted books at the anvil.",
-                "Always Combine — Combine even when the macro is not farming.",
-                "Book Threshold — Number of books needed before combining triggers.",
-                "Chat Cleanup — Hide noisy Hypixel script/kill messages from chat.",
-                "Auto-Drop Junk — Automatically drop items that match the Junk List.",
-                "Junk List — List of item name fragments considered junk.",
-                "Junk Threshold — Drop when this many junk items are in inventory.",
-                "Junk PlotTP — Plot number to teleport to before dropping junk.",
-                "Stash Manager — Auto-run /pickupstash after autosell completes.",
-                "Discord Status — Periodically post macro status to a webhook.",
-                "Webhook URL — Discord webhook URL for status and chat alerts.",
-                "Discord Interval — How often (minutes) to post the status update.",
-                "Debug Messages — Show verbose debug messages in chat.",
-                "Log to File — Write debug messages to a file in the game folder.",
-            };
-            case "general" -> new String[]{
-                "Show Macro HUD — Toggle the macro state/profit HUD overlay.",
-                "GUI Only in Garden — Only allow opening this GUI while in the Garden.",
-                "Enable PlotTP Rewarp — Auto re-warp when the player reaches the rewarp position.",
-                "Hold W Until Wall — Hold W after rewarp until hitting a wall.",
-                "Unfly Mode — How to land after flying (Double-tap Space or Sneak).",
-                "Farm Script — Which farming script the macro runs.",
-                "PlotTP Number — The plot number used for /plottp commands.",
-                "Capture Rewarp Pos — Save your current XYZ as the rewarp trigger point.",
-                "Auto-Resume After Rest — Automatically restart the macro after a Dynamic Rest break.",
-                "Auto-Recover Disconnect — Reconnect and resume if unexpectedly kicked.",
-                "Persist Session Timer — Keep the Dynamic Rest timer running across sessions.",
-            };
-            default -> new String[0];
-        };
-    }
-
-    private void renderHelperPanel(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
-        if (helperTopic == null) return;
-
-        String[] lines = getHelperLines(helperTopic);
-        if (lines.length == 0) return;
-
-        int lineH      = font.lineHeight + 3;
-        int contentW   = HELPER_W - 14; // 2px scrollbar gap on right
-        int PAD_V      = 4;
-
-        // Pre-compute all wrapped lines
-        java.util.List<int[]> wrapped = wrapHelperLines(font, lines, contentW);
-        int totalContentH = wrapped.size() * lineH;
-        int visibleContentH = Math.min(totalContentH, HELPER_MAX_CONTENT_H);
-        int panelH = HEADER_H + PAD_V + visibleContentH + PAD_V + 2;
-        int maxScroll = Math.max(0, totalContentH - visibleContentH);
-        helperScrollOffset = Math.max(0, Math.min(maxScroll, helperScrollOffset));
-
-        if (helperX < 0) {
-            helperX = width  - HELPER_W - 6;
-            helperY = height - panelH - 20;
-        }
-        helperX = Math.max(0, Math.min(width  - HELPER_W, helperX));
-        helperY = Math.max(0, Math.min(height - panelH, helperY));
-
-        int hBg  = MacroConfig.helperBgColor  | 0xFF000000;
-        int hHdr = MacroConfig.helperHdrColor | 0xFF000000;
-        int hAcc = MacroConfig.themeAccent;
-
-        // Border + background
-        fillRoundRect(g, helperX - 2, helperY - 2, HELPER_W + 4, panelH + 4, 4, hAcc);
-        fillRoundRect(g, helperX, helperY, HELPER_W, panelH, 3, hBg);
-
-        // Header
-        fillRoundRect(g, helperX, helperY, HELPER_W, HEADER_H, PANEL_RADIUS, hHdr);
-        g.fill(helperX, helperY + HEADER_H - PANEL_RADIUS, helperX + HELPER_W, helperY + HEADER_H, hHdr);
-        g.fill(helperX + 2, helperY + HEADER_H - 1, helperX + HELPER_W - 2, helperY + HEADER_H, hAcc);
-        String hTitle = "? Helper" + (helperTitle != null ? " — " + helperTitle : "");
-        MacroConfig.drawStyledText(g, font, hTitle, helperX + 5, helperY + HEADER_H / 2 - 4,
-                MacroConfig.helperTxt1Color | 0xFF000000);
-
-        // Close button
-        int closeX = helperX + HELPER_W - 14;
-        boolean closeHov = mx >= closeX - 2 && mx <= closeX + 10 && my >= helperY && my <= helperY + HEADER_H;
-        MacroConfig.drawStyledText(g, font, "x", closeX, helperY + HEADER_H / 2 - 4,
-                closeHov ? 0xFFFF5555 : (MacroConfig.helperTxt3Color | 0xFF000000));
-
-        // Content — scissored to visible area
-        int contentX = helperX + 6;
-        int contentY = helperY + HEADER_H + PAD_V;
-        int clipBottom = contentY + visibleContentH;
-        g.enableScissor(helperX + 2, contentY, helperX + HELPER_W - 4, clipBottom);
-
-        int c1 = MacroConfig.helperTxt1Color | 0xFF000000;
-        int c2 = MacroConfig.helperTxt2Color | 0xFF000000;
-        int c3 = MacroConfig.helperTxt3Color | 0xFF000000;
-
-        int cy = contentY - helperScrollOffset;
-        for (int[] wl : wrapped) {
-            drawWrappedLine(g, font, contentX, cy, contentW, wl, lines, c1, c2, c3);
-            cy += lineH;
-        }
-
-        g.disableScissor();
-
-        // Scrollbar (only when content overflows)
-        if (maxScroll > 0) {
-            int sbX  = helperX + HELPER_W - 4;
-            int sbY0 = contentY;
-            int sbH  = visibleContentH;
-            int thumbH = Math.max(10, sbH * sbH / totalContentH);
-            int thumbY = sbY0 + (int)((sbH - thumbH) * ((float) helperScrollOffset / maxScroll));
-            g.fill(sbX, sbY0, sbX + 3, sbY0 + sbH, C_OFF());
-            g.fill(sbX, thumbY, sbX + 3, thumbY + thumbH, C_ACC());
-        }
-    }
-
-    /**
-     * Wraps helper lines to fit within maxW pixels.
-     * Returns a list of int[] descriptors for each rendered row:
-     *   { renderType, originalLineIndex, charStart, charEnd }
-     * renderType: 0=plain, 1=label segment, 2=desc-first-line, 3=continuation
-     */
-    /**
-     * Wraps helper lines into display rows.
-     * int[] descriptor: { renderType, lineIndex, charStart, charEnd }
-     *   type 0 = plain first row          -> c1 (normal)
-     *   type 1 = two-tone first row       -> label in c2, separator+desc in c3
-     *   type 2 = continuation of plain    -> c1, no indent
-     *   type 3 = continuation of two-tone -> c3, no indent
-     */
-    private static java.util.List<int[]> wrapHelperLines(net.minecraft.client.gui.Font font, String[] lines, int maxW) {
-        java.util.List<int[]> result = new java.util.ArrayList<>();
-        for (int li = 0; li < lines.length; li++) {
-            String raw = lines[li];
-            int sepIdx = raw.indexOf(" — ");
-            if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
-
-            if (sepIdx >= 0) {
-                // ── Two-tone line ─────────────────────────────────────────────
-                String label = raw.substring(0, sepIdx);
-                // sep is always 3 chars: " — " or " - "
-                String sep  = raw.substring(sepIdx, sepIdx + 3);
-                String desc = raw.substring(sepIdx + 3);
-                String full = label + sep + desc;
-
-                if (font.width(full) <= maxW) {
-                    result.add(new int[]{1, li, sepIdx, raw.length()});
-                } else {
-                    // Fit label + sep + as much desc as possible on first row
-                    int prefixW   = font.width(label + sep);
-                    int available = maxW - prefixW;
-                    int cut = fitChars(font, desc, available);
-                    result.add(new int[]{1, li, sepIdx, sepIdx + 3 + cut});
-                    // Continuation rows (type 3 = dim, two-tone continuation)
-                    addContinuations(font, result, raw, sepIdx + 3 + cut, maxW, 3, li);
-                }
-            } else {
-                // ── Plain line ────────────────────────────────────────────────
-                int cut = fitChars(font, raw, maxW);
-                if (cut >= raw.length()) {
-                    result.add(new int[]{0, li, 0, raw.length()});
-                } else {
-                    result.add(new int[]{0, li, 0, cut});
-                    // Continuation rows (type 2 = normal, plain continuation)
-                    addContinuations(font, result, raw, cut, maxW, 2, li);
-                }
-            }
-        }
-        return result;
-    }
-
-    /** Returns the number of chars from s that fit within maxW pixels, breaking at a word boundary. */
-    private static int fitChars(net.minecraft.client.gui.Font font, String s, int maxW) {
-        if (font.width(s) <= maxW) return s.length();
-        int end = 0;
-        while (end < s.length() && font.width(s.substring(0, end + 1)) <= maxW) end++;
-        // Prefer word boundary
-        int wb = s.lastIndexOf(' ', end);
-        return (wb > 0) ? wb : Math.max(1, end);
-    }
-
-    /** Appends continuation rows for the remainder of raw starting at pos. */
-    private static void addContinuations(net.minecraft.client.gui.Font font,
-            java.util.List<int[]> result, String raw, int startPos, int maxW, int contType, int li) {
-        int pos = startPos;
-        // Skip a leading space at the break point
-        if (pos < raw.length() && raw.charAt(pos) == ' ') pos++;
-        while (pos < raw.length()) {
-            String rest = raw.substring(pos);
-            int cut = fitChars(font, rest, maxW);
-            result.add(new int[]{contType, li, pos, pos + cut});
-            pos += cut;
-            if (pos < raw.length() && raw.charAt(pos) == ' ') pos++;
-        }
-    }
-
-
-    private static void drawWrappedLine(GuiGraphics g, net.minecraft.client.gui.Font font,
-            int x, int y, int maxW, int[] wl, String[] lines, int c1, int c2, int c3) {
-        int type = wl[0], li = wl[1], cs = wl[2], ce = wl[3];
-        String raw = lines[li];
-        if (type == 0) {
-            // Plain first row — c1
-            MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
-        } else if (type == 1) {
-            // Two-tone first row — label in c2, separator+description in c3
-            int sepIdx = raw.indexOf(" — ");
-            if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
-            if (sepIdx < 0) {
-                MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c2);
-                return;
-            }
-            String label = raw.substring(0, sepIdx);
-            String rest  = raw.substring(sepIdx, ce); // includes " — " + desc chunk
-            MacroConfig.drawStyledText(g, font, label, x, y, c2);
-            MacroConfig.drawStyledText(g, font, rest, x + font.width(label), y, c3);
-        } else if (type == 2) {
-            // Continuation of a plain line — same colour as plain (c1), no indent
-            MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
-        } else {
-            // type 3: continuation of a two-tone description — dim (c3), no indent
-            MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c3);
-        }
     }
 
 
     void handleMouseClicked(int x, int y, int btn) {
-        // Helper panel: close button or start drag
-        if (helperTopic != null && helperX >= 0) {
-            int closeX = helperX + HELPER_W - 14;
-            if (x >= closeX - 2 && x <= closeX + 10 && y >= helperY && y <= helperY + HEADER_H) {
-                helperTopic = null;
-                helperTitle = null;
-                helperScrollOffset = 0;
-                return;
-            }
-            if (x >= helperX && x <= helperX + HELPER_W && y >= helperY && y <= helperY + HEADER_H) {
-                helperDragging = true;
-                helperDragOffX = x - helperX;
-                helperDragOffY = y - helperY;
-                return;
-            }
-        }
         if (activeSubPanel != null) {
             if (activeSubPanel.contains(x, y)) {
                 activeSubPanel.mouseClicked(x, y, btn, font);
@@ -1316,8 +977,6 @@ public class ClickGui extends Screen {
                     panel.collapsed = !panel.collapsed;
                     savePanelPositions();
                 }
-                // Update helper topic when a supported panel is clicked
-                updateHelperForPanel(panel.title);
                 panels.remove(panel);
                 panels.add(0, panel);
                 return;
@@ -1354,10 +1013,6 @@ public class ClickGui extends Screen {
     }
 
     void handleMouseReleased() {
-        helperDragging = false;
-        if (activeSubPanel instanceof ChatRulesSubPanel crs) {
-            crs.stopDrag();
-        }
         if (activeSubPanel instanceof ColorSubPanel cs) {
             cs.draggingSlider = -1;
         }
@@ -1369,15 +1024,6 @@ public class ClickGui extends Screen {
     }
 
     void handleMouseDragged(int x, int y) {
-        if (helperDragging) {
-            helperX = Math.max(0, Math.min(width  - HELPER_W, x - helperDragOffX));
-            helperY = Math.max(0, Math.min(height - 30,        y - helperDragOffY));
-            return;
-        }
-        if (activeSubPanel instanceof ChatRulesSubPanel crs) {
-            crs.drag(x, y);
-            return;
-        }
         if (activeSubPanel instanceof ColorSubPanel cs) {
             cs.drag(x);
             return;
@@ -1394,12 +1040,6 @@ public class ClickGui extends Screen {
     }
 
     void handleMouseScrolled(int x, int y, double hScroll, double vScroll, boolean shift) {
-        // Helper panel scroll
-        if (helperTopic != null && helperX >= 0 && x >= helperX && x <= helperX + HELPER_W
-                && y >= helperY + HEADER_H && y <= helperY + HEADER_H + HELPER_MAX_CONTENT_H) {
-            helperScrollOffset = Math.max(0, helperScrollOffset + (int)(-vScroll * 12));
-            return;
-        }
         if (hScroll != 0 || shift) {
             int pan = (int) ((hScroll != 0 ? hScroll : vScroll) * 20);
             for (Panel p : panels) p.x += pan;
@@ -1498,7 +1138,7 @@ public class ClickGui extends Screen {
     }
 
     private void savePanelPositions() {
-        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Rod", "Equipment Swap", "Auto Pest", "Auto Visitor", "Auto George", "Auto Sell", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
+        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Rod", "Equipment Swap", "Auto Pest", "Auto Visitor", "Auto George", "Auto Sell", "Profit Calculator", "Dynamic Rest", "QOL", "Theme"};
         int[][] positions = new int[order.length][3];
         for (int i = 0; i < order.length; i++)
             for (Panel p : panels)
@@ -1995,461 +1635,6 @@ public class ClickGui extends Screen {
         }
     }
 
-
-    /**
-     * Chat Rules entry — opens a full sub-panel for managing chat alert rules.
-     * Each rule is stored as: "name|matchType|caseSensitive|pingWebhook|enabled|matchText"
-     */
-    static class ChatRulesEntry implements Entry {
-        @Override
-        public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, hov ? C_BTN() : C_OFF());
-            int count = MacroConfig.chatRules.size();
-            String lbl = "Manage Rules (" + count + ")";
-            int tw = font.width(lbl);
-            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, C_TXT());
-        }
-
-        @Override
-        public void onClick(int mx, int my) {}
-
-        @Override
-        public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
-            helperTopic = "chatrules";
-            helperTitle = "Chat Rules";
-            return new ChatRulesSubPanel(mx, my, sw, sh);
-        }
-    }
-
-    /**
-     * Encoding: "name|matchType|caseSensitive|pingWebhook|enabled|matchText"
-     * MatchType limited to: Contains, Equals, StartsWith, EndsWith  (Regex removed from UI)
-     * editingIndex: -1 = none, -2 = new rule, >=0 = editing existing rule
-     */
-    static class ChatRulesSubPanel implements SubPanel {
-        private static final int W        = 340;
-        private static final int ROW_H    = 18;
-        private static final int PAD      = 4;
-        private static final int HDR_H    = 16;
-        private static final int LIST_MAX = 120;
-
-        private final int screenW, screenH;
-        private int panelX, panelY;
-        private int scrollOffset = 0;
-
-        // Drag state
-        private boolean dragging = false;
-        private int dragOffX, dragOffY;
-
-        // -2=new rule, -1=not editing, >=0=editing existing
-        private int editingIndex = -1;
-        private String editName      = "";
-        private String editMatchText = "";
-        // Only expose the 4 simple match types — no Regex
-        private static final com.ihanuat.mod.modules.ChatRuleManager.MatchType[] MATCH_TYPES = {
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.Equals,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.StartsWith,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.EndsWith,
-        };
-        private com.ihanuat.mod.modules.ChatRuleManager.MatchType editMatchType =
-                com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains;
-        private boolean editCaseSensitive = false;
-        private boolean editEnabled       = true;
-        private int focusedField = 0; // 0=name, 1=pattern
-        private boolean cursorVisible = true;
-        private long lastBlink = System.currentTimeMillis();
-
-        ChatRulesSubPanel(int mx, int my, int sw, int sh) {
-            this.screenW = sw; this.screenH = sh;
-            int h = calcTotalHeight();
-            this.panelX = Math.max(4, Math.min(mx, sw - W - 4));
-            this.panelY = Math.max(4, Math.min(my, sh - h - 4));
-        }
-
-        // ── Heights ──────────────────────────────────────────────────────────
-        private int listContentH() {
-            return Math.max(PAD, MacroConfig.chatRules.size() * (ROW_H + PAD) + PAD);
-        }
-        private int listVisibleH() { return Math.min(listContentH(), LIST_MAX); }
-        private int maxScroll()    { return Math.max(0, listContentH() - listVisibleH()); }
-        // edit panel: name row + pattern row + options row + save/cancel row = 4 rows
-        private int editPanelH()   { return PAD + 4 * (ROW_H + PAD) + PAD; }
-        private int calcTotalHeight() {
-            int h = HDR_H + PAD
-                  + listVisibleH() + PAD
-                  + ROW_H + PAD;
-            if (isEditing()) h += editPanelH() + PAD;
-            return Math.min(h, screenH - 8);
-        }
-        private boolean isEditing() { return editingIndex == -2 || editingIndex >= 0; }
-
-        // ── Y anchors ────────────────────────────────────────────────────────
-        private int listY()  { return panelY + HDR_H + PAD; }
-        private int addBtnY(){ return listY() + listVisibleH() + PAD; }
-        private int editY()  { return addBtnY() + ROW_H + PAD; }
-
-        // ── render ───────────────────────────────────────────────────────────
-        @Override
-        public void render(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
-            if (System.currentTimeMillis() - lastBlink > 500) {
-                cursorVisible = !cursorVisible;
-                lastBlink = System.currentTimeMillis();
-            }
-            int totalH = calcTotalHeight();
-            // Recalculate Y so panel doesn't fall off-screen when edit area opens
-            panelY = Math.max(4, Math.min(panelY, screenH - totalH - 4));
-
-            fillRoundRect(g, panelX - 2, panelY - 2, W + 4, totalH + 4, 4, C_SPBD());
-            fillRoundRect(g, panelX, panelY, W, totalH, 3, C_SPBG());
-
-            // Header (draggable)
-            fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
-            g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
-            g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
-            MacroConfig.drawStyledText(g, font, "Chat Rules", panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
-            MacroConfig.drawStyledText(g, font, "v", panelX + W - 10, panelY + HDR_H / 2 - 4, C_DIM());
-
-            // Rule list with scissor
-            int lY = listY(), lH = listVisibleH();
-            g.enableScissor(panelX, lY, panelX + W, lY + lH);
-            int ey = lY - scrollOffset;
-            List<String> rules = MacroConfig.chatRules;
-            for (int i = 0; i < rules.size(); i++) {
-                com.ihanuat.mod.modules.ChatRuleManager.ChatRule rule =
-                        new com.ihanuat.mod.modules.ChatRuleManager.ChatRule(rules.get(i));
-                boolean hov = mx >= panelX + PAD && mx <= panelX + W - PAD - 20
-                           && my >= ey && my < ey + ROW_H;
-                boolean sel = editingIndex == i;
-                if (sel)      fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_ON());
-                else if (hov) fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_HOVER());
-
-                // Enabled dot
-                g.fill(panelX + PAD + 2, ey + 5, panelX + PAD + 7, ey + ROW_H - 5,
-                       rule.enabled ? C_ON() : C_OFF());
-
-                // Name — scissored to stay inside panel
-                String name = truncate(font, rule.name, 110);
-                MacroConfig.drawStyledText(g, font, name, panelX + PAD + 10, ey + (ROW_H - 8) / 2,
-                        rule.enabled ? C_TXT() : C_DIM());
-
-                // Match type badge
-                String badge = rule.matchType.name().substring(0, Math.min(4, rule.matchType.name().length()));
-                MacroConfig.drawStyledText(g, font, badge, panelX + PAD + 118, ey + (ROW_H - 8) / 2, C_DIM());
-
-                // Pattern preview
-                String prev = truncate(font, rule.matchText, W - PAD * 2 - 165);
-                MacroConfig.drawStyledText(g, font, prev, panelX + PAD + 158, ey + (ROW_H - 8) / 2, C_DIM());
-
-                // Delete button
-                int delX = panelX + W - PAD - 18;
-                boolean delHov = mx >= delX && mx <= delX + 16 && my >= ey + 1 && my < ey + ROW_H - 1;
-                fillRoundRect(g, delX, ey + 2, 16, ROW_H - 4, 2, delHov ? 0xFFCC2222 : 0xFF441111);
-                MacroConfig.drawStyledText(g, font, "X", delX + 4, ey + (ROW_H - 8) / 2, C_TXT());
-
-                ey += ROW_H + PAD;
-            }
-            g.disableScissor();
-
-            // List scrollbar
-            if (maxScroll() > 0) {
-                int bh = Math.max(10, lH * lH / listContentH());
-                int by = lY + (int)((lH - bh) * ((float) scrollOffset / maxScroll()));
-                g.fill(panelX + W - 4, lY, panelX + W - 2, lY + lH, C_OFF());
-                g.fill(panelX + W - 4, by, panelX + W - 2, by + bh, C_ACC());
-            }
-
-            // Add-rule button
-            int aY = addBtnY();
-            boolean addHov = mx >= panelX + PAD && mx <= panelX + W - PAD && my >= aY && my < aY + ROW_H;
-            fillRoundRect(g, panelX + PAD, aY, W - PAD * 2, ROW_H, 3, addHov ? C_BTN() : C_OFF());
-            String addLbl = (editingIndex == -2) ? "Cancel" : "+ Add Rule";
-            MacroConfig.drawStyledText(g, font, addLbl,
-                    panelX + (W - font.width(addLbl)) / 2, aY + (ROW_H - 8) / 2, C_TXT());
-
-            // Edit panel
-            if (isEditing()) renderEditPanel(g, mx, my, font, editY());
-        }
-
-        private void renderEditPanel(GuiGraphics g, int mx, int my,
-                net.minecraft.client.gui.Font font, int ry) {
-            int ep = editPanelH();
-            fillRoundRect(g, panelX + PAD - 2, ry, W - PAD * 2 + 4, ep, 3, C_SPBD());
-            fillRoundRect(g, panelX + PAD, ry + 2, W - PAD * 2, ep - 2, 2, C_SBGR());
-
-            int fx = panelX + PAD + 4;
-            int fw = W - PAD * 2 - 8;
-            int cy = ry + PAD;
-
-            // Name row
-            MacroConfig.drawStyledText(g, font, "Name:", fx, cy + (ROW_H - 8) / 2, C_DIM());
-            int nfx = fx + 40;
-            drawTextField(g, font, nfx, cy, fw - 40, editName, focusedField == 0);
-            cy += ROW_H + PAD;
-
-            // Pattern row
-            MacroConfig.drawStyledText(g, font, "Pattern:", fx, cy + (ROW_H - 8) / 2, C_DIM());
-            int mfx = fx + 52;
-            drawTextField(g, font, mfx, cy, fw - 52, editMatchText, focusedField == 1);
-            cy += ROW_H + PAD;
-
-            // Options row: match type | Case | Active
-            int ox = fx;
-            ox = drawOptionBtn(g, font, mx, my, ox, cy, editMatchType.name(), true) + 3;
-            ox = drawOptionBtn(g, font, mx, my, ox, cy, "Case", editCaseSensitive) + 3;
-            drawOptionBtn(g, font, mx, my, ox, cy, "Active", editEnabled);
-            cy += ROW_H + PAD;
-
-            // Save / Cancel
-            int hw = (fw - 4) / 2;
-            boolean saveHov = mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H;
-            fillRoundRect(g, fx, cy, hw, ROW_H, 2, saveHov ? C_BTN() : brighten(C_ON(), 0x111111));
-            MacroConfig.drawStyledText(g, font, "Save",
-                    fx + (hw - font.width("Save")) / 2, cy + (ROW_H - 8) / 2, C_TXT());
-            int cx2 = fx + hw + 4;
-            boolean cancelHov = mx >= cx2 && mx <= cx2 + hw && my >= cy && my < cy + ROW_H;
-            fillRoundRect(g, cx2, cy, hw, ROW_H, 2, cancelHov ? C_BTN() : C_OFF());
-            MacroConfig.drawStyledText(g, font, "Cancel",
-                    cx2 + (hw - font.width("Cancel")) / 2, cy + (ROW_H - 8) / 2, C_TXT());
-        }
-
-        private void drawTextField(GuiGraphics g, net.minecraft.client.gui.Font font,
-                int fx, int fy, int fw, String value, boolean focused) {
-            g.fill(fx, fy, fx + fw, fy + ROW_H, C_SBGR());
-            g.fill(fx, fy + ROW_H - 1, fx + fw, fy + ROW_H, focused ? C_ACC() : C_DIM());
-            // Clamp displayed text to fit inside the field using scissor
-            g.enableScissor(fx + 2, fy, fx + fw - 2, fy + ROW_H);
-            String disp = value + (focused && cursorVisible ? "|" : "");
-            // Scroll text right-to-left if too long
-            while (font.width(disp) > fw - 6 && disp.length() > 1)
-                disp = disp.substring(1);
-            MacroConfig.drawStyledText(g, font, disp, fx + 3, fy + (ROW_H - 8) / 2, C_TXT());
-            g.disableScissor();
-        }
-
-        private int drawOptionBtn(GuiGraphics g, net.minecraft.client.gui.Font font,
-                int mx, int my, int bx, int by, String label, boolean active) {
-            int bw = font.width(label) + 8;
-            boolean hov = mx >= bx && mx <= bx + bw && my >= by && my < by + ROW_H;
-            fillRoundRect(g, bx, by, bw, ROW_H, 2, active ? C_ON() : (hov ? C_HOVER() : C_OFF()));
-            MacroConfig.drawStyledText(g, font, label, bx + 4, by + (ROW_H - 8) / 2,
-                    active ? C_TXT() : C_DIM());
-            return bx + bw;
-        }
-
-        /** Truncates s so that its rendered pixel width fits within maxPx. */
-        private static String truncate(net.minecraft.client.gui.Font font, String s, int maxPx) {
-            if (s == null) return "";
-            if (font.width(s) <= maxPx) return s;
-            while (s.length() > 0 && font.width(s + "..") > maxPx)
-                s = s.substring(0, s.length() - 1);
-            return s + "..";
-        }
-
-        // ── contains ─────────────────────────────────────────────────────────
-        @Override
-        public boolean contains(int mx, int my) {
-            int h = calcTotalHeight();
-            return mx >= panelX - 2 && mx <= panelX + W + 2
-                && my >= panelY - 2 && my <= panelY + h + 2;
-        }
-
-        // ── mouseClicked ─────────────────────────────────────────────────────
-        @Override
-        public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            // Header drag start
-            if (mx >= panelX && mx <= panelX + W && my >= panelY && my <= panelY + HDR_H) {
-                dragging = true;
-                dragOffX = mx - panelX;
-                dragOffY = my - panelY;
-                return true;
-            }
-
-            int lY  = listY();
-            int lH  = listVisibleH();
-            int aY  = addBtnY();
-            int eY  = editY();
-
-            // ── List area ────────────────────────────────────────────────────
-            if (mx >= panelX + PAD && mx <= panelX + W - PAD
-             && my >= lY && my < lY + lH) {
-                int ey = lY - scrollOffset;
-                List<String> rules = MacroConfig.chatRules;
-                for (int i = 0; i < rules.size(); i++) {
-                    if (my >= ey && my < ey + ROW_H) {
-                        int delX = panelX + W - PAD - 18;
-                        if (mx >= delX && mx <= delX + 16) {
-                            rules.remove(i);
-                            MacroConfig.save();
-                            if (editingIndex == i)     editingIndex = -1;
-                            else if (editingIndex > i) editingIndex--;
-                        } else {
-                            if (editingIndex == i) editingIndex = -1;
-                            else loadRule(i);
-                        }
-                        return true;
-                    }
-                    ey += ROW_H + PAD;
-                }
-                return true;
-            }
-
-            // ── Add / Cancel button ──────────────────────────────────────────
-            if (mx >= panelX + PAD && mx <= panelX + W - PAD
-             && my >= aY && my < aY + ROW_H) {
-                if (editingIndex == -2) {
-                    editingIndex = -1;
-                } else {
-                    editingIndex      = -2;
-                    editName          = "";
-                    editMatchText     = "";
-                    editMatchType     = com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains;
-                    editCaseSensitive = false;
-                    editEnabled       = true;
-                    focusedField      = 0;
-                }
-                return true;
-            }
-
-            // ── Edit panel ───────────────────────────────────────────────────
-            if (!isEditing()) return true;
-            int fx = panelX + PAD + 4;
-            int fw = W - PAD * 2 - 8;
-            int cy = eY + PAD;
-
-            // Name field
-            int nfx = fx + 40;
-            if (mx >= nfx && mx <= nfx + fw - 40 && my >= cy && my < cy + ROW_H) {
-                focusedField = 0; return true;
-            }
-            cy += ROW_H + PAD;
-
-            // Pattern field
-            int mfx = fx + 52;
-            if (mx >= mfx && mx <= mfx + fw - 52 && my >= cy && my < cy + ROW_H) {
-                focusedField = 1; return true;
-            }
-            cy += ROW_H + PAD;
-
-            // Options row
-            {
-                net.minecraft.client.gui.Font f = net.minecraft.client.Minecraft.getInstance().font;
-                int ox = fx; int bw;
-
-                bw = f.width(editMatchType.name()) + 8;
-                if (mx >= ox && mx <= ox + bw && my >= cy && my < cy + ROW_H) {
-                    int cur = 0;
-                    for (int i = 0; i < MATCH_TYPES.length; i++)
-                        if (MATCH_TYPES[i] == editMatchType) { cur = i; break; }
-                    editMatchType = MATCH_TYPES[(cur + 1) % MATCH_TYPES.length];
-                    return true;
-                }
-                ox += bw + 3;
-
-                bw = f.width("Case") + 8;
-                if (mx >= ox && mx <= ox + bw && my >= cy && my < cy + ROW_H) {
-                    editCaseSensitive = !editCaseSensitive; return true;
-                }
-                ox += bw + 3;
-
-                bw = f.width("Active") + 8;
-                if (mx >= ox && mx <= ox + bw && my >= cy && my < cy + ROW_H) {
-                    editEnabled = !editEnabled; return true;
-                }
-            }
-            cy += ROW_H + PAD;
-
-            // Save / Cancel
-            int hw = (fw - 4) / 2;
-            if (mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H) {
-                saveRule(); return true;
-            }
-            int cx2 = fx + hw + 4;
-            if (mx >= cx2 && mx <= cx2 + hw && my >= cy && my < cy + ROW_H) {
-                editingIndex = -1; return true;
-            }
-            return true;
-        }
-
-        // ── drag (called from handleMouseDragged) ────────────────────────────
-        public void drag(int mx, int my) {
-            if (!dragging) return;
-            panelX = Math.max(0, Math.min(screenW - W, mx - dragOffX));
-            panelY = Math.max(0, Math.min(screenH - calcTotalHeight(), my - dragOffY));
-        }
-
-        public void stopDrag() { dragging = false; }
-
-        private void loadRule(int idx) {
-            com.ihanuat.mod.modules.ChatRuleManager.ChatRule rule =
-                    new com.ihanuat.mod.modules.ChatRuleManager.ChatRule(
-                            MacroConfig.chatRules.get(idx));
-            editName          = rule.name;
-            editMatchText     = rule.matchText;
-            // Map Regex to Contains if somehow a Regex rule was saved
-            editMatchType = rule.matchType == com.ihanuat.mod.modules.ChatRuleManager.MatchType.Regex
-                    ? com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains : rule.matchType;
-            editCaseSensitive = rule.caseSensitive;
-            editEnabled       = rule.enabled;
-            editingIndex      = idx;
-            focusedField      = 0;
-        }
-
-        private void saveRule() {
-            if (editName.isBlank()) return;
-            String encoded = editName + "|" + editMatchType.name() + "|"
-                    + editCaseSensitive + "|true|"
-                    + editEnabled + "|" + editMatchText;
-            List<String> rules = MacroConfig.chatRules;
-            if (editingIndex == -2)                                    rules.add(encoded);
-            else if (editingIndex >= 0 && editingIndex < rules.size()) rules.set(editingIndex, encoded);
-            MacroConfig.save();
-            editingIndex = -1;
-        }
-
-        @Override
-        public void scroll(int dir) {
-            scrollOffset = Math.max(0, Math.min(maxScroll(), scrollOffset + dir * 10));
-        }
-
-        @Override
-        public boolean keyPressed(int key, int scan, int mods) {
-            if (!isEditing()) return false;
-            if (key == 256) { editingIndex = -1; return true; }
-            if (key == 257 || key == 335) { saveRule(); return true; }
-            if (key == 258) { focusedField = (focusedField + 1) % 2; return true; }
-            if (key == 259) {
-                if (focusedField == 0 && !editName.isEmpty())
-                    editName = editName.substring(0, editName.length() - 1);
-                else if (focusedField == 1 && !editMatchText.isEmpty())
-                    editMatchText = editMatchText.substring(0, editMatchText.length() - 1);
-                return true;
-            }
-            if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) appendToFocused(clip.replace("\r", "").replace("\n", " "));
-                return true;
-            }
-            Character c = fallbackCharFromKey(key, scan, mods);
-            if (c != null) { appendToFocused(String.valueOf(c)); return true; }
-            return false;
-        }
-
-        @Override
-        public boolean charTyped(char c, int mods) {
-            if (!isEditing()) return false;
-            if (c == '\r' || c == '\n') return true;
-            appendToFocused(String.valueOf(c));
-            return true;
-        }
-
-        private void appendToFocused(String s) {
-            if (focusedField == 0) editName      += s;
-            else                   editMatchText += s;
-        }
-
-        @Override public void commit() {}
-    }
 
     static class ScriptSelectorEntry implements Entry {
         static final String[][] SCRIPTS = {
@@ -3083,8 +2268,7 @@ public class ClickGui extends Screen {
             if (w < 0) {
                 int base = font.width(label) + 60;
                 for (String hint : hints) base = Math.max(base, font.width(hint) + 20);
-                // Increase minimum width to 340 for better default text handling
-                w = Math.max(340, base);
+                w = Math.max(260, base);
             }
         }
         private int rx() { return Math.min(x, screenW - w - 4); }

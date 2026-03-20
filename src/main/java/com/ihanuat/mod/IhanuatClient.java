@@ -10,7 +10,6 @@ import com.ihanuat.mod.gui.DynamicRestScreen;
 import com.ihanuat.mod.gui.MacroHudRenderer;
 import com.ihanuat.mod.modules.BookCombineManager;
 import com.ihanuat.mod.modules.BoosterCookieManager;
-import com.ihanuat.mod.modules.ChatRuleManager;
 import com.ihanuat.mod.modules.DynamicRestManager;
 import com.ihanuat.mod.modules.GearManager;
 import com.ihanuat.mod.modules.GeorgeManager;
@@ -20,12 +19,12 @@ import com.ihanuat.mod.modules.PestManager;
 import com.ihanuat.mod.modules.PestPrepSwapManager;
 import com.ihanuat.mod.modules.PestReturnManager;
 import com.ihanuat.mod.modules.ProfitManager;
-import com.ihanuat.mod.modules.QuitThresholdManager;
 import com.ihanuat.mod.modules.RecoveryManager;
 import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
 import com.ihanuat.mod.modules.VisitorManager;
+import com.ihanuat.mod.modules.QuitThresholdManager;
 import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
 
@@ -54,37 +53,21 @@ public class IhanuatClient implements ClientModInitializer {
     private static boolean hasCheckedPersistenceOnJoin = false;
     private static boolean hasCheckedUpdate = false;
     private static long lastStashPickupTime = 0;
-    private static final long STASH_PICKUP_MIN_MS = 3300;
-    private static final long STASH_PICKUP_MAX_MS = 3700;
-    private static long currentStashPickupDelay = STASH_PICKUP_MIN_MS;
+    private static final long STASH_PICKUP_DELAY_MS = 3300;
+    /** Pre-computed delay for the current stash pickup interval. Recomputed after each send. */
+    private static long currentStashPickupDelay = STASH_PICKUP_DELAY_MS;
+    /** Computes and stores the next stash pickup delay, incorporating the configured random offset. */
     private static void refreshStashPickupDelay() {
-        currentStashPickupDelay = STASH_PICKUP_MIN_MS
-                + (long)(Math.random() * (STASH_PICKUP_MAX_MS - STASH_PICKUP_MIN_MS + 1));
+        int offset = MacroConfig.stashManagerOffsetMs;
+        currentStashPickupDelay = (offset > 0)
+                ? STASH_PICKUP_DELAY_MS + (long)(Math.random() * (offset + 1))
+                : STASH_PICKUP_DELAY_MS;
     }
     private static long lastRewarpTime = 0;
     private static final long REWARP_COOLDOWN_MS = 5000;
 
     private static boolean isPickingUpStash = false;
     private static boolean hasPendingStash = false;
-    private static boolean lastScreenWasBoosterCookie = false;
-    /**
-     * Previously the only arm path for stash pickup; now a no-op in practice.
-     * Stash pickup is armed directly from the chat handler when "stashed" is detected,
-     * so hasPendingStash will always be false by the time autosell completes.
-     * Kept to avoid breaking BoosterCookieManager's call site.
-     */
-    public static void armStashPickupAfterAutosell() {
-        if (!MacroConfig.autoStashManager) return;
-        if (!hasPendingStash) return; // already armed from chat handler; nothing to do
-        hasPendingStash = false;
-        isPickingUpStash = true;
-        lastStashPickupTime = 0;
-        refreshStashPickupDelay();
-        if (MacroConfig.showDebug) {
-            ClientUtils.sendDebugMessage(Minecraft.getInstance(),
-                    "Stash pickup armed after autosell completed.");
-        }
-    }
     private static String lastScannedVisitorTitle = null;
     private static long lastUnexpectedRecoveryTriggerMs = 0;
     private static final long UNEXPECTED_RECOVERY_COOLDOWN_MS = 7000;
@@ -211,21 +194,20 @@ public class IhanuatClient implements ClientModInitializer {
 
                 if (client.screen instanceof TitleScreen || client.screen instanceof DisconnectedScreen
                         || client.screen instanceof DynamicRestScreen) {
-                    RestStateManager.RestState restState = RestStateManager.getState();
-                    long reconnectAt = restState.reconnectAt();
+                    long reconnectAt = RestStateManager.loadReconnectTime();
                     if (reconnectAt > 0) {
                         long now = java.time.Instant.now().getEpochSecond();
                         long remaining = reconnectAt - now;
                         if (remaining <= 0) {
                             if (!ReconnectScheduler.isPending()) {
-                                ReconnectScheduler.scheduleReconnect(10, restState.shouldResume());
+                                ReconnectScheduler.scheduleReconnect(10, RestStateManager.shouldResume());
                                 if (client.screen instanceof DisconnectedScreen) {
                                     client.execute(() -> client.setScreen(new DynamicRestScreen(
                                             java.time.Instant.now().getEpochSecond() * 1000 + 10000, 10000)));
                                 }
                             }
                         } else if (!ReconnectScheduler.isPending()) {
-                            ReconnectScheduler.scheduleReconnect(remaining, restState.shouldResume());
+                            ReconnectScheduler.scheduleReconnect(remaining, RestStateManager.shouldResume());
                             if (client.screen instanceof DisconnectedScreen) {
                                 client.execute(() -> client
                                         .setScreen(new DynamicRestScreen(reconnectAt * 1000, remaining * 1000)));
@@ -234,12 +216,11 @@ public class IhanuatClient implements ClientModInitializer {
                     }
                 }
             } else if (!hasCheckedPersistenceOnJoin) {
-                RestStateManager.RestState restState = RestStateManager.getState();
-                long reconnectAt = restState.reconnectAt();
+                long reconnectAt = RestStateManager.loadReconnectTime();
                 if (reconnectAt != 0) {
                     // Rejoin can complete a few seconds after the scheduled reconnect time,
                     // so the saved resume flag is the reliable signal here.
-                    if (restState.shouldResume() && MacroConfig.autoResumeAfterDynamicRest) {
+                    if (RestStateManager.shouldResume() && MacroConfig.autoResumeAfterDynamicRest) {
                         client.player.displayClientMessage(
                                 Component.literal(
                                         "\u00A76[Ihanuat] Session persistence detected! Initializing recovery..."),
@@ -348,7 +329,18 @@ public class IhanuatClient implements ClientModInitializer {
                         ProfitManager.stopSprayPhase();
                         PestManager.handlePestCleaningFinished(Minecraft.getInstance());
                     }
-
+                    // Arm the stash pickup regardless of state — pest cleaner finishing
+                    // is the correct moment to begin sending /pickupstash commands.
+                    if (hasPendingStash && MacroConfig.autoStashManager) {
+                        hasPendingStash = false;
+                        isPickingUpStash = true;
+                        lastStashPickupTime = 0; // send first command immediately
+                        refreshStashPickupDelay();
+                        if (MacroConfig.showDebug) {
+                            ClientUtils.sendDebugMessage(Minecraft.getInstance(),
+                                    "Stash pickup armed after pest cleaner finished.");
+                        }
+                    }
                 }
 
                 // Track bazaar buys during pest cleaner spray phase
@@ -463,29 +455,13 @@ public class IhanuatClient implements ClientModInitializer {
                     }
                 }
 
-                if (lowerText.contains("stashed")) {
-                    // Arm stash pickup directly — no longer gated on autosell completing.
-                    // The old flow relied on armStashPickupAfterAutosell() being called from
-                    // BoosterCookieManager, which only runs if auto-booster-cookie is enabled
-                    // and the menu is open. Without that path, hasPendingStash would sit true
-                    // forever and /pickupstash would never fire.
-                    if (MacroConfig.autoStashManager) {
-                        hasPendingStash = false;
-                        isPickingUpStash = true;
-                        lastStashPickupTime = System.currentTimeMillis() + 2000; // 2s grace before first attempt
-                        refreshStashPickupDelay();
-                    }
+                if (lowerText.contains("stashed away!")) {
+                    hasPendingStash = true;
+                    // Pickup is deliberately deferred — it starts after pest cleaner finishes,
+                    // not immediately, to avoid interfering with rewarp/cleaning sequences.
                 }
 
                 if (lowerText.contains("your stash isn't holding any items or materials!")) {
-                    isPickingUpStash = false;
-                    hasPendingStash = false;
-                }
-
-                // If /pickupstash returns "Unknown command", we've been warped out of
-                // Skyblock (e.g. to lobby/limbo). Stop the sequence immediately so it
-                // doesn't keep firing the command in a non-SB world.
-                if (lowerText.contains("unknown command") && lowerText.contains("pickupstash")) {
                     isPickingUpStash = false;
                     hasPendingStash = false;
                 }
@@ -501,30 +477,9 @@ public class IhanuatClient implements ClientModInitializer {
             }
         });
 
-        // ── ChatRules: capture both GAME (server/system/Hypixel) and CHAT (signed player) ──
-        //
-        // On Hypixel, virtually all messages are GAME events (server-sent).
-        // Signed player CHAT events cover direct player-to-player chat.
-        // Both are registered so nothing is missed.
-        //
-        // Double-fire protection: ChatRuleManager.handleChatMessage() uses a
-        // ConcurrentHashMap dedup guard keyed on (ruleName + message text).
-        // putIfAbsent() ensures that even if the same message text somehow
-        // triggers both events, the webhook fires exactly once per rule match.
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) return; // ignore action bar / boss bar overlays
-            String plain = com.ihanuat.mod.util.ClientUtils.stripColor(message.getString()).trim();
-            if (!plain.isEmpty()) {
-                ChatRuleManager.handleChatMessage(net.minecraft.client.Minecraft.getInstance(), plain);
-            }
-        });
-        ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTime) -> {
-            String plain = com.ihanuat.mod.util.ClientUtils.stripColor(message.getString()).trim();
-            if (!plain.isEmpty()) {
-                ChatRuleManager.handleChatMessage(net.minecraft.client.Minecraft.getInstance(), plain);
-            }
-        });
-
+        // ── ChatRules handled exclusively in ChatHudMixin.onAddMessage() ─────────────
+        // The previous GAME + CHAT dual-registration here caused every webhook to fire
+        // twice. Removed. See ChatHudMixin for the single authoritative entry point.
 
         ClientSendMessageEvents.COMMAND.register((command) -> {
             if (command.equalsIgnoreCase("call george")) {
@@ -572,12 +527,11 @@ public class IhanuatClient implements ClientModInitializer {
                             if (PestManager.isCleaningInProgress || PestPrepSwapManager.isPrepSwapping)
                                 return;
 
+                            GearManager.swapToFarmingToolSync(client);
                             if (MacroConfig.autoRodReturnToFarm) {
                                 ClientUtils.sendDebugMessage(client, "Auto Rod: Executing rod cast during startup.");
                                 RodManager.executeRodSequence(client);
                             }
-                            GearManager.swapToFarmingToolSync(client);
-                            
                             if (PestManager.isCleaningInProgress || PestPrepSwapManager.isPrepSwapping)
                                 return;
 
@@ -636,8 +590,6 @@ public class IhanuatClient implements ClientModInitializer {
 
             if (client.screen instanceof AbstractContainerScreen) {
                 AbstractContainerScreen<?> currentScreen = (AbstractContainerScreen<?>) client.screen;
-                String currentTitle = currentScreen.getTitle().getString().toLowerCase();
-                lastScreenWasBoosterCookie = currentTitle.equals("booster cookie");
                 GearManager.handleWardrobeMenu(client, currentScreen);
                 if (client.screen == currentScreen)
                     GearManager.handleEquipmentMenu(client, currentScreen);
@@ -649,11 +601,6 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.handleAnvilMenu(client, currentScreen);
                 if (client.screen == currentScreen)
                     JunkManager.handleInventoryMenu(client, currentScreen);
-            } else {
-                if (lastScreenWasBoosterCookie) {
-                    BoosterCookieManager.onMenuClosed();
-                }
-                lastScreenWasBoosterCookie = false;
             }
 
             GeorgeManager.update(client);
