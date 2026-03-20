@@ -291,16 +291,6 @@ public class MacroConfig {
     public static int hudDynamicRestBgColor     = 0x000000;  // background color for the dynamic rest screen
 
     // ── Helper panel theme colors ──────────────────────────────────────────
-    public static final int DEFAULT_HELPER_BG_COLOR    = 0xF0101018; // matches default panel bg
-    public static final int DEFAULT_HELPER_HDR_COLOR   = 0xFF18182C; // matches default panel header
-    public static final int DEFAULT_HELPER_TXT1_COLOR  = 0xFFCCCCCC; // primary text
-    public static final int DEFAULT_HELPER_TXT2_COLOR  = 0xFF8888BB; // highlighted text (blurple-tinted)
-    public static final int DEFAULT_HELPER_TXT3_COLOR  = 0xFF666677; // dim/secondary text
-    public static int helperBgColor   = DEFAULT_HELPER_BG_COLOR;
-    public static int helperHdrColor  = DEFAULT_HELPER_HDR_COLOR;
-    public static int helperTxt1Color = DEFAULT_HELPER_TXT1_COLOR;
-    public static int helperTxt2Color = DEFAULT_HELPER_TXT2_COLOR;
-    public static int helperTxt3Color = DEFAULT_HELPER_TXT3_COLOR;
 
     // ── Color helpers ─────────────────────────────────────────────────────────
 
@@ -558,11 +548,6 @@ public class MacroConfig {
         d.sessionProfitHudScale = sessionProfitHudScale; d.showSessionProfitHud = showSessionProfitHud;
         d.lifetimeHudX = lifetimeHudX; d.lifetimeHudY = lifetimeHudY;
         d.lifetimeHudScale = lifetimeHudScale; d.showLifetimeHud = showLifetimeHud;
-        d.helperBgColor   = helperBgColor;
-        d.helperHdrColor  = helperHdrColor;
-        d.helperTxt1Color = helperTxt1Color;
-        d.helperTxt2Color = helperTxt2Color;
-        d.helperTxt3Color = helperTxt3Color;
         d.lifetimeAccumulated = lifetimeAccumulated;
         d.todayDateStr = todayDateStr;
         d.todayAccumulatedMs = todayAccumulatedMs;
@@ -702,11 +687,6 @@ public class MacroConfig {
             lifetimeHudX = d.lifetimeHudX; lifetimeHudY = d.lifetimeHudY;
             lifetimeHudScale = d.lifetimeHudScale > 0 ? d.lifetimeHudScale : DEFAULT_LIFETIME_HUD_SCALE;
             showLifetimeHud = d.showLifetimeHud;
-            if (d.helperBgColor   != 0) helperBgColor   = d.helperBgColor;
-            if (d.helperHdrColor  != 0) helperHdrColor  = d.helperHdrColor;
-            if (d.helperTxt1Color != 0) helperTxt1Color = d.helperTxt1Color;
-            if (d.helperTxt2Color != 0) helperTxt2Color = d.helperTxt2Color;
-            if (d.helperTxt3Color != 0) helperTxt3Color = d.helperTxt3Color;
             lifetimeAccumulated = sanitizeLifetimeAccumulated(d.lifetimeAccumulated);
             shouldRewriteConfig = lifetimeAccumulated != Math.max(0L, d.lifetimeAccumulated);
             todayDateStr = d.todayDateStr != null ? d.todayDateStr : "";
@@ -886,11 +866,6 @@ public class MacroConfig {
         int lifetimeHudX = DEFAULT_LIFETIME_HUD_X, lifetimeHudY = DEFAULT_LIFETIME_HUD_Y;
         float lifetimeHudScale = DEFAULT_LIFETIME_HUD_SCALE;
         boolean showLifetimeHud = DEFAULT_SHOW_LIFETIME_HUD;
-        int helperBgColor   = 0;
-        int helperHdrColor  = 0;
-        int helperTxt1Color = 0;
-        int helperTxt2Color = 0;
-        int helperTxt3Color = 0;
         long lifetimeAccumulated = 0;
         String todayDateStr = "";
         long todayAccumulatedMs = 0;

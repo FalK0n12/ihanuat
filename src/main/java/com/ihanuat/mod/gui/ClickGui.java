@@ -135,9 +135,27 @@ public class ClickGui extends Screen {
         };
     }
 
-    // theme share code — base64 encoded string
-    // v4 = 23 colors + text style name + outline size + shadow opacity
-    // backwards compat: v3/v2/legacy decode fine, just skip the new fields
+    private static String encodeDefaultTheme() {
+        int[] colors = {
+                0xF0101018, 0xFF18182C, 0xFF5050A0, 0xFFCCCCCC, 0xFF666677,
+                0xFF4444BB, 0xFF2A2A3A, 0xFF3A3A99, 0xFF4444BB,
+                MacroConfig.DEFAULT_HUD_BG_COLOR, MacroConfig.DEFAULT_HUD_ACCENT_COLOR,
+                MacroConfig.DEFAULT_HUD_TITLE_COLOR, MacroConfig.DEFAULT_HUD_LABEL_COLOR,
+                MacroConfig.DEFAULT_HUD_VALUE_COLOR, MacroConfig.DEFAULT_HUD_BAR_BG_COLOR,
+                MacroConfig.DEFAULT_HUD_BAR_FILL_COLOR, MacroConfig.DEFAULT_HUD_STATE_OFF_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_FARMING_COLOR, MacroConfig.DEFAULT_HUD_STATE_CLEANING_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_RECOVERING_COLOR, MacroConfig.DEFAULT_HUD_STATE_VISITING_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR, MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR
+        };
+        StringBuilder sb = new StringBuilder("v4:");
+        for (int i = 0; i < colors.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(String.format("%08X", colors[i]));
+        }
+        sb.append(",NONE,1,180");
+        return java.util.Base64.getEncoder().encodeToString(sb.toString().getBytes());
+    }
+
     static String encodeTheme() {
         String s = String.format("v4:%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%s,%d,%d",
                 MacroConfig.themePanelBg, MacroConfig.themePanelHeader, MacroConfig.themeAccent,
@@ -157,7 +175,6 @@ public class ClickGui extends Screen {
         try {
             String s = new String(Base64.getDecoder().decode(code.trim()));
             if (s.startsWith("v4:")) {
-                // v4 has 23 colors + text style + outline size + shadow opacity
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 26) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -190,7 +207,6 @@ public class ClickGui extends Screen {
                 try { MacroConfig.themeShadowOpacity = Math.max(0, Math.min(255, Integer.parseInt(parts[25].trim()))); }
                 catch (NumberFormatException ignored) { MacroConfig.themeShadowOpacity = 180; }
             } else if (s.startsWith("v3:")) {
-                // v3 has 23 colors + text style name
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 24) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -216,11 +232,9 @@ public class ClickGui extends Screen {
                 MacroConfig.hudStateVisitingColor   = (int) Long.parseLong(parts[20], 16);
                 MacroConfig.hudStateAutosellingColor = (int) Long.parseLong(parts[21], 16);
                 MacroConfig.hudStateSprayingColor   = (int) Long.parseLong(parts[22], 16);
-                // parse text style, fall back to NONE if unknown
                 try { MacroConfig.themeTextStyle = MacroConfig.TextStyle.valueOf(parts[23]); }
                 catch (IllegalArgumentException ignored) { MacroConfig.themeTextStyle = MacroConfig.TextStyle.NONE; }
             } else if (s.startsWith("v2:")) {
-                // v2 — no text style, leave it as-is
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 23) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -247,7 +261,6 @@ public class ClickGui extends Screen {
                 MacroConfig.hudStateAutosellingColor = (int) Long.parseLong(parts[21], 16);
                 MacroConfig.hudStateSprayingColor   = (int) Long.parseLong(parts[22], 16);
             } else {
-                // legacy — 9 colors only
                 String[] parts = s.split(",");
                 if (parts.length != 9) return false;
                 MacroConfig.themePanelBg     = (int) Long.parseLong(parts[0], 16);
@@ -276,7 +289,6 @@ public class ClickGui extends Screen {
     private String searchQuery = "";
     private boolean searchActive = false;
 
-    // ── Helper panel ─────────────────────────────────────────────────────────
     /** Which topic the helper is currently showing. null = no topic. */
     private static String helperTopic = null;
     /** Human-readable title shown in the helper header, e.g. "Chat Rules". */
@@ -361,17 +373,12 @@ public class ClickGui extends Screen {
         panels.add(generalPanel(pos(saved, 0, nextPos)));
         panels.add(delaysPanel(pos(saved, 1, nextPos)));
         panels.add(wardrobePanel(pos(saved, 2, nextPos)));
-        panels.add(autoRodPanel(pos(saved, 3, nextPos)));
-        panels.add(equipmentPanel(pos(saved, 4, nextPos)));
-        panels.add(autoPestPanel(pos(saved, 5, nextPos)));
-        panels.add(autoVisitorPanel(pos(saved, 6, nextPos)));
-        panels.add(autoGeorgePanel(pos(saved, 7, nextPos)));
-        panels.add(autoSellPanel(pos(saved, 8, nextPos)));
-        panels.add(profitPanel(pos(saved, 9, nextPos)));
-        panels.add(dynamicRestPanel(pos(saved, 10, nextPos)));
-        panels.add(qolPanel(pos(saved, 11, nextPos)));
-        panels.add(themePanel(pos(saved, 12, nextPos)));
-        panels.add(chatRulesPanel(pos(saved, 13, nextPos)));
+        panels.add(autoPestPanel(pos(saved, 3, nextPos)));
+        panels.add(profitPanel(pos(saved, 4, nextPos)));
+        panels.add(dynamicRestPanel(pos(saved, 5, nextPos)));
+        panels.add(qolPanel(pos(saved, 6, nextPos)));
+        panels.add(themePanel(pos(saved, 7, nextPos)));
+        panels.add(chatRulesPanel(pos(saved, 8, nextPos)));
     }
 
     private static int[] pos(int[][] saved, int i, Supplier<int[]> fallback) {
@@ -389,31 +396,13 @@ public class ClickGui extends Screen {
 
     private Panel generalPanel(int[] pos) {
         Panel p = makePanel("General", pos);
-        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> {
-            MacroConfig.showHud = v;
-            save();
-        }));
-        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> {
-            MacroConfig.guiOnlyInGarden = v;
-            save();
-        }));
-        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> {
-            MacroConfig.enablePlotTpRewarp = v;
-            save();
-        }));
-        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> {
-            MacroConfig.holdWUntilWall = v;
-            save();
-        }));
-        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> {
-            MacroConfig.unflyMode = v;
-            save();
-        }));
+        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
+        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
+        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
+        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
+        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
         p.add(new ScriptSelectorEntry());
-        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> {
-            MacroConfig.plotTpNumber = v;
-            save();
-        }));
+        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
         p.add(button("Capture Rewarp Pos", () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
@@ -425,18 +414,25 @@ public class ClickGui extends Screen {
                 mc.player.displayClientMessage(Component.literal("Rewarp position captured!"), true);
             }
         }));
-        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> {
-            MacroConfig.autoResumeAfterDynamicRest = v;
-            save();
-        }));
-        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> {
-            MacroConfig.autoRecoverUnexpectedDisconnect = v;
-            save();
-        }));
-        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> {
-            MacroConfig.persistSessionTimer = v;
-            save();
-        }));
+        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
+        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
+        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
+
+        SectionEntry visitorSection = new SectionEntry("Auto Visitor", "autovisitor");
+        visitorSection.add(toggle("Auto-Visitor", () -> MacroConfig.autoVisitor, v -> { MacroConfig.autoVisitor = v; save(); }));
+        visitorSection.add(slider("Threshold", "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> { MacroConfig.visitorThreshold = v; save(); }, ""));
+        p.add(visitorSection);
+
+        SectionEntry georgeSection = new SectionEntry("Auto George", "autogeorge");
+        georgeSection.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> { MacroConfig.autoGeorgeSell = v; save(); }));
+        georgeSection.add(slider("Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> { MacroConfig.georgeSellThreshold = v; save(); }, ""));
+        p.add(georgeSection);
+
+        SectionEntry sellSection = new SectionEntry("Auto Sell", "autosell");
+        sellSection.add(toggle("Custom Autosell", () -> MacroConfig.autoBoosterCookie, v -> { MacroConfig.autoBoosterCookie = v; save(); }));
+        sellSection.add(listSetting("Autosell Item List", "boosterCookieItems", () -> MacroConfig.boosterCookieItems, v -> { MacroConfig.boosterCookieItems = new ArrayList<>(v); save(); }));
+        p.add(sellSection);
+
         return p;
     }
 
@@ -535,12 +531,20 @@ public class ClickGui extends Screen {
         return p;
     }
 
-    private Panel equipmentPanel(int[] pos) {
-        Panel p = makePanel("Equipment Swap", pos);
+    private Panel equipmentGeorgePanel(int[] pos) {
+        Panel p = makePanel("Equipment & George", pos);
         p.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> {
             MacroConfig.autoEquipment = v;
             save();
         }));
+        p.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> {
+            MacroConfig.autoGeorgeSell = v;
+            save();
+        }));
+        p.add(slider("George Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
+            MacroConfig.georgeSellThreshold = v;
+            save();
+        }, ""));
         return p;
     }
 
@@ -586,6 +590,14 @@ public class ClickGui extends Screen {
             MacroConfig.aotvRoofPitchHumanization = v;
             save();
         }, ""));
+        SectionEntry rodSection = new SectionEntry("Auto Rod", "autorod");
+        rodSection.add(toggle("Rod on Pest CD", () -> MacroConfig.autoRodPestCd, v -> { MacroConfig.autoRodPestCd = v; save(); }));
+        rodSection.add(toggle("Rod on Pest Spawn", () -> MacroConfig.autoRodPestSpawn, v -> { MacroConfig.autoRodPestSpawn = v; save(); }));
+        rodSection.add(toggle("Rod on Return to Farm", () -> MacroConfig.autoRodReturnToFarm, v -> { MacroConfig.autoRodReturnToFarm = v; save(); }));
+        p.add(rodSection);
+        SectionEntry equipSection = new SectionEntry("Equipment Swap", "equipmentswap");
+        equipSection.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> { MacroConfig.autoEquipment = v; save(); }));
+        p.add(equipSection);
         return p;
     }
 
@@ -602,18 +614,7 @@ public class ClickGui extends Screen {
         return p;
     }
 
-    private Panel autoGeorgePanel(int[] pos) {
-        Panel p = makePanel("Auto George", pos);
-        p.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> {
-            MacroConfig.autoGeorgeSell = v;
-            save();
-        }));
-        p.add(slider("Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
-            MacroConfig.georgeSellThreshold = v;
-            save();
-        }, ""));
-        return p;
-    }
+
 
     private Panel autoSellPanel(int[] pos) {
         Panel p = makePanel("Auto Sell", pos);
@@ -787,9 +788,7 @@ public class ClickGui extends Screen {
             notifyMsg("Theme code copied!");
         }));
         p.add(cycleEnum("Text Style", MacroConfig.TextStyle.values(), () -> MacroConfig.themeTextStyle, v -> { MacroConfig.themeTextStyle = v; save(); }));
-        // outline size only matters when style is OUTLINE
         p.add(slider("Outline Size", "themeOutlineSize",   1, 3, () -> MacroConfig.themeOutlineSize,   v -> { MacroConfig.themeOutlineSize = v;   save(); }, "px"));
-        // shadow opacity applies to both SHADOW and OUTLINE modes
         p.add(slider("Shadow Opacity", "themeShadowOpacity", 0, 255, () -> MacroConfig.themeShadowOpacity, v -> { MacroConfig.themeShadowOpacity = v; save(); }, ""));
         p.add(colorEntry("Panel BG", () -> MacroConfig.themePanelBg, v -> {
             MacroConfig.themePanelBg = v;
@@ -883,21 +882,6 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateSprayingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("Helper BG", () -> MacroConfig.toArgb(MacroConfig.helperBgColor), v -> {
-            MacroConfig.helperBgColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Header", () -> MacroConfig.toArgb(MacroConfig.helperHdrColor), v -> {
-            MacroConfig.helperHdrColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Text", () -> MacroConfig.toArgb(MacroConfig.helperTxt1Color), v -> {
-            MacroConfig.helperTxt1Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Highlight", () -> MacroConfig.toArgb(MacroConfig.helperTxt2Color), v -> {
-            MacroConfig.helperTxt2Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Dim", () -> MacroConfig.toArgb(MacroConfig.helperTxt3Color), v -> {
-            MacroConfig.helperTxt3Color = v & 0xFFFFFF; save();
-        }));
         p.add(button("Reset to Default", () -> {
             MacroConfig.themePanelBg = 0xF0101018;
             MacroConfig.themePanelHeader = 0xFF18182C;
@@ -922,16 +906,11 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateVisitingColor = MacroConfig.DEFAULT_HUD_STATE_VISITING_COLOR;
             MacroConfig.hudStateAutosellingColor = MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR;
             MacroConfig.hudStateSprayingColor = MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR;
-            MacroConfig.helperBgColor   = MacroConfig.DEFAULT_HELPER_BG_COLOR;
-            MacroConfig.helperHdrColor  = MacroConfig.DEFAULT_HELPER_HDR_COLOR;
-            MacroConfig.helperTxt1Color = MacroConfig.DEFAULT_HELPER_TXT1_COLOR;
-            MacroConfig.helperTxt2Color = MacroConfig.DEFAULT_HELPER_TXT2_COLOR;
-            MacroConfig.helperTxt3Color = MacroConfig.DEFAULT_HELPER_TXT3_COLOR;
             save();
             notifyMsg("Theme reset!");
         }));
         p.add(button("Reset Panel Positions", () -> {
-            MacroConfig.clickGuiPanelPositions = new int[14][3];
+            MacroConfig.clickGuiPanelPositions = new int[9][3];
             save();
             panels.clear();
             buildPanels();
@@ -1018,10 +997,9 @@ public class ClickGui extends Screen {
             case "QOL"               -> "qol";
             case "Chat Rules"        -> "chatrules";
             case "Auto Rod"          -> "autorod";
-            case "Equipment Swap"    -> "equipmentswap";
+            case "Equipment & George" -> "equipmentgeorge";
             case "Auto Pest"         -> "autopest";
             case "Auto Visitor"      -> "autovisitor";
-            case "Auto George"       -> "autogeorge";
             case "Auto Sell"         -> "autosell";
             case "Profit Calculator" -> "profitcalculator";
             case "Wardrobe Swap"     -> "wardrobeswap";
@@ -1032,8 +1010,8 @@ public class ClickGui extends Screen {
     private static boolean hasHelperTopic(String panelTitle) {
         return switch (panelTitle) {
             case "General", "Delays", "Dynamic Rest", "QOL", "Chat Rules",
-                 "Auto Rod", "Equipment Swap", "Auto Pest", "Auto Visitor",
-                 "Auto George", "Auto Sell", "Profit Calculator", "Wardrobe Swap" -> true;
+                 "Auto Rod", "Equipment & George", "Auto Pest", "Auto Visitor",
+                 "Auto Sell", "Profit Calculator", "Wardrobe Swap" -> true;
             default -> false;
         };
     }
@@ -1046,10 +1024,9 @@ public class ClickGui extends Screen {
             case "QOL"                 -> "qol";
             case "Chat Rules"          -> "chatrules";
             case "Auto Rod"            -> "autorod";
-            case "Equipment Swap"      -> "equipmentswap";
+            case "Equipment & George" -> "equipmentgeorge";
             case "Auto Pest"           -> "autopest";
             case "Auto Visitor"        -> "autovisitor";
-            case "Auto George"         -> "autogeorge";
             case "Auto Sell"           -> "autosell";
             case "Wardrobe Swap"     -> "wardrobeswap";
             default                    -> null;
@@ -1057,14 +1034,10 @@ public class ClickGui extends Screen {
         if (newTopic != null && !newTopic.equals(helperTopic)) {
             helperTopic      = newTopic;
             helperTitle      = panelTitle;
-            helperScrollOffset = 0; // reset scroll when switching topics
+            helperScrollOffset = 0;
         }
     }
 
-    // ── Helper panel lines by topic ─────────────────────────────────────────
-    // Format: "LABEL — description"
-    // Label is rendered in helperTxt2Color, " — description" in helperTxt3Color.
-    // Lines with no " — " separator are rendered in helperTxt1Color (plain info).
     private static String[] getHelperLines(String topic) {
         return switch (topic) {
             case "chatrules" -> new String[]{
@@ -1117,8 +1090,17 @@ public class ClickGui extends Screen {
                     "Rod on Pest Spawn — Use the fishing rod as soon as pests spawn on your farm.",
                     "Rod on Return to Farm — Use the fishing rod when returning to the farm after clearing pests or handling visitors.",
             };
-            case "equipmentswap" -> new String[]{
+            case "equipmentgeorge" -> new String[]{
                     "Auto-Equipment — Automatically switch your Equipment loadout slot when transitioning between pest spawning and pest clearing/farming modes.",
+                    "Auto George Sell — Automatically sell pet drops to George via his Abiphone contact (requires George contact to be unlocked).",
+                    "George Threshold — Minimum number of pets in your inventory before selling to George triggers.",
+            };
+            case "equipmentswap" -> new String[]{
+                    "Auto-Equipment — Turn on and off whether you want to change equipment for pest spawning and pest clearing/farming.",
+            };
+            case "autogeorge" -> new String[]{
+                    "Auto George Sell — Whether to sell pet drops to George (requires George's abiphone contact).",
+                    "Threshold — Minimum amount of pets in inventory needed to sell to George.",
             };
             case "autopest" -> new String[]{
                     "Threshold — Number of pests that must be present before the pest cleaner activates.",
@@ -1134,10 +1116,7 @@ public class ClickGui extends Screen {
                     "Auto-Visitor — Automatically handle visitors that appear on your farm.",
                     "Threshold — Minimum number of visitors required before Auto Visitor activates.",
             };
-            case "autogeorge" -> new String[]{
-                    "Auto George Sell — Automatically sell pet drops to George via his Abiphone contact (requires George contact to be unlocked).",
-                    "Threshold — Minimum number of pets in your inventory before selling to George triggers.",
-            };
+
             case "autosell" -> new String[]{
                     "Custom Autosell — Enable ihanuat's custom autosell routine to sell items from the Autosell Item List.",
                     "Autosell Item List — List of item names to sell automatically during the autosell sequence.",
@@ -1182,10 +1161,9 @@ public class ClickGui extends Screen {
         if (lines.length == 0) return;
 
         int lineH      = font.lineHeight + 3;
-        int contentW   = HELPER_W - 14; // 2px scrollbar gap on right
+        int contentW   = HELPER_W - 14;
         int PAD_V      = 4;
 
-        // Pre-compute all wrapped lines
         java.util.List<int[]> wrapped = wrapHelperLines(font, lines, contentW);
         int totalContentH = wrapped.size() * lineH;
         int visibleContentH = Math.min(totalContentH, HELPER_MAX_CONTENT_H);
@@ -1200,37 +1178,33 @@ public class ClickGui extends Screen {
         helperX = Math.max(0, Math.min(width  - HELPER_W, helperX));
         helperY = Math.max(0, Math.min(height - panelH, helperY));
 
-        int hBg  = MacroConfig.helperBgColor  | 0xFF000000;
-        int hHdr = MacroConfig.helperHdrColor | 0xFF000000;
+        int hBg  = C_BG();
+        int hHdr = C_HDR();
         int hAcc = MacroConfig.themeAccent;
 
-        // Border + background
         fillRoundRect(g, helperX - 2, helperY - 2, HELPER_W + 4, panelH + 4, 4, hAcc);
         fillRoundRect(g, helperX, helperY, HELPER_W, panelH, 3, hBg);
 
-        // Header
         fillRoundRect(g, helperX, helperY, HELPER_W, HEADER_H, PANEL_RADIUS, hHdr);
         g.fill(helperX, helperY + HEADER_H - PANEL_RADIUS, helperX + HELPER_W, helperY + HEADER_H, hHdr);
         g.fill(helperX + 2, helperY + HEADER_H - 1, helperX + HELPER_W - 2, helperY + HEADER_H, hAcc);
         String hTitle = "? Helper" + (helperTitle != null ? " — " + helperTitle : "");
         MacroConfig.drawStyledText(g, font, hTitle, helperX + 5, helperY + HEADER_H / 2 - 4,
-                MacroConfig.helperTxt1Color | 0xFF000000);
+                C_TXT());
 
-        // Close button
         int closeX = helperX + HELPER_W - 14;
         boolean closeHov = mx >= closeX - 2 && mx <= closeX + 10 && my >= helperY && my <= helperY + HEADER_H;
         MacroConfig.drawStyledText(g, font, "x", closeX, helperY + HEADER_H / 2 - 4,
-                closeHov ? 0xFFFF5555 : (MacroConfig.helperTxt3Color | 0xFF000000));
+                closeHov ? 0xFFFF5555 : C_DIM());
 
-        // Content — scissored to visible area
         int contentX = helperX + 6;
         int contentY = helperY + HEADER_H + PAD_V;
         int clipBottom = contentY + visibleContentH;
         g.enableScissor(helperX + 2, contentY, helperX + HELPER_W - 4, clipBottom);
 
-        int c1 = MacroConfig.helperTxt1Color | 0xFF000000;
-        int c2 = MacroConfig.helperTxt2Color | 0xFF000000;
-        int c3 = MacroConfig.helperTxt3Color | 0xFF000000;
+        int c1 = C_DIM();
+        int c2 = C_ON2();
+        int c3 = C_DIM();
 
         int cy = contentY - helperScrollOffset;
         for (int[] wl : wrapped) {
@@ -1240,7 +1214,6 @@ public class ClickGui extends Screen {
 
         g.disableScissor();
 
-        // Scrollbar (only when content overflows)
         if (maxScroll > 0) {
             int sbX  = helperX + HELPER_W - 4;
             int sbY0 = contentY;
@@ -1274,9 +1247,7 @@ public class ClickGui extends Screen {
             if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
 
             if (sepIdx >= 0) {
-                // ── Two-tone line ─────────────────────────────────────────────
                 String label = raw.substring(0, sepIdx);
-                // sep is always 3 chars: " — " or " - "
                 String sep  = raw.substring(sepIdx, sepIdx + 3);
                 String desc = raw.substring(sepIdx + 3);
                 String full = label + sep + desc;
@@ -1284,22 +1255,18 @@ public class ClickGui extends Screen {
                 if (font.width(full) <= maxW) {
                     result.add(new int[]{1, li, sepIdx, raw.length()});
                 } else {
-                    // Fit label + sep + as much desc as possible on first row
                     int prefixW   = font.width(label + sep);
                     int available = maxW - prefixW;
                     int cut = fitChars(font, desc, available);
                     result.add(new int[]{1, li, sepIdx, sepIdx + 3 + cut});
-                    // Continuation rows (type 3 = dim, two-tone continuation)
                     addContinuations(font, result, raw, sepIdx + 3 + cut, maxW, 3, li);
                 }
             } else {
-                // ── Plain line ────────────────────────────────────────────────
                 int cut = fitChars(font, raw, maxW);
                 if (cut >= raw.length()) {
                     result.add(new int[]{0, li, 0, raw.length()});
                 } else {
                     result.add(new int[]{0, li, 0, cut});
-                    // Continuation rows (type 2 = normal, plain continuation)
                     addContinuations(font, result, raw, cut, maxW, 2, li);
                 }
             }
@@ -1312,7 +1279,6 @@ public class ClickGui extends Screen {
         if (font.width(s) <= maxW) return s.length();
         int end = 0;
         while (end < s.length() && font.width(s.substring(0, end + 1)) <= maxW) end++;
-        // Prefer word boundary
         int wb = s.lastIndexOf(' ', end);
         return (wb > 0) ? wb : Math.max(1, end);
     }
@@ -1321,7 +1287,6 @@ public class ClickGui extends Screen {
     private static void addContinuations(net.minecraft.client.gui.Font font,
                                          java.util.List<int[]> result, String raw, int startPos, int maxW, int contType, int li) {
         int pos = startPos;
-        // Skip a leading space at the break point
         if (pos < raw.length() && raw.charAt(pos) == ' ') pos++;
         while (pos < raw.length()) {
             String rest = raw.substring(pos);
@@ -1338,10 +1303,8 @@ public class ClickGui extends Screen {
         int type = wl[0], li = wl[1], cs = wl[2], ce = wl[3];
         String raw = lines[li];
         if (type == 0) {
-            // Plain first row — c1
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
         } else if (type == 1) {
-            // Two-tone first row — label in c2, separator+description in c3
             int sepIdx = raw.indexOf(" — ");
             if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
             if (sepIdx < 0) {
@@ -1349,21 +1312,18 @@ public class ClickGui extends Screen {
                 return;
             }
             String label = raw.substring(0, sepIdx);
-            String rest  = raw.substring(sepIdx, ce); // includes " — " + desc chunk
+            String rest  = raw.substring(sepIdx, ce);
             MacroConfig.drawStyledText(g, font, label, x, y, c2);
             MacroConfig.drawStyledText(g, font, rest, x + font.width(label), y, c3);
         } else if (type == 2) {
-            // Continuation of a plain line — same colour as plain (c1), no indent
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
         } else {
-            // type 3: continuation of a two-tone description — dim (c3), no indent
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c3);
         }
     }
 
 
     void handleMouseClicked(int x, int y, int btn) {
-        // Helper panel: close button or start drag
         if (helperTopic != null && helperX >= 0) {
             int closeX = helperX + HELPER_W - 14;
             if (x >= closeX - 2 && x <= closeX + 10 && y >= helperY && y <= helperY + HEADER_H) {
@@ -1397,12 +1357,10 @@ public class ClickGui extends Screen {
         if (searchActive) return;
         for (Panel panel : new ArrayList<>(panels)) {
             if (panel.headerContains(x, y)) {
-                // Check helper button click first
                 if (btn == 0 && hasHelperTopic(panel.title)) {
-                    int arrowX = panel.x + PANEL_W - 10;
                     String hlbl = "?";
                     int hlblW = font.width(hlbl);
-                    int hbx = arrowX - hlblW - 6;
+                    int hbx = panel.x + PANEL_W - hlblW - 4;
                     if (x >= hbx - 1 && x <= hbx + hlblW + 3 && y >= panel.y + 1 && y <= panel.y + HEADER_H - 1) {
                         String newTopic = getHelperTopicKey(panel.title);
                         if (newTopic != null && newTopic.equals(helperTopic)) {
@@ -1441,6 +1399,16 @@ public class ClickGui extends Screen {
                 }
                 Entry hit = panel.entryAt(x, y, searchQuery);
                 if (hit != null) {
+                    if (btn == 0 && hit instanceof SectionEntry se && se.helperTopic != null) {
+                        int ey = panel.entryY(hit, searchQuery);
+                        int hlblW = font.width("?");
+                        int hbx = panel.x + PANEL_W - ENTRY_PAD - hlblW - 4;
+                        if (x >= hbx - 1 && x <= hbx + hlblW + 3 && y >= ey && y < ey + ENTRY_H) {
+                            if (se.helperTopic.equals(helperTopic)) { helperTopic = null; helperTitle = null; helperScrollOffset = 0; }
+                            else { helperTopic = se.helperTopic; helperTitle = se.label; helperScrollOffset = 0; }
+                            return;
+                        }
+                    }
                     if (btn == 0) {
                         if (hit instanceof SliderEntry se && !se.valueContains(x, y, panel.x + ENTRY_PAD, panel.entryY(hit, searchQuery), PANEL_W - ENTRY_PAD * 2, ENTRY_H, font)) {
                             draggingSlider = se;
@@ -1449,11 +1417,16 @@ public class ClickGui extends Screen {
                         } else {
                             SubPanel sp = hit.openSubPanel(x, y, width, height);
                             if (sp != null) activeSubPanel = sp;
-                            else hit.onClick(x, y);
+                            else { hit.onClick(x, y); panel.scrollOffset = Math.min(panel.scrollOffset, panel.maxScroll(searchQuery)); }
                         }
                     } else if (btn == 1) {
-                        SubPanel sp = hit.openSubPanel(x, y, width, height);
-                        if (sp != null) activeSubPanel = sp;
+                        if (hit instanceof SectionEntry se) {
+                            se.collapsed = !se.collapsed;
+                            panel.scrollOffset = Math.min(panel.scrollOffset, panel.maxScroll(searchQuery));
+                        } else {
+                            SubPanel sp = hit.openSubPanel(x, y, width, height);
+                            if (sp != null) activeSubPanel = sp;
+                        }
                     }
                 }
                 return;
@@ -1513,7 +1486,6 @@ public class ClickGui extends Screen {
     }
 
     void handleMouseScrolled(int x, int y, double hScroll, double vScroll, boolean shift) {
-        // Helper panel scroll
         if (helperTopic != null && helperX >= 0 && x >= helperX && x <= helperX + HELPER_W
                 && y >= helperY + HEADER_H && y <= helperY + HEADER_H + HELPER_MAX_CONTENT_H) {
             helperScrollOffset = Math.max(0, helperScrollOffset + (int)(-vScroll * 12));
@@ -1610,7 +1582,8 @@ public class ClickGui extends Screen {
     @Override
     public void onClose() {
         savePanelPositions();
-        revertLibraryPreview();
+        previewOriginalCode = null;
+        activeLibraryIndex = -1;
         save();
         super.onClose();
     }
@@ -1630,7 +1603,7 @@ public class ClickGui extends Screen {
     }
 
     private void savePanelPositions() {
-        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Rod", "Equipment Swap", "Auto Pest", "Auto Visitor", "Auto George", "Auto Sell", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
+        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Pest", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
         int[][] positions = new int[order.length][3];
         for (int i = 0; i < order.length; i++)
             for (Panel p : panels)
@@ -1693,15 +1666,27 @@ public class ClickGui extends Screen {
             if (e instanceof ScriptSelectorEntry) return "Farm Script";
             if (e instanceof ColorEntry ce) return ce.label;
             if (e instanceof ImportCodeEntry) return "Paste Theme Code";
+            if (e instanceof SectionEntry se) return se.label;
             return "";
         }
 
+        List<Entry> flatEntries(String q) {
+            List<Entry> result = new ArrayList<>();
+            for (Entry e : filtered(q)) {
+                result.add(e);
+                if (e instanceof SectionEntry se && !se.collapsed) {
+                    result.addAll(se.children);
+                }
+            }
+            return result;
+        }
+
         int contentHeight(String q) {
-            return filtered(q).size() * (ENTRY_H + ENTRY_PAD) + ENTRY_PAD;
+            return flatEntries(q).size() * (ENTRY_H + ENTRY_PAD) + ENTRY_PAD;
         }
 
         int visibleHeight() {
-            return 126;
+            return 200;
         }
 
         int maxScroll(String q) {
@@ -1720,7 +1705,7 @@ public class ClickGui extends Screen {
         Entry entryAt(int mx, int my, String q) {
             if (collapsed || filtered(q).isEmpty() || mx > x + PANEL_W - 4) return null;
             int ey = y + HEADER_H + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered(q)) {
+            for (Entry e : flatEntries(q)) {
                 if (my >= ey && my < ey + ENTRY_H && mx >= x && mx <= x + PANEL_W) return e;
                 ey += ENTRY_H + ENTRY_PAD;
             }
@@ -1729,7 +1714,7 @@ public class ClickGui extends Screen {
 
         int entryY(Entry target, String q) {
             int ey = y + HEADER_H + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered(q)) {
+            for (Entry e : flatEntries(q)) {
                 if (e == target) return ey;
                 ey += ENTRY_H + ENTRY_PAD;
             }
@@ -1763,44 +1748,98 @@ public class ClickGui extends Screen {
             boolean effectiveCollapsed = collapsed || (!q.isEmpty() && filtered.isEmpty());
             int totalH = effectiveCollapsed ? HEADER_H : HEADER_H + Math.min(contentHeight(q), visibleHeight());
             fillRoundRect(g, x, y, PANEL_W, totalH, PANEL_RADIUS, C_BG());
-            fillRoundRect(g, x, y, PANEL_W, HEADER_H, PANEL_RADIUS, C_HDR());
-            if (!effectiveCollapsed) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, C_HDR());
+            int hdrCol = effectiveCollapsed ? C_HDR() : brighten(C_HDR(), 0x101010);
+            fillRoundRect(g, x, y, PANEL_W, HEADER_H, PANEL_RADIUS, hdrCol);
+            if (!effectiveCollapsed) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, hdrCol);
             g.fill(x + 2, y + HEADER_H - 1, x + PANEL_W - 2, y + HEADER_H, C_LINE());
-            MacroConfig.drawStyledText(g, font, title, x + 5, y + HEADER_H / 2 - 4, !q.isEmpty() && title.toLowerCase().contains(q.toLowerCase()) ? C_ON2() : C_TXT());
-            // Helper button — small, top-right, only if this panel has helper content
+            int arrowLX = x + 5;
+            int arrowW = font.width("v") + 4;
+            MacroConfig.drawStyledText(g, font, effectiveCollapsed ? ">" : "v", arrowLX, y + HEADER_H / 2 - 4, C_DIM());
+            MacroConfig.drawStyledText(g, font, title, x + 5 + arrowW, y + HEADER_H / 2 - 4, !q.isEmpty() && title.toLowerCase().contains(q.toLowerCase()) ? C_ON2() : C_TXT());
             boolean hasHelper = hasHelperTopic(title);
-            int arrowX = x + PANEL_W - 10;
             if (hasHelper) {
                 String hlbl = "?";
                 int hlblW = font.width(hlbl);
-                int hbx = arrowX - hlblW - 6;
+                int hbx = x + PANEL_W - hlblW - 4;
                 boolean hbHov = mx >= hbx - 1 && mx <= hbx + hlblW + 3 && my >= y + 1 && my <= y + HEADER_H - 1;
                 boolean hbActive = title.equals(helperTitle);
                 if (hbHov || hbActive) fillRoundRect(g, hbx - 1, y + 2, hlblW + 4, HEADER_H - 4, 2, hbActive ? C_ON() : C_HOVER());
                 MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + HEADER_H / 2 - 4, hbActive || hbHov ? C_TXT() : C_DIM());
             }
-            MacroConfig.drawStyledText(g, font, effectiveCollapsed ? ">" : "v", arrowX, y + HEADER_H / 2 - 4, C_DIM());
             if (effectiveCollapsed) return;
 
             int clipY = y + HEADER_H, clipH = Math.min(contentHeight(q), visibleHeight());
             g.enableScissor(x, clipY, x + PANEL_W, clipY + clipH);
             int ey = clipY + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered) {
+            java.util.Set<SectionEntry> openSections = new java.util.HashSet<>();
+            for (Entry e : filtered) { if (e instanceof SectionEntry se && !se.collapsed) openSections.add(se); }
+            for (Entry e : flatEntries(q)) {
+                boolean isChild = openSections.stream().anyMatch(se -> se.children.contains(e));
+                int indent = isChild ? 14 : 0;
                 boolean hov = mx >= x && mx <= x + PANEL_W && my >= ey && my < ey + ENTRY_H;
-                if (hov) g.fill(x + 1, ey, x + PANEL_W - 1, ey + ENTRY_H, C_HOVER());
-                e.render(g, x + ENTRY_PAD, ey, PANEL_W - ENTRY_PAD * 2, ENTRY_H, hov, font);
+                if (hov) g.fill(x + 1 + indent, ey, x + PANEL_W - 1, ey + ENTRY_H, C_HOVER());
+                if (e instanceof SectionEntry se) {
+                    se.updateHover(mx, my);
+                    se.render(g, x + ENTRY_PAD, ey, PANEL_W - ENTRY_PAD * 2, ENTRY_H, hov, font);
+                } else {
+                    e.render(g, x + ENTRY_PAD + indent, ey, PANEL_W - ENTRY_PAD * 2 - indent, ENTRY_H, hov, font);
+                }
                 ey += ENTRY_H + ENTRY_PAD;
             }
             g.disableScissor();
-            if (maxScroll(q) > 0) {
-                float frac = (float) scrollOffset / maxScroll(q);
-                int bh = Math.max(10, clipH * clipH / contentHeight(q));
-                int by = clipY + (int) ((clipH - bh) * frac);
-                g.fill(x + PANEL_W - 3, by, x + PANEL_W - 1, by + bh, C_ACC());
-            }
+
         }
     }
 
+
+    static class SectionEntry implements Entry {
+        final String label;
+        final String helperTopic;
+        final List<Entry> children = new ArrayList<>();
+        boolean collapsed = true;
+
+        SectionEntry(String label, String helperTopic) {
+            this.label = label;
+            this.helperTopic = helperTopic;
+        }
+
+        void add(Entry e) { children.add(e); }
+
+        List<Entry> visibleChildren() {
+            return collapsed ? List.of() : children;
+        }
+
+        int lastMx = -1, lastMy = -1;
+        void updateHover(int mx, int my) { lastMx = mx; lastMy = my; }
+        boolean isHelpHovered(int x, int w, int y, int h, net.minecraft.client.gui.Font font) {
+            if (helperTopic == null) return false;
+            int hlblW = font.width("?");
+            int hbx = x + w - hlblW - 4;
+            return lastMx >= hbx - 1 && lastMx <= hbx + hlblW + 3 && lastMy >= y && lastMy < y + h;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
+            boolean hqActive = helperTopic != null && helperTopic.equals(ClickGui.helperTopic);
+            boolean hqHov = isHelpHovered(x, w, y, h, font);
+            fillRoundRect(g, x, y, w, h, 3, !collapsed || hov ? C_HDR() : C_BG());
+            if (helperTopic != null) {
+                String hlbl = "?";
+                int hlblW = font.width(hlbl);
+                int hbx = x + w - hlblW - 4;
+                if (hqActive || hqHov) fillRoundRect(g, hbx - 1, y + 1, hlblW + 4, h - 2, 2, hqActive ? C_ON() : C_HOVER());
+                MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + h / 2 - 4, hqActive || hqHov ? C_TXT() : C_DIM());
+            }
+            int secArrowW = font.width("v") + 4;
+            MacroConfig.drawStyledText(g, font, collapsed ? ">" : "v", x + 2, y + h / 2 - 4, C_DIM());
+            MacroConfig.drawStyledText(g, font, label, x + 2 + secArrowW, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
+        }
+
+        @Override
+        public void onClick(int mx, int my) {
+            collapsed = !collapsed;
+        }
+    }
 
     interface Entry {
         void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font);
@@ -2076,7 +2115,6 @@ public class ClickGui extends Screen {
         }
     }
 
-    // color swatch entry — shows label + color preview, right-click opens RGB sliders
     static class ColorEntry implements Entry {
         final String label;
         final Supplier<Integer> getter;
@@ -2093,11 +2131,9 @@ public class ClickGui extends Screen {
             int col = getter.get();
             int mid = y + h / 2 - 4;
             MacroConfig.drawStyledText(g, font, label, x + 2, mid, hov ? C_TXT() : C_DIM());
-            // color swatch
             int sw = 16, sx = x + w - sw - 2, sy = y + 2;
             g.fill(sx - 1, sy - 1, sx + sw + 1, sy + h - 2, 0xFF555555);
             g.fill(sx, sy, sx + sw, sy + h - 4, col | 0xFF000000);
-            // hex label
             String hex = String.format("#%06X", col & 0xFFFFFF);
             int hw = font.width(hex);
             MacroConfig.drawStyledText(g, font, hex, x + w - sw - hw - 6, mid, C_DIM());
@@ -2113,7 +2149,6 @@ public class ClickGui extends Screen {
         }
     }
 
-    // "Paste Theme Code" entry — text field + apply button inline
     static class ImportCodeEntry implements Entry {
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
@@ -2213,6 +2248,7 @@ public class ClickGui extends Screen {
         private int addBtnX()     { return panelX + W - PAD - BTN_W; }
         private int delBtnX()     { return addBtnX() - BTN_W - 3; }
         private int confirmBtnX() { return delBtnX() - 50 - 3; }
+        private int saveBtnX(net.minecraft.client.gui.Font font) { return delBtnX() - font.width("save") - 8; }
 
         private static String stripSpaces(String s) { return s.replace(" ", ""); }
 
@@ -2251,11 +2287,15 @@ public class ClickGui extends Screen {
                 MacroConfig.drawStyledText(g, font, "confirm", cbx, bcy + BTN_H / 2 - 4, confHov ? 0xFFFF5555 : C_DIM());
             }
 
-            if (activeLibraryIndex >= 0) {
-                int sw = font.width("save");
-                int sbx = confirmBtnX() - sw - 6;
-                boolean saveHov = mx >= sbx - 2 && mx <= sbx + sw + 2 && my >= bcy && my <= bcy + BTN_H;
-                MacroConfig.drawStyledText(g, font, "save", sbx, bcy + BTN_H / 2 - 4, saveHov ? C_TXT() : C_DIM());
+            {
+                boolean hasPendingChanges = hasPendingThemeChanges();
+                if (hasPendingChanges) {
+                    int sbx = saveBtnX(font);
+                    int svw = font.width("save");
+                    boolean saveHov = mx >= sbx - 2 && mx <= sbx + svw + 2 && my >= bcy && my <= bcy + BTN_H;
+                    fillRoundRect(g, sbx - 2, bcy, svw + 4, BTN_H, 2, saveHov ? C_BTN() : C_HOVER());
+                    MacroConfig.drawStyledText(g, font, "save", sbx, bcy + BTN_H / 2 - 4, C_TXT());
+                }
             }
 
             int lY = listY(), lH = listVisibleH();
@@ -2314,9 +2354,23 @@ public class ClickGui extends Screen {
                 drawTextField(g, font, fx + lw + 4, cy, fw - lw - 4, newName, focusedField == 0);
                 cy += ROW_H + PAD;
 
-                MacroConfig.drawStyledText(g, font, "Code:", fx, cy + (ROW_H - 8) / 2, C_DIM());
+                int _codeLabelY = cy + (ROW_H - 8) / 2;
+                MacroConfig.drawStyledText(g, font, "Code:", fx, _codeLabelY, C_DIM());
+                if (newCode.isBlank()) {
+                    float _sc = 0.55f;
+                    String _hint = "*optional";
+                    int _hw = (int)(font.width(_hint) * _sc);
+                    int _hx = fx + (font.width("Code:") - _hw) / 2;
+                    int _hy = _codeLabelY + font.lineHeight + 3;
+                    g.pose().pushMatrix();
+                    g.pose().translate(_hx, _hy);
+                    g.pose().scale(0.55f, 0.55f);
+                    MacroConfig.drawStyledText(g, font, _hint, 0, 0, C_DIM());
+                    g.pose().popMatrix();
+                }
                 drawTextField(g, font, fx + lw + 4, cy, fw - lw - 4, newCode, focusedField == 1);
                 cy += ROW_H + PAD;
+
 
                 int saveLbl = font.width("Save");
                 int saveW   = saveLbl + 16;
@@ -2382,16 +2436,18 @@ public class ClickGui extends Screen {
                         return true;
                     }
                 }
-                if (activeLibraryIndex >= 0) {
+                {
                     net.minecraft.client.gui.Font f = Minecraft.getInstance().font;
-                    int sw = f.width("save");
-                    int sbx = confirmBtnX() - sw - 6;
-                    if (mx >= sbx - 2 && mx <= sbx + sw + 2 && my >= bcy && my <= bcy + BTN_H) {
+                    int sbx = saveBtnX(f);
+                    int svw = f.width("save");
+                    if (mx >= sbx - 2 && mx <= sbx + svw + 2 && my >= bcy && my <= bcy + BTN_H && hasPendingThemeChanges()) {
                         if (activeLibraryIndex < MacroConfig.savedThemes.size()) {
                             String[] parts = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
                             String name = parts.length > 0 ? parts[0] : "";
-                            MacroConfig.savedThemes.set(activeLibraryIndex, name + "|" + encodeTheme());
+                            String code = encodeTheme();
+                            MacroConfig.savedThemes.set(activeLibraryIndex, name + "|" + code);
                             previewOriginalCode = null;
+                            if (editingMode && editingIndex == activeLibraryIndex) newCode = code;
                             MacroConfig.save();
                         }
                         return true;
@@ -2434,14 +2490,13 @@ public class ClickGui extends Screen {
                             } else if (parts.length > 1) {
                                 if (activeLibraryIndex == i) {
                                     revertLibraryPreview();
-                                    MacroConfig.save();
                                 } else {
                                     if (previewOriginalCode == null) {
                                         previewOriginalCode = encodeTheme();
                                     }
                                     activeLibraryIndex = i;
                                     applyThemeCode(parts[1]);
-                                    MacroConfig.save();
+                                    if (editingMode && editingIndex == i) newCode = parts[1];
                                 }
                             }
                         }
@@ -2476,19 +2531,28 @@ public class ClickGui extends Screen {
         }
 
         private void saveTheme() {
-            String name = stripSpaces(newName.trim());
-            if (name.isEmpty() || newCode.isBlank()) return;
-            String entry = name + "|" + newCode.trim();
+            String name = newName.trim();
+            if (name.isEmpty()) return;
+            String code = newCode.isBlank() ? encodeDefaultTheme() : newCode.trim();
+            String entry = name + "|" + code;
             if (editingMode && editingIndex >= 0 && editingIndex < MacroConfig.savedThemes.size()) {
                 MacroConfig.savedThemes.set(editingIndex, entry);
                 if (editingIndex == activeLibraryIndex) previewOriginalCode = null;
+                newCode = code;
                 editingMode = false; editingIndex = -1;
             } else {
                 MacroConfig.savedThemes.add(0, entry);
                 addingNew = false;
+                newCode = code;
                 if (activeLibraryIndex >= 0) activeLibraryIndex++;
             }
             MacroConfig.save();
+        }
+
+        private boolean hasPendingThemeChanges() {
+            if (activeLibraryIndex < 0 || activeLibraryIndex >= MacroConfig.savedThemes.size()) return false;
+            String[] sp = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
+            return sp.length < 2 || !encodeTheme().equals(sp[1]);
         }
 
         public void drag(int mx, int my) {
@@ -2520,6 +2584,7 @@ public class ClickGui extends Screen {
                 if (clip != null) appendToFocused(clip.replace("\r", "").replace("\n", ""));
                 return true;
             }
+            if (key == GLFW.GLFW_KEY_SPACE) { appendToFocused(" "); return true; }
             Character c = fallbackCharFromKey(key, scan, mods);
             if (c != null) { appendToFocused(String.valueOf(c)); return true; }
             return false;
@@ -2529,13 +2594,12 @@ public class ClickGui extends Screen {
         public boolean charTyped(char c, int mods) {
             if (!isFormOpen() || c == '\r' || c == '\n') return false;
             if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
-            if (focusedField == 0 && c == ' ') return true;
             appendToFocused(String.valueOf(c));
             return true;
         }
 
         private void appendToFocused(String s) {
-            if (focusedField == 0) newName += stripSpaces(s);
+            if (focusedField == 0) newName += s;
             else newCode += s;
         }
 
@@ -2582,15 +2646,12 @@ public class ClickGui extends Screen {
         private int panelX, panelY;
         private int scrollOffset = 0;
 
-        // Drag state
         private boolean dragging = false;
         private int dragOffX, dragOffY;
 
-        // -2=new rule, -1=not editing, >=0=editing existing
         private int editingIndex = -1;
         private String editName      = "";
         private String editMatchText = "";
-        // Only expose the 4 simple match types — no Regex
         private static final com.ihanuat.mod.modules.ChatRuleManager.MatchType[] MATCH_TYPES = {
                 com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains,
                 com.ihanuat.mod.modules.ChatRuleManager.MatchType.Equals,
@@ -2601,7 +2662,7 @@ public class ClickGui extends Screen {
                 com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains;
         private boolean editCaseSensitive = false;
         private boolean editEnabled       = true;
-        private int focusedField = 0; // 0=name, 1=pattern
+        private int focusedField = 0;
         private boolean cursorVisible = true;
         private long lastBlink = System.currentTimeMillis();
 
@@ -2612,13 +2673,11 @@ public class ClickGui extends Screen {
             this.panelY = Math.max(4, Math.min(my, sh - h - 4));
         }
 
-        // ── Heights ──────────────────────────────────────────────────────────
         private int listContentH() {
             return Math.max(PAD, MacroConfig.chatRules.size() * (ROW_H + PAD) + PAD);
         }
         private int listVisibleH() { return Math.min(listContentH(), LIST_MAX); }
         private int maxScroll()    { return Math.max(0, listContentH() - listVisibleH()); }
-        // edit panel: name row + pattern row + options row + save/cancel row = 4 rows
         private int editPanelH()   { return PAD + 4 * (ROW_H + PAD) + PAD; }
         private int calcTotalHeight() {
             int h = HDR_H + PAD
@@ -2629,12 +2688,10 @@ public class ClickGui extends Screen {
         }
         private boolean isEditing() { return editingIndex == -2 || editingIndex >= 0; }
 
-        // ── Y anchors ────────────────────────────────────────────────────────
         private int listY()  { return panelY + HDR_H + PAD; }
         private int addBtnY(){ return listY() + listVisibleH() + PAD; }
         private int editY()  { return addBtnY() + ROW_H + PAD; }
 
-        // ── render ───────────────────────────────────────────────────────────
         @Override
         public void render(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
             if (System.currentTimeMillis() - lastBlink > 500) {
@@ -2642,13 +2699,11 @@ public class ClickGui extends Screen {
                 lastBlink = System.currentTimeMillis();
             }
             int totalH = calcTotalHeight();
-            // Recalculate Y so panel doesn't fall off-screen when edit area opens
             panelY = Math.max(4, Math.min(panelY, screenH - totalH - 4));
 
             fillRoundRect(g, panelX - 2, panelY - 2, W + 4, totalH + 4, 4, C_SPBD());
             fillRoundRect(g, panelX, panelY, W, totalH, 3, C_SPBG());
 
-            // Header (draggable)
             fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
             g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
             g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
@@ -2660,7 +2715,6 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, "?", crQx + 1, panelY + HDR_H / 2 - 4, crQactive || crQhov ? C_TXT() : C_DIM());
             MacroConfig.drawStyledText(g, font, "v", panelX + W - 10, panelY + HDR_H / 2 - 4, C_DIM());
 
-            // Rule list with scissor
             int lY = listY(), lH = listVisibleH();
             g.enableScissor(panelX, lY, panelX + W, lY + lH);
             int ey = lY - scrollOffset;
@@ -2674,24 +2728,19 @@ public class ClickGui extends Screen {
                 if (sel)      fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_ON());
                 else if (hov) fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_HOVER());
 
-                // Enabled dot
                 g.fill(panelX + PAD + 2, ey + 5, panelX + PAD + 7, ey + ROW_H - 5,
                         rule.enabled ? C_ON() : C_OFF());
 
-                // Name — scissored to stay inside panel
                 String name = truncate(font, rule.name, 110);
                 MacroConfig.drawStyledText(g, font, name, panelX + PAD + 10, ey + (ROW_H - 8) / 2,
                         rule.enabled ? C_TXT() : C_DIM());
 
-                // Match type badge
                 String badge = rule.matchType.name().substring(0, Math.min(4, rule.matchType.name().length()));
                 MacroConfig.drawStyledText(g, font, badge, panelX + PAD + 118, ey + (ROW_H - 8) / 2, C_DIM());
 
-                // Pattern preview
                 String prev = truncate(font, rule.matchText, W - PAD * 2 - 165);
                 MacroConfig.drawStyledText(g, font, prev, panelX + PAD + 158, ey + (ROW_H - 8) / 2, C_DIM());
 
-                // Delete button
                 int delX = panelX + W - PAD - 18;
                 boolean delHov = mx >= delX && mx <= delX + 16 && my >= ey + 1 && my < ey + ROW_H - 1;
                 fillRoundRect(g, delX, ey + 2, 16, ROW_H - 4, 2, delHov ? 0xFFCC2222 : 0xFF441111);
@@ -2701,7 +2750,6 @@ public class ClickGui extends Screen {
             }
             g.disableScissor();
 
-            // List scrollbar
             if (maxScroll() > 0) {
                 int bh = Math.max(10, lH * lH / listContentH());
                 int by = lY + (int)((lH - bh) * ((float) scrollOffset / maxScroll()));
@@ -2709,7 +2757,6 @@ public class ClickGui extends Screen {
                 g.fill(panelX + W - 4, by, panelX + W - 2, by + bh, C_ACC());
             }
 
-            // Add-rule button
             int aY = addBtnY();
             boolean addHov = mx >= panelX + PAD && mx <= panelX + W - PAD && my >= aY && my < aY + ROW_H;
             fillRoundRect(g, panelX + PAD, aY, W - PAD * 2, ROW_H, 3, addHov ? C_BTN() : C_OFF());
@@ -2717,7 +2764,6 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, addLbl,
                     panelX + (W - font.width(addLbl)) / 2, aY + (ROW_H - 8) / 2, C_TXT());
 
-            // Edit panel
             if (isEditing()) renderEditPanel(g, mx, my, font, editY());
         }
 
@@ -2731,26 +2777,22 @@ public class ClickGui extends Screen {
             int fw = W - PAD * 2 - 8;
             int cy = ry + PAD;
 
-            // Name row
             MacroConfig.drawStyledText(g, font, "Name:", fx, cy + (ROW_H - 8) / 2, C_DIM());
             int nfx = fx + 40;
             drawTextField(g, font, nfx, cy, fw - 40, editName, focusedField == 0);
             cy += ROW_H + PAD;
 
-            // Pattern row
             MacroConfig.drawStyledText(g, font, "Pattern:", fx, cy + (ROW_H - 8) / 2, C_DIM());
             int mfx = fx + 52;
             drawTextField(g, font, mfx, cy, fw - 52, editMatchText, focusedField == 1);
             cy += ROW_H + PAD;
 
-            // Options row: match type | Case | Active
             int ox = fx;
             ox = drawOptionBtn(g, font, mx, my, ox, cy, editMatchType.name(), true) + 3;
             ox = drawOptionBtn(g, font, mx, my, ox, cy, "Case", editCaseSensitive) + 3;
             drawOptionBtn(g, font, mx, my, ox, cy, "Active", editEnabled);
             cy += ROW_H + PAD;
 
-            // Save / Cancel
             int hw = (fw - 4) / 2;
             boolean saveHov = mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H;
             fillRoundRect(g, fx, cy, hw, ROW_H, 2, saveHov ? C_BTN() : brighten(C_ON(), 0x111111));
@@ -2767,10 +2809,8 @@ public class ClickGui extends Screen {
                                    int fx, int fy, int fw, String value, boolean focused) {
             g.fill(fx, fy, fx + fw, fy + ROW_H, C_SBGR());
             g.fill(fx, fy + ROW_H - 1, fx + fw, fy + ROW_H, focused ? C_ACC() : C_DIM());
-            // Clamp displayed text to fit inside the field using scissor
             g.enableScissor(fx + 2, fy, fx + fw - 2, fy + ROW_H);
             String disp = value + (focused && cursorVisible ? "|" : "");
-            // Scroll text right-to-left if too long
             while (font.width(disp) > fw - 6 && disp.length() > 1)
                 disp = disp.substring(1);
             MacroConfig.drawStyledText(g, font, disp, fx + 3, fy + (ROW_H - 8) / 2, C_TXT());
@@ -2796,7 +2836,6 @@ public class ClickGui extends Screen {
             return s + "..";
         }
 
-        // ── contains ─────────────────────────────────────────────────────────
         @Override
         public boolean contains(int mx, int my) {
             int h = calcTotalHeight();
@@ -2804,10 +2843,8 @@ public class ClickGui extends Screen {
                     && my >= panelY - 2 && my <= panelY + h + 2;
         }
 
-        // ── mouseClicked ─────────────────────────────────────────────────────
         @Override
         public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            // Header drag start
             if (mx >= panelX && mx <= panelX + W && my >= panelY && my <= panelY + HDR_H) {
                 net.minecraft.client.gui.Font f = Minecraft.getInstance().font;
                 int crQx = panelX + W - 10 - f.width("?") - 4;
@@ -2830,7 +2867,6 @@ public class ClickGui extends Screen {
             int aY  = addBtnY();
             int eY  = editY();
 
-            // ── List area ────────────────────────────────────────────────────
             if (mx >= panelX + PAD && mx <= panelX + W - PAD
                     && my >= lY && my < lY + lH) {
                 int ey = lY - scrollOffset;
@@ -2854,7 +2890,6 @@ public class ClickGui extends Screen {
                 return true;
             }
 
-            // ── Add / Cancel button ──────────────────────────────────────────
             if (mx >= panelX + PAD && mx <= panelX + W - PAD
                     && my >= aY && my < aY + ROW_H) {
                 if (editingIndex == -2) {
@@ -2871,27 +2906,23 @@ public class ClickGui extends Screen {
                 return true;
             }
 
-            // ── Edit panel ───────────────────────────────────────────────────
             if (!isEditing()) return true;
             int fx = panelX + PAD + 4;
             int fw = W - PAD * 2 - 8;
             int cy = eY + PAD;
 
-            // Name field
             int nfx = fx + 40;
             if (mx >= nfx && mx <= nfx + fw - 40 && my >= cy && my < cy + ROW_H) {
                 focusedField = 0; return true;
             }
             cy += ROW_H + PAD;
 
-            // Pattern field
             int mfx = fx + 52;
             if (mx >= mfx && mx <= mfx + fw - 52 && my >= cy && my < cy + ROW_H) {
                 focusedField = 1; return true;
             }
             cy += ROW_H + PAD;
 
-            // Options row
             {
                 net.minecraft.client.gui.Font f = net.minecraft.client.Minecraft.getInstance().font;
                 int ox = fx; int bw;
@@ -2919,7 +2950,6 @@ public class ClickGui extends Screen {
             }
             cy += ROW_H + PAD;
 
-            // Save / Cancel
             int hw = (fw - 4) / 2;
             if (mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H) {
                 saveRule(); return true;
@@ -2931,7 +2961,12 @@ public class ClickGui extends Screen {
             return true;
         }
 
-        // ── drag (called from handleMouseDragged) ────────────────────────────
+        private boolean hasPendingThemeChanges() {
+            if (activeLibraryIndex < 0 || activeLibraryIndex >= MacroConfig.savedThemes.size()) return false;
+            String[] sp = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
+            return sp.length < 2 || !encodeTheme().equals(sp[1]);
+        }
+
         public void drag(int mx, int my) {
             if (!dragging) return;
             panelX = Math.max(0, Math.min(screenW - W, mx - dragOffX));
@@ -2946,7 +2981,6 @@ public class ClickGui extends Screen {
                             MacroConfig.chatRules.get(idx));
             editName          = rule.name;
             editMatchText     = rule.matchText;
-            // Map Regex to Contains if somehow a Regex rule was saved
             editMatchType = rule.matchType == com.ihanuat.mod.modules.ChatRuleManager.MatchType.Regex
                     ? com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains : rule.matchType;
             editCaseSensitive = rule.caseSensitive;
@@ -3049,7 +3083,6 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, "Farm Script", x + 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
             String disp = displayName();
             int dw = font.width(disp);
-            // shrink if too long
             while (dw > w - font.width("Farm Script") - 20 && disp.length() > 4) {
                 disp = disp.substring(0, disp.length() - 1);
                 dw = font.width(disp + "..");
@@ -3153,13 +3186,12 @@ public class ClickGui extends Screen {
         void commit();
     }
 
-    // color picker sub-panel with R/G/B/A sliders
     static class ColorSubPanel implements SubPanel {
         final String label;
         int r, g, b, a;
         final Consumer<Integer> setter;
         final int x, y, w = 260, h = 110;
-        int draggingSlider = -1; // 0=R,1=G,2=B,3=A
+        int draggingSlider = -1;
         boolean editingHex = false;
         String hexBuffer = "";
         boolean cursorVisible = true;
@@ -3218,16 +3250,13 @@ public class ClickGui extends Screen {
             fillRoundRect(g2, x - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g2, x, y, w, h, 3, C_SPBG());
 
-            // label
             g2.drawString(font, label, x + 4, y + 4, C_TXT(), false);
 
-            // swatch
             int sw2 = 20;
             int sx = x + w - sw2 - 4, sy0 = y + 4;
             g2.fill(sx - 1, sy0 - 1, sx + sw2 + 1, sy0 + sw2 + 1, 0xFF555555);
             g2.fill(sx, sy0, sx + sw2, sy0 + sw2, packed());
 
-            // hex field — clickable to edit
             if (System.currentTimeMillis() - lastBlink > 500) {
                 cursorVisible = !cursorVisible;
                 lastBlink = System.currentTimeMillis();
@@ -3237,11 +3266,9 @@ public class ClickGui extends Screen {
             g2.fill(x + 4, y + 15, x + w - sw2 - 10, y + 27, C_SBGR());
             g2.fill(x + 4, y + 27, x + w - sw2 - 10, y + 28, editingHex ? C_ACC() : 0xFF333355);
             g2.drawString(font, hexDisplay, x + 6, y + 17, hexColor, false);
-            // small hint
             if (!editingHex)
                 g2.drawString(font, "click hex to edit", x + w - sw2 - 9 - font.width("click hex to edit"), y + 18, C_DIM(), false);
 
-            // R/G/B/A sliders
             int[] cols = {0xFFCC4444, 0xFF44CC44, 0xFF4444CC, 0xFFAAAAAA};
             String[] names = {"R", "G", "B", "A"};
             int bx = sliderBx(), bw2 = sliderBw();
@@ -3266,7 +3293,6 @@ public class ClickGui extends Screen {
 
         @Override
         public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            // click on hex field
             int sw2 = 20;
             if (mx >= x + 4 && mx <= x + w - sw2 - 10 && my >= y + 15 && my <= y + 28) {
                 editingHex = !editingHex;
@@ -3274,7 +3300,6 @@ public class ClickGui extends Screen {
                 return true;
             }
             editingHex = false;
-            // click on slider
             int bx = sliderBx(), bw2 = sliderBw();
             for (int i = 0; i < 4; i++) {
                 int sy = sliderSy(i);
@@ -3287,7 +3312,6 @@ public class ClickGui extends Screen {
             return true;
         }
 
-        // called from handleMouseDragged via activeSubPanel
         public void drag(int mx) {
             applyDrag(mx);
         }
@@ -3317,13 +3341,12 @@ public class ClickGui extends Screen {
                     if (clip != null) hexBuffer += clip.replaceAll("[^0-9a-fA-F#]", "");
                     return true;
                 }
-                // GLFW fallback for typing since charTyped may not fire
                 Character c = fallbackCharFromKey(key, scan, mods);
                 if (c != null && (Character.isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
                     if (hexBuffer.length() < 8) hexBuffer += c;
                     return true;
                 }
-                return true; // swallow all keys while editing hex
+                return true;
             }
             return false;
         }
@@ -3503,19 +3526,15 @@ public class ClickGui extends Screen {
                 return true;
             }
             if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) == 0) {
-                // Primary path: unshifted key name (works for QWERTY and numpad)
                 String name = org.lwjgl.glfw.GLFW.glfwGetKeyName(key, scan);
                 if (name != null && name.length() == 1) {
                     char c = name.charAt(0);
                     if (Character.isDigit(c) || (c == '-' && raw.isEmpty())) { raw += c; return true; }
                 }
-                // Fallback for layouts where digits require Shift (e.g. French/AZERTY):
-                // GLFW key codes 48-57 are the top-row digit keys 0-9 regardless of layout.
                 if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) {
-                    char c = (char) key; // key code 48='0'...57='9'
+                    char c = (char) key;
                     raw += c; return true;
                 }
-                // Numpad digits (GLFW_KEY_KP_0=320 .. GLFW_KEY_KP_9=329)
                 if (key >= 320 && key <= 329) {
                     raw += (char)('0' + key - 320); return true;
                 }
@@ -3592,14 +3611,12 @@ public class ClickGui extends Screen {
                     char c = name.charAt(0);
                     if (Character.isDigit(c) || (c == '-' && raw.isEmpty()) || (c == '.' && !raw.contains("."))) { raw += c; return true; }
                 }
-                // French/AZERTY: Shift+numrow produces digits; GLFW key 48-57 = '0'-'9'
                 if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) {
                     raw += (char) key; return true;
                 }
                 if (key >= 320 && key <= 329) {
                     raw += (char)('0' + key - 320); return true;
                 }
-                // Decimal point: numpad decimal (330) or period key
                 if ((key == 330 || key == 46) && !raw.contains(".")) {
                     raw += '.'; return true;
                 }
@@ -3647,7 +3664,6 @@ public class ClickGui extends Screen {
             if (w < 0) {
                 int base = font.width(label) + 60;
                 for (String hint : hints) base = Math.max(base, font.width(hint) + 20);
-                // Increase minimum width to 340 for better default text handling
                 w = Math.max(340, base);
             }
         }
@@ -3796,5 +3812,3 @@ public class ClickGui extends Screen {
         }
     }
 }
-// i need to reach 3800 lines
-// finally
