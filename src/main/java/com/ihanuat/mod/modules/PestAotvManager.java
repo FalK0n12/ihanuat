@@ -18,8 +18,10 @@ public class PestAotvManager {
         if (!MacroConfig.aotvToRoof)
             return false;
 
-        if (MacroConfig.aotvRoofPlots.isEmpty())
-            return isSamePlot;
+        if (MacroConfig.aotvRoofPlots.isEmpty()) {
+            ClientUtils.sendDebugMessage(client, "no roof plots configured, performing straight-up aotv");
+            return true;
+        }
 
         boolean inAllowedList = MacroConfig.aotvRoofPlots.contains(currentInfestedPlot);
         ClientUtils.sendDebugMessage(client,
