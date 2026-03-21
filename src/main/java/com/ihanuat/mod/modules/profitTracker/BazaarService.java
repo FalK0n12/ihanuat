@@ -62,9 +62,9 @@ public class BazaarService {
         if ("[Spray] Sprayonator".equals(itemName) || "Purse".equals(itemName)) {
             return 1.0;
         }
-        double price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+        double price = bazaarPrices.getOrDefault(itemName, 0.0);
         if (price == 0.0) {
-            price = bazaarPrices.getOrDefault(itemName, 0.0);
+            price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
         }
         return price;
     }
