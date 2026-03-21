@@ -353,7 +353,11 @@ public class ProfitManager {
             if (name.equals("[Visitor] Visitor Cost") || name.equals("[Spray] Sprayonator") || profit < 0) {
                 compact.put("Costs", compact.get("Costs") + profit);
             } else if (CROPS_SET.contains(name)) {
-                compact.put("Crops", compact.get("Crops") + profit);
+                if (isCleaning) {
+                    compact.put("Pest Items", compact.get("Pest Items") + profit);
+                } else {
+                    compact.put("Crops", compact.get("Crops") + profit);
+                }
             } else if (PEST_ITEMS_SET.contains(name)) {
                 compact.put("Pest Items", compact.get("Pest Items") + profit);
             } else if (PETS_SET.contains(name)) {
