@@ -1511,18 +1511,12 @@ public class ClickGui extends Screen {
     void handleKeyPressed(int key, int scan, int mods) {
         if (activeSubPanel != null) {
             if (key == 65 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
-                if (activeSubPanel instanceof StringInputSubPanel sip) { sip.tf.selectAll(); return; }
+                if (activeSubPanel instanceof StringInputSubPanel sip) { sip.tf.selectAll(); Minecraft.getInstance().keyboardHandler.setClipboard(sip.tf.value); return; }
                 if (activeSubPanel instanceof IntInputSubPanel iip) { iip.tf.selectAll(); return; }
                 if (activeSubPanel instanceof DoubleInputSubPanel dip) { dip.tf.selectAll(); return; }
-                if (activeSubPanel instanceof ListInputSubPanel lip) {
-                    Minecraft.getInstance().keyboardHandler.setClipboard(lip.value.toString()); return;
-                }
-                if (activeSubPanel instanceof ThemeLibrarySubPanel tls) {
-                    (tls.focusedField == 0 ? tls.tfName : tls.tfCode).selectAll(); return;
-                }
-                if (activeSubPanel instanceof ChatRulesSubPanel crs) {
-                    (crs.focusedField == 0 ? crs.tfName : crs.tfMatch).selectAll(); return;
-                }
+                if (activeSubPanel instanceof ListInputSubPanel lip) { lip.selStart = 0; lip.selEnd = lip.value.length(); lip.cursorIndex = lip.value.length(); return; }
+                if (activeSubPanel instanceof ThemeLibrarySubPanel tls) { (tls.focusedField == 0 ? tls.tfName : tls.tfCode).selectAll(); return; }
+                if (activeSubPanel instanceof ChatRulesSubPanel crs) { (crs.focusedField == 0 ? crs.tfName : crs.tfMatch).selectAll(); return; }
             }
             if (activeSubPanel.keyPressed(key, scan, mods)) {
                 if ((key == 257 || key == 335) && (mods & GLFW.GLFW_MOD_SHIFT) == 0 && !(activeSubPanel instanceof ListInputSubPanel)) {
@@ -2564,7 +2558,11 @@ public class ClickGui extends Screen {
         public boolean keyPressed(int key, int scan, int mods) {
             if (!isFormOpen()) return false;
             if (key == 256) { addingNew = false; editingMode = false; editingIndex = -1; return true; }
-            if ((key == 257 || key == 335) && (mods & GLFW.GLFW_MOD_SHIFT) == 0) { saveTheme(); return true; }
+            if ((key == 257 || key == 335) && (mods & GLFW.GLFW_MOD_SHIFT) == 0) {
+                if (focusedField == 1 && !tfCode.value.isBlank()) { applyThemeCode(tfCode.value.trim()); }
+                else { saveTheme(); }
+                return true;
+            }
             if (key == 258) { focusedField = (focusedField + 1) % 2; return true; }
             if (key == 259) {
                 TextField _tf = focusedField == 0 ? tfName : tfCode;
@@ -2573,10 +2571,10 @@ public class ClickGui extends Screen {
             }
             if (key == 86 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
                 String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) { TextField _tf = focusedField == 0 ? tfName : tfCode; _tf.insert(clip.replace("\r", "").replace("\n", "")); }
+                if (clip != null) { TextField _tf = focusedField == 0 ? tfName : tfCode; _tf.insert(clip.replace("\r", "").replace("\n", "")); if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim()); }
                 return true;
             }
-            { TextField _tf = focusedField == 0 ? tfName : tfCode; if (_tf.keyPressed(key, scan, mods, null)) return true; }
+            { TextField _tf = focusedField == 0 ? tfName : tfCode; if (_tf.keyPressed(key, scan, mods, null)) { if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim()); return true; } }
             if (key == GLFW.GLFW_KEY_SPACE) { (focusedField == 0 ? tfName : tfCode).insert(" "); return true; }
             Character c = fallbackCharFromKey(key, scan, mods);
             if (c != null) { (focusedField == 0 ? tfName : tfCode).insert(String.valueOf(c)); return true; }
@@ -2589,10 +2587,11 @@ public class ClickGui extends Screen {
             if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
             if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
             (focusedField == 0 ? tfName : tfCode).insert(String.valueOf(c));
+            if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim());
             return true;
         }
 
-        @Override public void commit() {}
+        @Override public void commit() { tfName.clearSelection(); tfCode.clearSelection(); }
     }
 
 
@@ -2898,13 +2897,13 @@ public class ClickGui extends Screen {
 
             int nfx = fx + 40;
             if (mx >= nfx && mx <= nfx + fw - 40 && my >= cy && my < cy + ROW_H) {
-                focusedField = 0; return true;
+                tfName.clearSelection(); tfMatch.clearSelection(); focusedField = 0; return true;
             }
             cy += ROW_H + PAD;
 
             int mfx = fx + 52;
             if (mx >= mfx && mx <= mfx + fw - 52 && my >= cy && my < cy + ROW_H) {
-                focusedField = 1; return true;
+                tfName.clearSelection(); tfMatch.clearSelection(); focusedField = 1; return true;
             }
             cy += ROW_H + PAD;
 
@@ -2996,18 +2995,15 @@ public class ClickGui extends Screen {
             if (!isEditing()) return false;
             if (key == 256) { editingIndex = -1; return true; }
             if (key == 257 || key == 335) { saveRule(); return true; }
-            if (key == 258) { focusedField = (focusedField + 1) % 2; return true; }
-            if (key == 259) {
-                (focusedField == 0 ? tfName : tfMatch).keyPressed(259, 0, 0, null);
+            if (key == 258) {
+                tfName.clearSelection(); tfMatch.clearSelection();
+                focusedField = (focusedField + 1) % 2;
                 return true;
             }
-            if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) { TextField _tf = focusedField == 0 ? tfName : tfMatch; _tf.insert(clip.replace("\r", "").replace("\n", " ")); }
-                return true;
-            }
+            TextField _tf = focusedField == 0 ? tfName : tfMatch;
+            if (_tf.keyPressed(key, scan, mods, null)) return true;
             Character c = fallbackCharFromKey(key, scan, mods);
-            if (c != null) { (focusedField == 0 ? tfName : tfMatch).insert(String.valueOf(c)); return true; }
+            if (c != null) { _tf.insert(String.valueOf(c)); return true; }
             return false;
         }
 
@@ -3021,7 +3017,7 @@ public class ClickGui extends Screen {
             return true;
         }
 
-        @Override public void commit() {}
+        @Override public void commit() { tfName.clearSelection(); tfMatch.clearSelection(); }
     }
 
     static class ScriptSelectorEntry implements Entry {
@@ -3701,7 +3697,20 @@ public class ClickGui extends Screen {
         boolean cursorVisible = true;
         long lastBlink = System.currentTimeMillis();
         int cursorIndex;
+        int selStart = -1, selEnd = -1;
         int scrollLine = 0;
+
+        boolean hasSelection() { return selStart >= 0 && selEnd >= 0 && selStart != selEnd; }
+        int selMin() { return Math.min(selStart, selEnd); }
+        int selMax() { return Math.max(selStart, selEnd); }
+        void clearSel() { selStart = -1; selEnd = -1; }
+        void deleteSelection() {
+            if (!hasSelection()) return;
+            int lo = selMin(), hi = selMax();
+            value.delete(lo, hi);
+            cursorIndex = lo;
+            clearSel();
+        }
 
         ListInputSubPanel(int mx, int my, int sw, int sh, String label, String defaultVal, List<String> initial, Consumer<List<String>> setter, String... hints) {
             this.label = label; this.setter = setter;
@@ -3785,8 +3794,21 @@ public class ClickGui extends Screen {
             int caretLine = cursorLine(), caretCol = cursorColumn();
             for (int li = scrollLine; li < lines.size() && li < scrollLine + visible; li++) {
                 String line = lines.get(li);
+                if (hasSelection()) {
+                    int lo = selMin(), hi = selMax();
+                    int lineStart = lineStartIndex(li);
+                    int lineEnd = lineEndIndex(lineStart);
+                    int slo = Math.max(lo, lineStart), shi = Math.min(hi, lineEnd);
+                    if (slo < shi) {
+                        String pre = value.substring(lineStart, slo);
+                        String sel = value.substring(slo, shi);
+                        int sx0 = textLeft() + font.width(pre);
+                        int sx1 = sx0 + font.width(sel);
+                        g.fill(Math.max(textLeft(), sx0), drawY, Math.min(textRight(), sx1), drawY + font.lineHeight, 0x664488FF);
+                    }
+                }
                 MacroConfig.drawStyledText(g, font, line, textLeft(), drawY, C_TXT());
-                if (cursorVisible && li == caretLine) {
+                if (cursorVisible && li == caretLine && !hasSelection()) {
                     int caretX = textLeft() + font.width(line.substring(0, Math.min(caretCol, line.length())));
                     g.fill(caretX, drawY - 1, caretX + 1, drawY + font.lineHeight, C_TXT());
                 }
@@ -3821,6 +3843,7 @@ public class ClickGui extends Screen {
                 for (int i = 1; i <= textLine.length(); i++) { if (textLeft() + font.width(textLine.substring(0, i)) > clickedX) break; column = i; }
                 int ls = lineStartIndex(line);
                 cursorIndex = Math.min(ls + column, ls + textLine.length());
+                clearSel();
                 ensureCursorVisible(font);
             }
             return true;
@@ -3831,23 +3854,34 @@ public class ClickGui extends Screen {
         }
         @Override public boolean keyPressed(int key, int scan, int mods) {
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
-            if (key == GLFW.GLFW_KEY_SPACE) { insertText(" "); ensureCursorVisible(font); return true; }
-            if (key == 259 && value.length() > 0) {
-                if (cursorIndex > 0) { value.deleteCharAt(cursorIndex - 1); cursorIndex--; ensureCursorVisible(font); } return true;
-            }
-            if (key == 261 && cursorIndex < value.length()) { value.deleteCharAt(cursorIndex); ensureCursorVisible(font); return true; }
-            if (key == 257 || key == 335) {
-                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { commit(); }
-                else { insertText("\n"); ensureCursorVisible(font); }
+            if (key == GLFW.GLFW_KEY_SPACE) { if (hasSelection()) deleteSelection(); insertText(" "); ensureCursorVisible(font); return true; }
+            if (key == 259) {
+                if (hasSelection()) { deleteSelection(); ensureCursorVisible(font); }
+                else if (cursorIndex > 0) { value.deleteCharAt(cursorIndex - 1); cursorIndex--; ensureCursorVisible(font); }
                 return true;
             }
-            if (key == GLFW.GLFW_KEY_LEFT)  { moveCursorHorizontal(-1); ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_RIGHT) { moveCursorHorizontal(1);  ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_UP)    { moveCursorVertical(-1);   ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_DOWN)  { moveCursorVertical(1);    ensureCursorVisible(font); return true; }
+            if (key == 261) {
+                if (hasSelection()) { deleteSelection(); ensureCursorVisible(font); }
+                else if (cursorIndex < value.length()) { value.deleteCharAt(cursorIndex); ensureCursorVisible(font); }
+                return true;
+            }
+            if (key == 257 || key == 335) {
+                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { commit(); }
+                else { if (hasSelection()) deleteSelection(); insertText("\n"); ensureCursorVisible(font); }
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_LEFT)  { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorHorizontal(-1); selEnd = cursorIndex; } else { clearSel(); moveCursorHorizontal(-1); } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_RIGHT) { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorHorizontal(1);  selEnd = cursorIndex; } else { clearSel(); moveCursorHorizontal(1);  } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_UP)    { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorVertical(-1);   selEnd = cursorIndex; } else { clearSel(); moveCursorVertical(-1);   } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_DOWN)  { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorVertical(1);    selEnd = cursorIndex; } else { clearSel(); moveCursorVertical(1);    } ensureCursorVisible(font); return true; }
+            if (key == 67 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
+                String toCopy = hasSelection() ? value.substring(selMin(), selMax()) : value.toString();
+                Minecraft.getInstance().keyboardHandler.setClipboard(toCopy); return true;
+            }
             if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
+                if (hasSelection()) deleteSelection();
                 String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) insertText(clip.replace("\r", "")); ensureCursorVisible(font); return true;
+                if (clip != null) { insertText(clip.replace("\r", "")); ensureCursorVisible(font); } return true;
             }
             Character c = fallbackCharFromKey(key, scan, mods);
             if (c != null) { insertText(String.valueOf(c)); ensureCursorVisible(font); return true; }
@@ -3857,9 +3891,11 @@ public class ClickGui extends Screen {
             if (c == '\r') return true;
             if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
             if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
+            if (hasSelection()) deleteSelection();
             insertText(String.valueOf(c)); ensureCursorVisible(Minecraft.getInstance().font); return true;
         }
         @Override public void commit() {
+            clearSel();
             List<String> values = new ArrayList<>();
             for (String line : value.toString().split("\\R")) { String t = line.trim(); if (!t.isEmpty()) values.add(t); }
             setter.accept(values);
