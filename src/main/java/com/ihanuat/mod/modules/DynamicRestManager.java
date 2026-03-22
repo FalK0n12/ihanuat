@@ -175,6 +175,8 @@ public class DynamicRestManager {
                     return;
                 }
 
+
+
                 // Stop the farming script, release all keys, /setspawn
                 ClientUtils.sendDebugMessage(client, "Stopping script: Initiating dynamic rest sequence");
                 com.ihanuat.mod.util.CommandUtils.stopScript(client, 0);
@@ -185,12 +187,25 @@ public class DynamicRestManager {
                 }
                 com.ihanuat.mod.util.CommandUtils.initiateSetSpawn(client);
                 MacroStateManager.setCurrentState(MacroState.State.OFF);
-
+                
                 restSequenceStage = 1;
-                nextStageActionTime = System.currentTimeMillis() + 3000; // Fallback timeout of 3 seconds
+                //nextStageActionTime = System.currentTimeMillis() + 3000; // Fallback timeout of 3 seconds
                 break;
             }
             case 1: {
+                // Supercraft before leaving
+                if (MacroConfig.superCraftBeforeRest) {
+                    if (!SuperCrafter.isCrafting && !SuperCrafter.isComplete()) {
+                        SuperCrafter.startSuperCraft(client);
+                        return;
+                    }
+
+                    if (!SuperCrafter.isComplete()) {
+                        return;
+                    }
+
+                    SuperCrafter.reset();
+                }
                 // Check if spawn was set, or wait for fallback timeout
                 if (!com.ihanuat.mod.util.CommandUtils.hasSpawnBeenSet()
                         && System.currentTimeMillis() < nextStageActionTime) {

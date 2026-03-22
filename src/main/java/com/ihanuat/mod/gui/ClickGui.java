@@ -28,7 +28,7 @@ public class ClickGui extends Screen {
     }
 
     static int C_HDR() {
-        return MacroConfig.themePanelHeader;
+        return MacroConfig.themePanelHeader | 0xFF000000;
     }
 
     static int C_LINE() {
@@ -103,6 +103,7 @@ public class ClickGui extends Screen {
 
     static Character fallbackCharFromKey(int key, int scan, int mods) {
         if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return null;
+        if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) return (char) key;
         String name = GLFW.glfwGetKeyName(key, scan);
         if (name == null || name.length() != 1) return null;
         char c = name.charAt(0);
@@ -134,9 +135,27 @@ public class ClickGui extends Screen {
         };
     }
 
-    // theme share code — base64 encoded string
-    // v4 = 23 colors + text style name + outline size + shadow opacity
-    // backwards compat: v3/v2/legacy decode fine, just skip the new fields
+    private static String encodeDefaultTheme() {
+        int[] colors = {
+                0xF0101018, 0xFF18182C, 0xFF5050A0, 0xFFCCCCCC, 0xFF666677,
+                0xFF4444BB, 0xFF2A2A3A, 0xFF3A3A99, 0xFF4444BB,
+                MacroConfig.DEFAULT_HUD_BG_COLOR, MacroConfig.DEFAULT_HUD_ACCENT_COLOR,
+                MacroConfig.DEFAULT_HUD_TITLE_COLOR, MacroConfig.DEFAULT_HUD_LABEL_COLOR,
+                MacroConfig.DEFAULT_HUD_VALUE_COLOR, MacroConfig.DEFAULT_HUD_BAR_BG_COLOR,
+                MacroConfig.DEFAULT_HUD_BAR_FILL_COLOR, MacroConfig.DEFAULT_HUD_STATE_OFF_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_FARMING_COLOR, MacroConfig.DEFAULT_HUD_STATE_CLEANING_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_RECOVERING_COLOR, MacroConfig.DEFAULT_HUD_STATE_VISITING_COLOR,
+                MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR, MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR
+        };
+        StringBuilder sb = new StringBuilder("v4:");
+        for (int i = 0; i < colors.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(String.format("%08X", colors[i]));
+        }
+        sb.append(",NONE,1,180");
+        return java.util.Base64.getEncoder().encodeToString(sb.toString().getBytes());
+    }
+
     static String encodeTheme() {
         String s = String.format("v4:%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%08X,%s,%d,%d",
                 MacroConfig.themePanelBg, MacroConfig.themePanelHeader, MacroConfig.themeAccent,
@@ -156,7 +175,6 @@ public class ClickGui extends Screen {
         try {
             String s = new String(Base64.getDecoder().decode(code.trim()));
             if (s.startsWith("v4:")) {
-                // v4 has 23 colors + text style + outline size + shadow opacity
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 26) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -189,7 +207,6 @@ public class ClickGui extends Screen {
                 try { MacroConfig.themeShadowOpacity = Math.max(0, Math.min(255, Integer.parseInt(parts[25].trim()))); }
                 catch (NumberFormatException ignored) { MacroConfig.themeShadowOpacity = 180; }
             } else if (s.startsWith("v3:")) {
-                // v3 has 23 colors + text style name
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 24) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -215,11 +232,9 @@ public class ClickGui extends Screen {
                 MacroConfig.hudStateVisitingColor   = (int) Long.parseLong(parts[20], 16);
                 MacroConfig.hudStateAutosellingColor = (int) Long.parseLong(parts[21], 16);
                 MacroConfig.hudStateSprayingColor   = (int) Long.parseLong(parts[22], 16);
-                // parse text style, fall back to NONE if unknown
                 try { MacroConfig.themeTextStyle = MacroConfig.TextStyle.valueOf(parts[23]); }
                 catch (IllegalArgumentException ignored) { MacroConfig.themeTextStyle = MacroConfig.TextStyle.NONE; }
             } else if (s.startsWith("v2:")) {
-                // v2 — no text style, leave it as-is
                 String[] parts = s.substring(3).split(",");
                 if (parts.length != 23) return false;
                 MacroConfig.themePanelBg            = (int) Long.parseLong(parts[0], 16);
@@ -245,8 +260,8 @@ public class ClickGui extends Screen {
                 MacroConfig.hudStateVisitingColor   = (int) Long.parseLong(parts[20], 16);
                 MacroConfig.hudStateAutosellingColor = (int) Long.parseLong(parts[21], 16);
                 MacroConfig.hudStateSprayingColor   = (int) Long.parseLong(parts[22], 16);
+                MacroConfig.themeTextStyle = MacroConfig.TextStyle.NONE;
             } else {
-                // legacy — 9 colors only
                 String[] parts = s.split(",");
                 if (parts.length != 9) return false;
                 MacroConfig.themePanelBg     = (int) Long.parseLong(parts[0], 16);
@@ -258,6 +273,9 @@ public class ClickGui extends Screen {
                 MacroConfig.themeToggleOff   = (int) Long.parseLong(parts[6], 16);
                 MacroConfig.themeSliderFill  = (int) Long.parseLong(parts[7], 16);
                 MacroConfig.themeButtonHover = (int) Long.parseLong(parts[8], 16);
+                MacroConfig.themeTextStyle = MacroConfig.TextStyle.NONE;
+                MacroConfig.themeOutlineSize = 1;
+                MacroConfig.themeShadowOpacity = 180;
             }
             MacroConfig.save();
             return true;
@@ -275,7 +293,6 @@ public class ClickGui extends Screen {
     private String searchQuery = "";
     private boolean searchActive = false;
 
-    // ── Helper panel ─────────────────────────────────────────────────────────
     /** Which topic the helper is currently showing. null = no topic. */
     private static String helperTopic = null;
     /** Human-readable title shown in the helper header, e.g. "Chat Rules". */
@@ -286,9 +303,18 @@ public class ClickGui extends Screen {
     private static boolean helperDragging = false;
     private static int helperDragOffX, helperDragOffY;
     private static int helperScrollOffset = 0;
-    private static final int HELPER_W = 270; // ~1.5× panel width
-    /** Max visible content height — approximately the Delays tab height (13 lines × 12px + padding). */
+    private static final int HELPER_W = 270;
     private static final int HELPER_MAX_CONTENT_H = 168;
+    private static int activeLibraryIndex = -1;
+    private static String previewOriginalCode = null;
+
+    private static void revertLibraryPreview() {
+        if (previewOriginalCode != null) {
+            applyThemeCode(previewOriginalCode);
+            previewOriginalCode = null;
+            activeLibraryIndex = -1;
+        }
+    }
 
     private final List<Panel> panels = new ArrayList<>();
     private SubPanel activeSubPanel = null;
@@ -351,17 +377,12 @@ public class ClickGui extends Screen {
         panels.add(generalPanel(pos(saved, 0, nextPos)));
         panels.add(delaysPanel(pos(saved, 1, nextPos)));
         panels.add(wardrobePanel(pos(saved, 2, nextPos)));
-        panels.add(autoRodPanel(pos(saved, 3, nextPos)));
-        panels.add(equipmentPanel(pos(saved, 4, nextPos)));
-        panels.add(autoPestPanel(pos(saved, 5, nextPos)));
-        panels.add(autoVisitorPanel(pos(saved, 6, nextPos)));
-        panels.add(autoGeorgePanel(pos(saved, 7, nextPos)));
-        panels.add(autoSellPanel(pos(saved, 8, nextPos)));
-        panels.add(profitPanel(pos(saved, 9, nextPos)));
-        panels.add(dynamicRestPanel(pos(saved, 10, nextPos)));
-        panels.add(qolPanel(pos(saved, 11, nextPos)));
-        panels.add(themePanel(pos(saved, 12, nextPos)));
-        panels.add(chatRulesPanel(pos(saved, 13, nextPos)));
+        panels.add(autoPestPanel(pos(saved, 3, nextPos)));
+        panels.add(profitPanel(pos(saved, 4, nextPos)));
+        panels.add(dynamicRestPanel(pos(saved, 5, nextPos)));
+        panels.add(qolPanel(pos(saved, 6, nextPos)));
+        panels.add(themePanel(pos(saved, 7, nextPos)));
+        panels.add(chatRulesPanel(pos(saved, 8, nextPos)));
     }
 
     private static int[] pos(int[][] saved, int i, Supplier<int[]> fallback) {
@@ -379,31 +400,13 @@ public class ClickGui extends Screen {
 
     private Panel generalPanel(int[] pos) {
         Panel p = makePanel("General", pos);
-        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> {
-            MacroConfig.showHud = v;
-            save();
-        }));
-        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> {
-            MacroConfig.guiOnlyInGarden = v;
-            save();
-        }));
-        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> {
-            MacroConfig.enablePlotTpRewarp = v;
-            save();
-        }));
-        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> {
-            MacroConfig.holdWUntilWall = v;
-            save();
-        }));
-        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> {
-            MacroConfig.unflyMode = v;
-            save();
-        }));
+        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
+        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
+        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
+        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
+        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
         p.add(new ScriptSelectorEntry());
-        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> {
-            MacroConfig.plotTpNumber = v;
-            save();
-        }));
+        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
         p.add(button("Capture Rewarp Pos", () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
@@ -415,18 +418,25 @@ public class ClickGui extends Screen {
                 mc.player.displayClientMessage(Component.literal("Rewarp position captured!"), true);
             }
         }));
-        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> {
-            MacroConfig.autoResumeAfterDynamicRest = v;
-            save();
-        }));
-        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> {
-            MacroConfig.autoRecoverUnexpectedDisconnect = v;
-            save();
-        }));
-        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> {
-            MacroConfig.persistSessionTimer = v;
-            save();
-        }));
+        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
+        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
+        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
+
+        SectionEntry visitorSection = new SectionEntry("Auto Visitor", "autovisitor");
+        visitorSection.add(toggle("Auto-Visitor", () -> MacroConfig.autoVisitor, v -> { MacroConfig.autoVisitor = v; save(); }));
+        visitorSection.add(slider("Threshold", "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> { MacroConfig.visitorThreshold = v; save(); }, ""));
+        p.add(visitorSection);
+
+        SectionEntry georgeSection = new SectionEntry("Auto George", "autogeorge");
+        georgeSection.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> { MacroConfig.autoGeorgeSell = v; save(); }));
+        georgeSection.add(slider("Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> { MacroConfig.georgeSellThreshold = v; save(); }, ""));
+        p.add(georgeSection);
+
+        SectionEntry sellSection = new SectionEntry("Auto Sell", "autosell");
+        sellSection.add(toggle("Custom Autosell", () -> MacroConfig.autoBoosterCookie, v -> { MacroConfig.autoBoosterCookie = v; save(); }));
+        sellSection.add(listSetting("Autosell Item List", "boosterCookieItems", () -> MacroConfig.boosterCookieItems, v -> { MacroConfig.boosterCookieItems = new ArrayList<>(v); save(); }));
+        p.add(sellSection);
+
         return p;
     }
 
@@ -452,20 +462,12 @@ public class ClickGui extends Screen {
             MacroConfig.rodSwapDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Garden Warp", "gardenWarpDelay", 0, 3000, () -> MacroConfig.gardenWarpDelay, v -> {
-            MacroConfig.gardenWarpDelay = v;
-            save();
-        }, "ms"));
         p.add(slider("Pest Chat", "pestChatTriggerDelay", 0, 3000, () -> MacroConfig.pestChatTriggerDelay, v -> {
             MacroConfig.pestChatTriggerDelay = v;
             save();
         }, "ms"));
         p.add(slider("Book Combine", "bookCombineDelay", 100, 2000, () -> MacroConfig.bookCombineDelay, v -> {
             MacroConfig.bookCombineDelay = v;
-            save();
-        }, "ms"));
-        p.add(slider("Junk Drop", "junkItemDropDelay", 0, 1000, () -> MacroConfig.junkItemDropDelay, v -> {
-            MacroConfig.junkItemDropDelay = v;
             save();
         }, "ms"));
         p.add(slider("Autosell Click", "autosellClickDelay", 100, 2000, () -> MacroConfig.autosellClickDelay, v -> {
@@ -533,12 +535,20 @@ public class ClickGui extends Screen {
         return p;
     }
 
-    private Panel equipmentPanel(int[] pos) {
-        Panel p = makePanel("Equipment Swap", pos);
+    private Panel equipmentGeorgePanel(int[] pos) {
+        Panel p = makePanel("Equipment & George", pos);
         p.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> {
             MacroConfig.autoEquipment = v;
             save();
         }));
+        p.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> {
+            MacroConfig.autoGeorgeSell = v;
+            save();
+        }));
+        p.add(slider("George Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
+            MacroConfig.georgeSellThreshold = v;
+            save();
+        }, ""));
         return p;
     }
 
@@ -584,6 +594,14 @@ public class ClickGui extends Screen {
             MacroConfig.aotvRoofPitchHumanization = v;
             save();
         }, ""));
+        SectionEntry rodSection = new SectionEntry("Auto Rod", "autorod");
+        rodSection.add(toggle("Rod on Pest CD", () -> MacroConfig.autoRodPestCd, v -> { MacroConfig.autoRodPestCd = v; save(); }));
+        rodSection.add(toggle("Rod on Pest Spawn", () -> MacroConfig.autoRodPestSpawn, v -> { MacroConfig.autoRodPestSpawn = v; save(); }));
+        rodSection.add(toggle("Rod on Return to Farm", () -> MacroConfig.autoRodReturnToFarm, v -> { MacroConfig.autoRodReturnToFarm = v; save(); }));
+        p.add(rodSection);
+        SectionEntry equipSection = new SectionEntry("Equipment Swap", "equipmentswap");
+        equipSection.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> { MacroConfig.autoEquipment = v; save(); }));
+        p.add(equipSection);
         return p;
     }
 
@@ -600,18 +618,7 @@ public class ClickGui extends Screen {
         return p;
     }
 
-    private Panel autoGeorgePanel(int[] pos) {
-        Panel p = makePanel("Auto George", pos);
-        p.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> {
-            MacroConfig.autoGeorgeSell = v;
-            save();
-        }));
-        p.add(slider("Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
-            MacroConfig.georgeSellThreshold = v;
-            save();
-        }, ""));
-        return p;
-    }
+
 
     private Panel autoSellPanel(int[] pos) {
         Panel p = makePanel("Auto Sell", pos);
@@ -693,6 +700,14 @@ public class ClickGui extends Screen {
         p.add(toggle("Show Daily Total", () -> MacroConfig.showTotalToday, v -> {
             MacroConfig.showTotalToday = v;
             save();
+        }));
+        p.add(toggle("Supercraft Before Rest", () -> MacroConfig.superCraftBeforeRest, v -> {
+            MacroConfig.superCraftBeforeRest = v;
+            save();
+        }));
+        p.add(listSetting("Supercraft Crops", "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
+                MacroConfig.superCraftCrops = new ArrayList<>(v);
+                save();
         }));
         p.add(doubleField("Quit Threshold", "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
@@ -777,11 +792,15 @@ public class ClickGui extends Screen {
 
     private Panel themePanel(int[] pos) {
         Panel p = makePanel("Theme", pos);
-        // text style option — none, drop shadow, or outline
+        p.add(new ThemeLibraryEntry());
+        p.add(button("Copy Current Theme", () -> {
+            String code = encodeTheme();
+            Minecraft mc = Minecraft.getInstance();
+            mc.keyboardHandler.setClipboard(code);
+            notifyMsg("Theme code copied!");
+        }));
         p.add(cycleEnum("Text Style", MacroConfig.TextStyle.values(), () -> MacroConfig.themeTextStyle, v -> { MacroConfig.themeTextStyle = v; save(); }));
-        // outline size only matters when style is OUTLINE
         p.add(slider("Outline Size", "themeOutlineSize",   1, 3, () -> MacroConfig.themeOutlineSize,   v -> { MacroConfig.themeOutlineSize = v;   save(); }, "px"));
-        // shadow opacity applies to both SHADOW and OUTLINE modes
         p.add(slider("Shadow Opacity", "themeShadowOpacity", 0, 255, () -> MacroConfig.themeShadowOpacity, v -> { MacroConfig.themeShadowOpacity = v; save(); }, ""));
         p.add(colorEntry("Panel BG", () -> MacroConfig.themePanelBg, v -> {
             MacroConfig.themePanelBg = v;
@@ -875,28 +894,6 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateSprayingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("Helper BG", () -> MacroConfig.toArgb(MacroConfig.helperBgColor), v -> {
-            MacroConfig.helperBgColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Header", () -> MacroConfig.toArgb(MacroConfig.helperHdrColor), v -> {
-            MacroConfig.helperHdrColor = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Text", () -> MacroConfig.toArgb(MacroConfig.helperTxt1Color), v -> {
-            MacroConfig.helperTxt1Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Highlight", () -> MacroConfig.toArgb(MacroConfig.helperTxt2Color), v -> {
-            MacroConfig.helperTxt2Color = v & 0xFFFFFF; save();
-        }));
-        p.add(colorEntry("Helper Dim", () -> MacroConfig.toArgb(MacroConfig.helperTxt3Color), v -> {
-            MacroConfig.helperTxt3Color = v & 0xFFFFFF; save();
-        }));
-        p.add(button("Copy Theme Code", () -> {
-            String code = encodeTheme();
-            Minecraft mc = Minecraft.getInstance();
-            mc.keyboardHandler.setClipboard(code);
-            notifyMsg("Theme code copied!");
-        }));
-        p.add(new ImportCodeEntry());
         p.add(button("Reset to Default", () -> {
             MacroConfig.themePanelBg = 0xF0101018;
             MacroConfig.themePanelHeader = 0xFF18182C;
@@ -921,16 +918,11 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateVisitingColor = MacroConfig.DEFAULT_HUD_STATE_VISITING_COLOR;
             MacroConfig.hudStateAutosellingColor = MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR;
             MacroConfig.hudStateSprayingColor = MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR;
-            MacroConfig.helperBgColor   = MacroConfig.DEFAULT_HELPER_BG_COLOR;
-            MacroConfig.helperHdrColor  = MacroConfig.DEFAULT_HELPER_HDR_COLOR;
-            MacroConfig.helperTxt1Color = MacroConfig.DEFAULT_HELPER_TXT1_COLOR;
-            MacroConfig.helperTxt2Color = MacroConfig.DEFAULT_HELPER_TXT2_COLOR;
-            MacroConfig.helperTxt3Color = MacroConfig.DEFAULT_HELPER_TXT3_COLOR;
             save();
             notifyMsg("Theme reset!");
         }));
         p.add(button("Reset Panel Positions", () -> {
-            MacroConfig.clickGuiPanelPositions = new int[14][3];
+            MacroConfig.clickGuiPanelPositions = new int[9][3];
             save();
             panels.clear();
             buildPanels();
@@ -1009,87 +1001,167 @@ public class ClickGui extends Screen {
         renderHelperPanel(g, mx, my, font);
     }
 
+    private static String getHelperTopicKey(String panelTitle) {
+        return switch (panelTitle) {
+            case "General"           -> "general";
+            case "Delays"            -> "delays";
+            case "Dynamic Rest"      -> "dynamicrest";
+            case "QOL"               -> "qol";
+            case "Chat Rules"        -> "chatrules";
+            case "Auto Rod"          -> "autorod";
+            case "Equipment & George" -> "equipmentgeorge";
+            case "Auto Pest"         -> "autopest";
+            case "Auto Visitor"      -> "autovisitor";
+            case "Auto Sell"         -> "autosell";
+            case "Profit Calculator" -> "profitcalculator";
+            case "Wardrobe Swap"     -> "wardrobeswap";
+            default                  -> null;
+        };
+    }
+
+    private static boolean hasHelperTopic(String panelTitle) {
+        return switch (panelTitle) {
+            case "General", "Delays", "Dynamic Rest", "QOL", "Chat Rules",
+                 "Auto Rod", "Equipment & George", "Auto Pest", "Auto Visitor",
+                 "Auto Sell", "Profit Calculator", "Wardrobe Swap" -> true;
+            default -> false;
+        };
+    }
+
     private static void updateHelperForPanel(String panelTitle) {
         String newTopic = switch (panelTitle) {
-            case "General"      -> "general";
-            case "Delays"       -> "delays";
-            case "Dynamic Rest" -> "dynamicrest";
-            case "QOL"          -> "qol";
-            case "Chat Rules"   -> "chatrules";
-            default             -> null;
+            case "General"             -> "general";
+            case "Delays"              -> "delays";
+            case "Dynamic Rest"        -> "dynamicrest";
+            case "QOL"                 -> "qol";
+            case "Chat Rules"          -> "chatrules";
+            case "Auto Rod"            -> "autorod";
+            case "Equipment & George" -> "equipmentgeorge";
+            case "Auto Pest"           -> "autopest";
+            case "Auto Visitor"        -> "autovisitor";
+            case "Auto Sell"           -> "autosell";
+            case "Wardrobe Swap"     -> "wardrobeswap";
+            case "Profit Calculator"   -> "profitcalculator";
+            default                    -> null;
         };
         if (newTopic != null && !newTopic.equals(helperTopic)) {
             helperTopic      = newTopic;
             helperTitle      = panelTitle;
-            helperScrollOffset = 0; // reset scroll when switching topics
+            helperScrollOffset = 0;
         }
     }
 
-    // ── Helper panel lines by topic ─────────────────────────────────────────
-    // Format: "LABEL — description"
-    // Label is rendered in helperTxt2Color, " — description" in helperTxt3Color.
-    // Lines with no " — " separator are rendered in helperTxt1Color (plain info).
     private static String[] getHelperLines(String topic) {
         return switch (topic) {
             case "chatrules" -> new String[]{
-                "Name — Label shown in the Discord alert.",
-                "Pattern — Exact text to scan for in each chat message.",
-                "Contains/Equals/Starts/Ends — How the pattern is matched.",
-                "Case — When lit, matching is case-sensitive.",
-                "Active — Rule only fires when lit.",
-                "Any match sends a Discord webhook alert.",
-                "Set webhook URL in QOL panel. First match wins.",
+                    "Name — Label shown in the Discord alert.",
+                    "Pattern — Exact text to scan for in each chat message.",
+                    "Contains/Equals/Starts/Ends — How the pattern is matched.",
+                    "Case — When lit, matching is case-sensitive.",
+                    "Active — Rule only fires when lit.",
+                    "Any match sends a Discord webhook alert.",
+                    "Set webhook URL in QOL panel. First match wins.",
             };
             case "delays" -> new String[]{
-                "Rand Delay — Extra random ms added on top of every action.",
-                "Rotation — Time spent looking at the crop before farming.",
-                "GUI Click — Delay between each click in menus.",
-                "Equip Swap — Pause after swapping equipment loadout.",
-                "Rod Swap — Pause after swapping the fishing rod.",
-                "Garden Warp — Wait time after /warp garden.",
-                "Pest Chat — Delay before reacting to a pest chat message.",
-                "Book Combine — Pause between anvil clicks when combining.",
-                "Junk Drop — Delay between each dropped junk item.",
-                "Autosell Click — Delay between Booster Cookie clicks.",
-                "Wardrobe Post-Swap — Wait after wardrobe swap (non-AOTV path).",
-                "Wardrobe AOTV — Wait after wardrobe swap on the AOTV path.",
-                "AOTV Vacuum — Wait for the vacuum effect before AOTV fires.",
+                    "Rand Delay — Extra random ms added on top of every timed action via getRandomizedDelay(). Acts as a global humanization jitter across most sequences.",
+                    "Rotation — How long the macro spends rotating to look at the crop before it starts farming. Higher values look more human but slow cycle time.",
+                    "GUI Click — Throttle between each simulated click inside menus (wardrobe, anvil, George, junk drop UI). Shared across all GUI interactions.",
+                    "Equip Swap — Pause after swapping your Equipment loadout slot. Gives the server time to apply the new loadout before the next action.",
+                    "Rod Swap — Pause after switching to the fishing rod. Only applies when Auto Rod is enabled (pest CD / pest spawn / return to farm triggers).",
+                    "Pest Chat — How long to wait after a pest chat message before the macro reacts and begins the pest clean sequence. Useful for letting the chat settle.",
+                    "Book Combine — Throttle between each simulated click at the anvil during book combining. Keep this above ~150ms to avoid missed clicks.",
+                    "Autosell Click — Throttle between each Booster Cookie menu click during autosell. Keep above 100ms to avoid the server dropping clicks.",
+                    "Wardrobe Post-Swap — Wait after the wardrobe GUI closes on the non-AOTV path. Increase this if the macro resumes farming before armor is fully equipped.",
+                    "Wardrobe AOTV — Wait after the wardrobe GUI closes on the AOTV path. Usually shorter since AOTV fires immediately after; tweak if you get swap timing issues.",
+                    "AOTV Vacuum — Wait between triggering the AOTV vacuum sweep and actually firing the AOTV teleport. Too low and the vacuum misses pests before the warp.",
             };
             case "dynamicrest" -> new String[]{
-                "Farming Min/Max — Randomly pick a farming session length in this minute range.",
-                "Break Min/Max — Randomly pick a break (disconnect) duration in this minute range.",
-                "Show Daily Total — Display today's profit total in the HUD.",
-                "Quit Threshold — Stop the macro when session time exceeds this many hours (0 = off).",
-                "Force Quit MC — Fully close Minecraft when the quit threshold is hit.",
+                    "Farming Min/Max — Randomly pick a farming session length in this minute range.",
+                    "Break Min/Max — Randomly pick a break (disconnect) duration in this minute range.",
+                    "Show Daily Total — Display today's profit total in the HUD.",
+                    "Quit Threshold — Stop the macro when session time exceeds this many hours (0 = off).",
+                    "Force Quit MC — Fully close Minecraft when the quit threshold is hit.",
             };
             case "qol" -> new String[]{
-                "Book Combine — Auto-combine enchanted books at the anvil.",
-                "Always Combine — Combine even when the macro is not farming.",
-                "Book Threshold — Number of books needed before combining triggers.",
-                "Chat Cleanup — Hide noisy Hypixel script/kill messages from chat.",
-                "Auto-Drop Junk — Automatically drop items that match the Junk List.",
-                "Junk List — List of item name fragments considered junk.",
-                "Junk Threshold — Drop when this many junk items are in inventory.",
-                "Junk PlotTP — Plot number to teleport to before dropping junk.",
-                "Stash Manager — Auto-run /pickupstash after autosell completes.",
-                "Discord Status — Periodically post macro status to a webhook.",
-                "Webhook URL — Discord webhook URL for status and chat alerts.",
-                "Discord Interval — How often (minutes) to post the status update.",
-                "Debug Messages — Show verbose debug messages in chat.",
-                "Log to File — Write debug messages to a file in the game folder.",
+                    "Book Combine — Auto-combine enchanted books at the anvil.",
+                    "Always Combine — Combine even when the macro is not farming.",
+                    "Book Threshold — Number of books needed before combining triggers.",
+                    "Chat Cleanup — Hide noisy Hypixel script/kill messages from chat.",
+                    "Auto-Drop Junk — Automatically drop items that match the Junk List.",
+                    "Junk List — List of item name fragments considered junk.",
+                    "Junk Threshold — Drop when this many junk items are in inventory.",
+                    "Junk PlotTP — Plot number to teleport to before dropping junk.",
+                    "Stash Manager — Auto-run /pickupstash after autosell completes.",
+                    "Discord Status — Periodically post macro status to a webhook.",
+                    "Webhook URL — Discord webhook URL for status and chat alerts.",
+                    "Discord Interval — How often (minutes) to post the status update.",
+                    "Debug Messages — Show verbose debug messages in chat.",
+                    "Log to File — Write debug messages to a file in the game folder.",
+            };
+            case "autorod" -> new String[]{
+                    "Rod on Pest CD — Use the fishing rod automatically when the pest cooldown expires.",
+                    "Rod on Pest Spawn — Use the fishing rod as soon as pests spawn on your farm.",
+                    "Rod on Return to Farm — Use the fishing rod when returning to the farm after clearing pests or handling visitors.",
+            };
+            case "equipmentgeorge" -> new String[]{
+                    "Auto-Equipment — Automatically switch your Equipment loadout slot when transitioning between pest spawning and pest clearing/farming modes.",
+                    "Auto George Sell — Automatically sell pet drops to George via his Abiphone contact (requires George contact to be unlocked).",
+                    "George Threshold — Minimum number of pets in your inventory before selling to George triggers.",
+            };
+            case "equipmentswap" -> new String[]{
+                    "Auto-Equipment — Turn on and off whether you want to change equipment for pest spawning and pest clearing/farming.",
+            };
+            case "autogeorge" -> new String[]{
+                    "Auto George Sell — Whether to sell pet drops to George (requires George's abiphone contact).",
+                    "Threshold — Minimum amount of pets in inventory needed to sell to George.",
+            };
+            case "autopest" -> new String[]{
+                    "Threshold — Number of pests that must be present before the pest cleaner activates.",
+                    "Trigger on Chat — Automatically start the pest cleaner when the pest spawning notification appears in chat.",
+                    "Delay Crop Fever — Wait for Crop Fever to expire before clearing pests, so you don't lose the bonus.",
+                    "AOTV to Roof — Use the Aspect of the Void to etherwarp up to the roof before clearing pests.",
+                    "AOTV Roof Plots — Comma-separated list of plot numbers where AOTV-to-roof is possible.",
+                    "Break Before AOTV — Break blocks in the way before firing the AOTV etherwarp to the roof.",
+                    "Roof Pitch — How far upward (in degrees) to look when aiming the AOTV etherwarp at the roof.",
+                    "Pitch Human. — Randomize the roof pitch slightly to appear more human-like.",
+            };
+            case "autovisitor" -> new String[]{
+                    "Auto-Visitor — Automatically handle visitors that appear on your farm.",
+                    "Threshold — Minimum number of visitors required before Auto Visitor activates.",
+            };
+
+            case "autosell" -> new String[]{
+                    "Custom Autosell — Enable ihanuat's custom autosell routine to sell items from the Autosell Item List.",
+                    "Autosell Item List — List of item names to sell automatically during the autosell sequence.",
+            };
+            case "wardrobeswap" -> new String[]{
+                    "Auto Wardrobe (Pest) — Turn on/off changing wardrobe automatically when pests spawn.",
+                    "Auto Wardrobe (Visitor) — Switch to the Visitor wardrobe slot when a visitor appears.",
+                    "Armor Swap (Visitor) — Swap individual armor pieces for visitors instead of switching the full wardrobe slot. Use this if you want to keep your current wardrobe but change specific pieces.",
+                    "Farming Slot — Which wardrobe slot to use for farming and pest clearing armor.",
+                    "Pest Slot — Which wardrobe slot to use for pest spawning armor.",
+                    "Visitor Slot — Which wardrobe slot to use when handling visitors.",
+            };
+            case "profitcalculator" -> new String[]{
+                    "Session HUD — Display the profit earned during the current macro session.",
+                    "Daily HUD — Display today's total profit on the HUD.",
+                    "Lifetime HUD — Display total lifetime profit on the HUD.",
+                    "HUD While Off — Keep the profit HUD visible even when the macro is not running.",
+                    "Compact — Collapse all profit HUDs into a single condensed display.",
+                    "Pet XP List — List of pets whose XP gains are tracked for profit calculation. Format: Pet Name, Max Level (100/200), Level 1 Price, Max Level Price, Rarity.",
             };
             case "general" -> new String[]{
-                "Show Macro HUD — Toggle the macro state/profit HUD overlay.",
-                "GUI Only in Garden — Only allow opening this GUI while in the Garden.",
-                "Enable PlotTP Rewarp — Auto re-warp when the player reaches the rewarp position.",
-                "Hold W Until Wall — Hold W after rewarp until hitting a wall.",
-                "Unfly Mode — How to land after flying (Double-tap Space or Sneak).",
-                "Farm Script — Which farming script the macro runs.",
-                "PlotTP Number — The plot number used for /plottp commands.",
-                "Capture Rewarp Pos — Save your current XYZ as the rewarp trigger point.",
-                "Auto-Resume After Rest — Automatically restart the macro after a Dynamic Rest break.",
-                "Auto-Recover Disconnect — Reconnect and resume if unexpectedly kicked.",
-                "Persist Session Timer — Keep the Dynamic Rest timer running across sessions.",
+                    "Show Macro HUD — Toggle the macro state/profit HUD overlay.",
+                    "GUI Only in Garden — Only allow opening this GUI while in the Garden.",
+                    "Enable PlotTP Rewarp — Auto re-warp when the player reaches the rewarp position.",
+                    "Hold W Until Wall — Hold W after rewarp until hitting a wall.",
+                    "Unfly Mode — How to land after flying (Double-tap Space or Sneak).",
+                    "Farm Script — Which farming script the macro runs.",
+                    "PlotTP Number — The plot number used for /plottp commands.",
+                    "Capture Rewarp Pos — Save your current XYZ as the rewarp trigger point.",
+                    "Auto-Resume After Rest — Automatically restart the macro after a Dynamic Rest break.",
+                    "Auto-Recover Disconnect — Reconnect and resume if unexpectedly kicked.",
+                    "Persist Session Timer — Keep the Dynamic Rest timer running across sessions.",
             };
             default -> new String[0];
         };
@@ -1102,10 +1174,9 @@ public class ClickGui extends Screen {
         if (lines.length == 0) return;
 
         int lineH      = font.lineHeight + 3;
-        int contentW   = HELPER_W - 14; // 2px scrollbar gap on right
+        int contentW   = HELPER_W - 14;
         int PAD_V      = 4;
 
-        // Pre-compute all wrapped lines
         java.util.List<int[]> wrapped = wrapHelperLines(font, lines, contentW);
         int totalContentH = wrapped.size() * lineH;
         int visibleContentH = Math.min(totalContentH, HELPER_MAX_CONTENT_H);
@@ -1120,37 +1191,33 @@ public class ClickGui extends Screen {
         helperX = Math.max(0, Math.min(width  - HELPER_W, helperX));
         helperY = Math.max(0, Math.min(height - panelH, helperY));
 
-        int hBg  = MacroConfig.helperBgColor  | 0xFF000000;
-        int hHdr = MacroConfig.helperHdrColor | 0xFF000000;
+        int hBg  = C_BG();
+        int hHdr = C_HDR();
         int hAcc = MacroConfig.themeAccent;
 
-        // Border + background
         fillRoundRect(g, helperX - 2, helperY - 2, HELPER_W + 4, panelH + 4, 4, hAcc);
         fillRoundRect(g, helperX, helperY, HELPER_W, panelH, 3, hBg);
 
-        // Header
         fillRoundRect(g, helperX, helperY, HELPER_W, HEADER_H, PANEL_RADIUS, hHdr);
         g.fill(helperX, helperY + HEADER_H - PANEL_RADIUS, helperX + HELPER_W, helperY + HEADER_H, hHdr);
         g.fill(helperX + 2, helperY + HEADER_H - 1, helperX + HELPER_W - 2, helperY + HEADER_H, hAcc);
         String hTitle = "? Helper" + (helperTitle != null ? " — " + helperTitle : "");
         MacroConfig.drawStyledText(g, font, hTitle, helperX + 5, helperY + HEADER_H / 2 - 4,
-                MacroConfig.helperTxt1Color | 0xFF000000);
+                C_TXT());
 
-        // Close button
         int closeX = helperX + HELPER_W - 14;
         boolean closeHov = mx >= closeX - 2 && mx <= closeX + 10 && my >= helperY && my <= helperY + HEADER_H;
         MacroConfig.drawStyledText(g, font, "x", closeX, helperY + HEADER_H / 2 - 4,
-                closeHov ? 0xFFFF5555 : (MacroConfig.helperTxt3Color | 0xFF000000));
+                closeHov ? 0xFFFF5555 : C_DIM());
 
-        // Content — scissored to visible area
         int contentX = helperX + 6;
         int contentY = helperY + HEADER_H + PAD_V;
         int clipBottom = contentY + visibleContentH;
         g.enableScissor(helperX + 2, contentY, helperX + HELPER_W - 4, clipBottom);
 
-        int c1 = MacroConfig.helperTxt1Color | 0xFF000000;
-        int c2 = MacroConfig.helperTxt2Color | 0xFF000000;
-        int c3 = MacroConfig.helperTxt3Color | 0xFF000000;
+        int c1 = C_DIM();
+        int c2 = C_ON2();
+        int c3 = C_DIM();
 
         int cy = contentY - helperScrollOffset;
         for (int[] wl : wrapped) {
@@ -1160,7 +1227,6 @@ public class ClickGui extends Screen {
 
         g.disableScissor();
 
-        // Scrollbar (only when content overflows)
         if (maxScroll > 0) {
             int sbX  = helperX + HELPER_W - 4;
             int sbY0 = contentY;
@@ -1194,9 +1260,7 @@ public class ClickGui extends Screen {
             if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
 
             if (sepIdx >= 0) {
-                // ── Two-tone line ─────────────────────────────────────────────
                 String label = raw.substring(0, sepIdx);
-                // sep is always 3 chars: " — " or " - "
                 String sep  = raw.substring(sepIdx, sepIdx + 3);
                 String desc = raw.substring(sepIdx + 3);
                 String full = label + sep + desc;
@@ -1204,22 +1268,18 @@ public class ClickGui extends Screen {
                 if (font.width(full) <= maxW) {
                     result.add(new int[]{1, li, sepIdx, raw.length()});
                 } else {
-                    // Fit label + sep + as much desc as possible on first row
                     int prefixW   = font.width(label + sep);
                     int available = maxW - prefixW;
                     int cut = fitChars(font, desc, available);
                     result.add(new int[]{1, li, sepIdx, sepIdx + 3 + cut});
-                    // Continuation rows (type 3 = dim, two-tone continuation)
                     addContinuations(font, result, raw, sepIdx + 3 + cut, maxW, 3, li);
                 }
             } else {
-                // ── Plain line ────────────────────────────────────────────────
                 int cut = fitChars(font, raw, maxW);
                 if (cut >= raw.length()) {
                     result.add(new int[]{0, li, 0, raw.length()});
                 } else {
                     result.add(new int[]{0, li, 0, cut});
-                    // Continuation rows (type 2 = normal, plain continuation)
                     addContinuations(font, result, raw, cut, maxW, 2, li);
                 }
             }
@@ -1232,16 +1292,14 @@ public class ClickGui extends Screen {
         if (font.width(s) <= maxW) return s.length();
         int end = 0;
         while (end < s.length() && font.width(s.substring(0, end + 1)) <= maxW) end++;
-        // Prefer word boundary
         int wb = s.lastIndexOf(' ', end);
         return (wb > 0) ? wb : Math.max(1, end);
     }
 
     /** Appends continuation rows for the remainder of raw starting at pos. */
     private static void addContinuations(net.minecraft.client.gui.Font font,
-            java.util.List<int[]> result, String raw, int startPos, int maxW, int contType, int li) {
+                                         java.util.List<int[]> result, String raw, int startPos, int maxW, int contType, int li) {
         int pos = startPos;
-        // Skip a leading space at the break point
         if (pos < raw.length() && raw.charAt(pos) == ' ') pos++;
         while (pos < raw.length()) {
             String rest = raw.substring(pos);
@@ -1254,14 +1312,12 @@ public class ClickGui extends Screen {
 
 
     private static void drawWrappedLine(GuiGraphics g, net.minecraft.client.gui.Font font,
-            int x, int y, int maxW, int[] wl, String[] lines, int c1, int c2, int c3) {
+                                        int x, int y, int maxW, int[] wl, String[] lines, int c1, int c2, int c3) {
         int type = wl[0], li = wl[1], cs = wl[2], ce = wl[3];
         String raw = lines[li];
         if (type == 0) {
-            // Plain first row — c1
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
         } else if (type == 1) {
-            // Two-tone first row — label in c2, separator+description in c3
             int sepIdx = raw.indexOf(" — ");
             if (sepIdx < 0) sepIdx = raw.indexOf(" - ");
             if (sepIdx < 0) {
@@ -1269,21 +1325,18 @@ public class ClickGui extends Screen {
                 return;
             }
             String label = raw.substring(0, sepIdx);
-            String rest  = raw.substring(sepIdx, ce); // includes " — " + desc chunk
+            String rest  = raw.substring(sepIdx, ce);
             MacroConfig.drawStyledText(g, font, label, x, y, c2);
             MacroConfig.drawStyledText(g, font, rest, x + font.width(label), y, c3);
         } else if (type == 2) {
-            // Continuation of a plain line — same colour as plain (c1), no indent
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c1);
         } else {
-            // type 3: continuation of a two-tone description — dim (c3), no indent
             MacroConfig.drawStyledText(g, font, raw.substring(cs, ce), x, y, c3);
         }
     }
 
 
     void handleMouseClicked(int x, int y, int btn) {
-        // Helper panel: close button or start drag
         if (helperTopic != null && helperX >= 0) {
             int closeX = helperX + HELPER_W - 14;
             if (x >= closeX - 2 && x <= closeX + 10 && y >= helperY && y <= helperY + HEADER_H) {
@@ -1317,6 +1370,24 @@ public class ClickGui extends Screen {
         if (searchActive) return;
         for (Panel panel : new ArrayList<>(panels)) {
             if (panel.headerContains(x, y)) {
+                if (btn == 0 && hasHelperTopic(panel.title)) {
+                    String hlbl = "?";
+                    int hlblW = font.width(hlbl);
+                    int hbx = panel.x + PANEL_W - hlblW - 4;
+                    if (x >= hbx - 1 && x <= hbx + hlblW + 3 && y >= panel.y + 1 && y <= panel.y + HEADER_H - 1) {
+                        String newTopic = getHelperTopicKey(panel.title);
+                        if (newTopic != null && newTopic.equals(helperTopic)) {
+                            helperTopic = null;
+                            helperTitle = null;
+                            helperScrollOffset = 0;
+                        } else {
+                            updateHelperForPanel(panel.title);
+                        }
+                        panels.remove(panel);
+                        panels.add(0, panel);
+                        return;
+                    }
+                }
                 if (btn == 0) {
                     draggingPanel = panel;
                     dragOffX = x - panel.x;
@@ -1326,8 +1397,6 @@ public class ClickGui extends Screen {
                     panel.collapsed = !panel.collapsed;
                     savePanelPositions();
                 }
-                // Update helper topic when a supported panel is clicked
-                updateHelperForPanel(panel.title);
                 panels.remove(panel);
                 panels.add(0, panel);
                 return;
@@ -1343,6 +1412,16 @@ public class ClickGui extends Screen {
                 }
                 Entry hit = panel.entryAt(x, y, searchQuery);
                 if (hit != null) {
+                    if (btn == 0 && hit instanceof SectionEntry se && se.helperTopic != null) {
+                        int ey = panel.entryY(hit, searchQuery);
+                        int hlblW = font.width("?");
+                        int hbx = panel.x + PANEL_W - ENTRY_PAD - hlblW - 4;
+                        if (x >= hbx - 1 && x <= hbx + hlblW + 3 && y >= ey && y < ey + ENTRY_H) {
+                            if (se.helperTopic.equals(helperTopic)) { helperTopic = null; helperTitle = null; helperScrollOffset = 0; }
+                            else { helperTopic = se.helperTopic; helperTitle = se.label; helperScrollOffset = 0; }
+                            return;
+                        }
+                    }
                     if (btn == 0) {
                         if (hit instanceof SliderEntry se && !se.valueContains(x, y, panel.x + ENTRY_PAD, panel.entryY(hit, searchQuery), PANEL_W - ENTRY_PAD * 2, ENTRY_H, font)) {
                             draggingSlider = se;
@@ -1351,11 +1430,16 @@ public class ClickGui extends Screen {
                         } else {
                             SubPanel sp = hit.openSubPanel(x, y, width, height);
                             if (sp != null) activeSubPanel = sp;
-                            else hit.onClick(x, y);
+                            else { hit.onClick(x, y); panel.scrollOffset = Math.min(panel.scrollOffset, panel.maxScroll(searchQuery)); }
                         }
                     } else if (btn == 1) {
-                        SubPanel sp = hit.openSubPanel(x, y, width, height);
-                        if (sp != null) activeSubPanel = sp;
+                        if (hit instanceof SectionEntry se) {
+                            se.collapsed = !se.collapsed;
+                            panel.scrollOffset = Math.min(panel.scrollOffset, panel.maxScroll(searchQuery));
+                        } else {
+                            SubPanel sp = hit.openSubPanel(x, y, width, height);
+                            if (sp != null) activeSubPanel = sp;
+                        }
                     }
                 }
                 return;
@@ -1367,6 +1451,9 @@ public class ClickGui extends Screen {
         helperDragging = false;
         if (activeSubPanel instanceof ChatRulesSubPanel crs) {
             crs.stopDrag();
+        }
+        if (activeSubPanel instanceof ThemeLibrarySubPanel tls) {
+            tls.stopDrag();
         }
         if (activeSubPanel instanceof ColorSubPanel cs) {
             cs.draggingSlider = -1;
@@ -1388,6 +1475,14 @@ public class ClickGui extends Screen {
             crs.drag(x, y);
             return;
         }
+        if (activeSubPanel instanceof ThemeLibrarySubPanel tls) {
+            tls.drag(x, y);
+            return;
+        }
+        if (activeSubPanel instanceof ThemeLibrarySubPanel tls) {
+            tls.drag(x, y);
+            return;
+        }
         if (activeSubPanel instanceof ColorSubPanel cs) {
             cs.drag(x);
             return;
@@ -1404,7 +1499,6 @@ public class ClickGui extends Screen {
     }
 
     void handleMouseScrolled(int x, int y, double hScroll, double vScroll, boolean shift) {
-        // Helper panel scroll
         if (helperTopic != null && helperX >= 0 && x >= helperX && x <= helperX + HELPER_W
                 && y >= helperY + HEADER_H && y <= helperY + HEADER_H + HELPER_MAX_CONTENT_H) {
             helperScrollOffset = Math.max(0, helperScrollOffset + (int)(-vScroll * 12));
@@ -1429,7 +1523,24 @@ public class ClickGui extends Screen {
 
     void handleKeyPressed(int key, int scan, int mods) {
         if (activeSubPanel != null) {
-            if (activeSubPanel.keyPressed(key, scan, mods)) return;
+            if (key == 65 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
+                if (activeSubPanel instanceof StringInputSubPanel sip) { sip.tf.selectAll(); Minecraft.getInstance().keyboardHandler.setClipboard(sip.tf.value); return; }
+                if (activeSubPanel instanceof IntInputSubPanel iip) { iip.tf.selectAll(); return; }
+                if (activeSubPanel instanceof DoubleInputSubPanel dip) { dip.tf.selectAll(); return; }
+                if (activeSubPanel instanceof ListInputSubPanel lip) { lip.selStart = 0; lip.selEnd = lip.value.length(); lip.cursorIndex = lip.value.length(); return; }
+                if (activeSubPanel instanceof ThemeLibrarySubPanel tls) { (tls.focusedField == 0 ? tls.tfName : tls.tfCode).selectAll(); return; }
+                if (activeSubPanel instanceof ChatRulesSubPanel crs) { (crs.focusedField == 0 ? crs.tfName : crs.tfMatch).selectAll(); return; }
+            }
+            if (activeSubPanel.keyPressed(key, scan, mods)) {
+                if ((key == 257 || key == 335) && (mods & GLFW.GLFW_MOD_SHIFT) == 0 && !(activeSubPanel instanceof ListInputSubPanel)) {
+                    activeSubPanel = null;
+                    save();
+                }
+                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) {
+                    suppressNextChar = true;
+                }
+                return;
+            }
             if (key == 256) {
                 activeSubPanel.commit();
                 activeSubPanel = null;
@@ -1478,7 +1589,10 @@ public class ClickGui extends Screen {
         if (key == 340 || key == 344) shiftHeld = false;
     }
 
+    private boolean suppressNextChar = false;
+
     void handleCharTyped(char c, int mods) {
+        if (suppressNextChar) { suppressNextChar = false; return; }
         if (activeSubPanel != null) {
             activeSubPanel.charTyped(c, mods);
             return;
@@ -1489,6 +1603,8 @@ public class ClickGui extends Screen {
     @Override
     public void onClose() {
         savePanelPositions();
+        previewOriginalCode = null;
+        activeLibraryIndex = -1;
         save();
         super.onClose();
     }
@@ -1508,7 +1624,7 @@ public class ClickGui extends Screen {
     }
 
     private void savePanelPositions() {
-        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Rod", "Equipment Swap", "Auto Pest", "Auto Visitor", "Auto George", "Auto Sell", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
+        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Pest", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
         int[][] positions = new int[order.length][3];
         for (int i = 0; i < order.length; i++)
             for (Panel p : panels)
@@ -1571,15 +1687,27 @@ public class ClickGui extends Screen {
             if (e instanceof ScriptSelectorEntry) return "Farm Script";
             if (e instanceof ColorEntry ce) return ce.label;
             if (e instanceof ImportCodeEntry) return "Paste Theme Code";
+            if (e instanceof SectionEntry se) return se.label;
             return "";
         }
 
+        List<Entry> flatEntries(String q) {
+            List<Entry> result = new ArrayList<>();
+            for (Entry e : filtered(q)) {
+                result.add(e);
+                if (e instanceof SectionEntry se && !se.collapsed) {
+                    result.addAll(se.children);
+                }
+            }
+            return result;
+        }
+
         int contentHeight(String q) {
-            return filtered(q).size() * (ENTRY_H + ENTRY_PAD) + ENTRY_PAD;
+            return flatEntries(q).size() * (ENTRY_H + ENTRY_PAD) + ENTRY_PAD;
         }
 
         int visibleHeight() {
-            return 126;
+            return 200;
         }
 
         int maxScroll(String q) {
@@ -1598,7 +1726,7 @@ public class ClickGui extends Screen {
         Entry entryAt(int mx, int my, String q) {
             if (collapsed || filtered(q).isEmpty() || mx > x + PANEL_W - 4) return null;
             int ey = y + HEADER_H + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered(q)) {
+            for (Entry e : flatEntries(q)) {
                 if (my >= ey && my < ey + ENTRY_H && mx >= x && mx <= x + PANEL_W) return e;
                 ey += ENTRY_H + ENTRY_PAD;
             }
@@ -1607,7 +1735,7 @@ public class ClickGui extends Screen {
 
         int entryY(Entry target, String q) {
             int ey = y + HEADER_H + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered(q)) {
+            for (Entry e : flatEntries(q)) {
                 if (e == target) return ey;
                 ey += ENTRY_H + ENTRY_PAD;
             }
@@ -1641,32 +1769,98 @@ public class ClickGui extends Screen {
             boolean effectiveCollapsed = collapsed || (!q.isEmpty() && filtered.isEmpty());
             int totalH = effectiveCollapsed ? HEADER_H : HEADER_H + Math.min(contentHeight(q), visibleHeight());
             fillRoundRect(g, x, y, PANEL_W, totalH, PANEL_RADIUS, C_BG());
-            fillRoundRect(g, x, y, PANEL_W, HEADER_H, PANEL_RADIUS, C_HDR());
-            if (!effectiveCollapsed) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, C_HDR());
+            int hdrCol = effectiveCollapsed ? C_HDR() : brighten(C_HDR(), 0x101010);
+            fillRoundRect(g, x, y, PANEL_W, HEADER_H, PANEL_RADIUS, hdrCol);
+            if (!effectiveCollapsed) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, hdrCol);
             g.fill(x + 2, y + HEADER_H - 1, x + PANEL_W - 2, y + HEADER_H, C_LINE());
-            MacroConfig.drawStyledText(g, font, title, x + 5, y + HEADER_H / 2 - 4, !q.isEmpty() && title.toLowerCase().contains(q.toLowerCase()) ? C_ON2() : C_TXT());
-            MacroConfig.drawStyledText(g, font, effectiveCollapsed ? ">" : "v", x + PANEL_W - 10, y + HEADER_H / 2 - 4, C_DIM());
+            int arrowLX = x + 5;
+            int arrowW = font.width("v") + 4;
+            MacroConfig.drawStyledText(g, font, effectiveCollapsed ? ">" : "v", arrowLX, y + HEADER_H / 2 - 4, C_DIM());
+            MacroConfig.drawStyledText(g, font, title, x + 5 + arrowW, y + HEADER_H / 2 - 4, !q.isEmpty() && title.toLowerCase().contains(q.toLowerCase()) ? C_ON2() : C_TXT());
+            boolean hasHelper = hasHelperTopic(title);
+            if (hasHelper) {
+                String hlbl = "?";
+                int hlblW = font.width(hlbl);
+                int hbx = x + PANEL_W - hlblW - 4;
+                boolean hbHov = mx >= hbx - 1 && mx <= hbx + hlblW + 3 && my >= y + 1 && my <= y + HEADER_H - 1;
+                boolean hbActive = title.equals(helperTitle);
+                if (hbHov || hbActive) fillRoundRect(g, hbx - 1, y + 3, hlblW + 3, HEADER_H - 6, 2, hbActive ? C_ON() : C_HOVER());
+                MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + HEADER_H / 2 - 4, hbActive || hbHov ? C_TXT() : C_DIM());
+            }
             if (effectiveCollapsed) return;
 
             int clipY = y + HEADER_H, clipH = Math.min(contentHeight(q), visibleHeight());
             g.enableScissor(x, clipY, x + PANEL_W, clipY + clipH);
             int ey = clipY + ENTRY_PAD - scrollOffset;
-            for (Entry e : filtered) {
+            java.util.Set<SectionEntry> openSections = new java.util.HashSet<>();
+            for (Entry e : filtered) { if (e instanceof SectionEntry se && !se.collapsed) openSections.add(se); }
+            for (Entry e : flatEntries(q)) {
+                boolean isChild = openSections.stream().anyMatch(se -> se.children.contains(e));
+                int indent = isChild ? 14 : 0;
                 boolean hov = mx >= x && mx <= x + PANEL_W && my >= ey && my < ey + ENTRY_H;
-                if (hov) g.fill(x + 1, ey, x + PANEL_W - 1, ey + ENTRY_H, C_HOVER());
-                e.render(g, x + ENTRY_PAD, ey, PANEL_W - ENTRY_PAD * 2, ENTRY_H, hov, font);
+                if (hov) g.fill(x + 1 + indent, ey, x + PANEL_W - 1, ey + ENTRY_H, C_HOVER());
+                if (e instanceof SectionEntry se) {
+                    se.updateHover(mx, my);
+                    se.render(g, x + ENTRY_PAD, ey, PANEL_W - ENTRY_PAD * 2, ENTRY_H, hov, font);
+                } else {
+                    e.render(g, x + ENTRY_PAD + indent, ey, PANEL_W - ENTRY_PAD * 2 - indent, ENTRY_H, hov, font);
+                }
                 ey += ENTRY_H + ENTRY_PAD;
             }
             g.disableScissor();
-            if (maxScroll(q) > 0) {
-                float frac = (float) scrollOffset / maxScroll(q);
-                int bh = Math.max(10, clipH * clipH / contentHeight(q));
-                int by = clipY + (int) ((clipH - bh) * frac);
-                g.fill(x + PANEL_W - 3, by, x + PANEL_W - 1, by + bh, C_ACC());
-            }
+
         }
     }
 
+
+    static class SectionEntry implements Entry {
+        final String label;
+        final String helperTopic;
+        final List<Entry> children = new ArrayList<>();
+        boolean collapsed = true;
+
+        SectionEntry(String label, String helperTopic) {
+            this.label = label;
+            this.helperTopic = helperTopic;
+        }
+
+        void add(Entry e) { children.add(e); }
+
+        List<Entry> visibleChildren() {
+            return collapsed ? List.of() : children;
+        }
+
+        int lastMx = -1, lastMy = -1;
+        void updateHover(int mx, int my) { lastMx = mx; lastMy = my; }
+        boolean isHelpHovered(int x, int w, int y, int h, net.minecraft.client.gui.Font font) {
+            if (helperTopic == null) return false;
+            int hlblW = font.width("?");
+            int hbx = x + w - hlblW - 4;
+            return lastMx >= hbx - 1 && lastMx <= hbx + hlblW + 3 && lastMy >= y && lastMy < y + h;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
+            boolean hqActive = helperTopic != null && helperTopic.equals(ClickGui.helperTopic);
+            boolean hqHov = isHelpHovered(x, w, y, h, font);
+            fillRoundRect(g, x, y, w, h, 3, !collapsed || hov ? C_HDR() : C_BG());
+            if (helperTopic != null) {
+                String hlbl = "?";
+                int hlblW = font.width(hlbl);
+                int hbx = x + w - hlblW - 4;
+                if (hqActive || hqHov) fillRoundRect(g, hbx - 1, y + 3, hlblW + 3, h - 6, 2, hqActive ? C_ON() : C_HOVER());
+                MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + h / 2 - 4, hqActive || hqHov ? C_TXT() : C_DIM());
+            }
+            int secArrowW = font.width("v") + 4;
+            MacroConfig.drawStyledText(g, font, collapsed ? ">" : "v", x + 2, y + h / 2 - 4, C_DIM());
+            MacroConfig.drawStyledText(g, font, label, x + 2 + secArrowW, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
+        }
+
+        @Override
+        public void onClick(int mx, int my) {
+            collapsed = !collapsed;
+        }
+    }
 
     interface Entry {
         void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font);
@@ -1931,9 +2125,9 @@ public class ClickGui extends Screen {
 
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, hov ? C_BTN() : C_OFF());
+            if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
             int tw = font.width(label);
-            MacroConfig.drawStyledText(g, font, label, x + (w - tw) / 2, y + h / 2 - 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, label, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
         }
 
         @Override
@@ -1942,7 +2136,6 @@ public class ClickGui extends Screen {
         }
     }
 
-    // color swatch entry — shows label + color preview, right-click opens RGB sliders
     static class ColorEntry implements Entry {
         final String label;
         final Supplier<Integer> getter;
@@ -1959,11 +2152,9 @@ public class ClickGui extends Screen {
             int col = getter.get();
             int mid = y + h / 2 - 4;
             MacroConfig.drawStyledText(g, font, label, x + 2, mid, hov ? C_TXT() : C_DIM());
-            // color swatch
             int sw = 16, sx = x + w - sw - 2, sy = y + 2;
             g.fill(sx - 1, sy - 1, sx + sw + 1, sy + h - 2, 0xFF555555);
             g.fill(sx, sy, sx + sw, sy + h - 4, col | 0xFF000000);
-            // hex label
             String hex = String.format("#%06X", col & 0xFFFFFF);
             int hw = font.width(hex);
             MacroConfig.drawStyledText(g, font, hex, x + w - sw - hw - 6, mid, C_DIM());
@@ -1979,14 +2170,13 @@ public class ClickGui extends Screen {
         }
     }
 
-    // "Paste Theme Code" entry — text field + apply button inline
     static class ImportCodeEntry implements Entry {
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, hov ? C_BTN() : C_OFF());
+            if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
             String lbl = "Paste Theme Code";
             int tw = font.width(lbl);
-            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
         }
 
         @Override
@@ -2006,18 +2196,14 @@ public class ClickGui extends Screen {
     }
 
 
-    /**
-     * Chat Rules entry — opens a full sub-panel for managing chat alert rules.
-     * Each rule is stored as: "name|matchType|caseSensitive|pingWebhook|enabled|matchText"
-     */
-    static class ChatRulesEntry implements Entry {
+    static class ThemeLibraryEntry implements Entry {
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, hov ? C_BTN() : C_OFF());
-            int count = MacroConfig.chatRules.size();
-            String lbl = "Manage Rules (" + count + ")";
+            if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
+            int count = MacroConfig.savedThemes.size();
+            String lbl = "Theme Library (" + count + ")";
             int tw = font.width(lbl);
-            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
         }
 
         @Override
@@ -2025,8 +2211,422 @@ public class ClickGui extends Screen {
 
         @Override
         public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
-            helperTopic = "chatrules";
-            helperTitle = "Chat Rules";
+            return new ThemeLibrarySubPanel(mx, my, sw, sh);
+        }
+    }
+
+    static class ThemeLibrarySubPanel implements SubPanel {
+        private static final int W        = 340;
+        private static final int ROW_H    = 18;
+        private static final int PAD      = 4;
+        private static final int HDR_H    = 16;
+        private static final int LIST_MAX = 160;
+        private static final int BTN_W    = 14;
+        private static final int BTN_H    = 10;
+
+        private final int screenW, screenH;
+        private int panelX, panelY;
+        private int scrollOffset = 0;
+        private boolean deleteMode = false;
+        private final java.util.Set<Integer> checkedForDelete = new java.util.HashSet<>();
+
+        private boolean dragging = false;
+        private int dragOffX, dragOffY;
+
+        private boolean addingNew   = false;
+        private boolean editingMode = false;
+        private int     editingIndex = -1;
+        final TextField tfName = new TextField("");
+        final TextField tfCode = new TextField("");
+        int focusedField = 0;
+
+        ThemeLibrarySubPanel(int mx, int my, int sw, int sh) {
+            this.screenW = sw; this.screenH = sh;
+            int h = calcTotalHeight();
+            this.panelX = Math.max(4, Math.min(mx, sw - W - 4));
+            this.panelY = Math.max(4, Math.min(my, sh - h - 4));
+        }
+
+        private boolean isFormOpen() { return addingNew || editingMode; }
+
+        private int listContentH() {
+            return Math.max(PAD, MacroConfig.savedThemes.size() * (ROW_H + PAD) + PAD);
+        }
+        private int listVisibleH() { return Math.min(listContentH(), LIST_MAX); }
+        private int maxScroll()    { return Math.max(0, listContentH() - listVisibleH()); }
+        private int addFormH()     { return PAD + ROW_H + PAD + ROW_H + PAD + ROW_H + PAD + ROW_H + PAD; }
+        private int calcTotalHeight() {
+            int h = HDR_H + PAD + listVisibleH() + PAD;
+            if (isFormOpen()) h += addFormH() + PAD;
+            return Math.min(h, screenH - 8);
+        }
+        private int listY() { return panelY + HDR_H + PAD; }
+        private int formY() { return listY() + listVisibleH() + PAD; }
+
+        private int btnCenterY()  { return panelY + HDR_H / 2 - BTN_H / 2; }
+        private int addBtnX()     { return panelX + W - PAD - BTN_W; }
+        private int delBtnX()     { return addBtnX() - BTN_W - 3; }
+        private int confirmBtnX() { return delBtnX() - 50 - 3; }
+        private int saveBtnX(net.minecraft.client.gui.Font font) { return delBtnX() - font.width("save") - 8; }
+
+        private static String stripSpaces(String s) { return s.replace(" ", ""); }
+
+        @Override
+        public void render(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
+            int totalH = calcTotalHeight();
+            panelY = Math.max(4, Math.min(panelY, screenH - totalH - 4));
+
+            fillRoundRect(g, panelX - 2, panelY - 2, W + 4, totalH + 4, 4, C_SPBD());
+            fillRoundRect(g, panelX, panelY, W, totalH, 3, C_SPBG());
+
+            fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
+            g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
+            g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
+            MacroConfig.drawStyledText(g, font, "Theme Library", panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
+
+            int bcy = btnCenterY();
+            int abx = addBtnX(), dbx = delBtnX();
+            boolean addHov = mx >= abx && mx <= abx + BTN_W && my >= bcy && my <= bcy + BTN_H;
+            boolean delHov = mx >= dbx && mx <= dbx + BTN_W && my >= bcy && my <= bcy + BTN_H;
+
+            if (addingNew || addHov) fillRoundRect(g, abx, bcy, BTN_W, BTN_H, 2, addingNew ? C_ON() : C_HOVER());
+            MacroConfig.drawStyledText(g, font, "+", abx + (BTN_W - font.width("+")) / 2, bcy + BTN_H / 2 - 4, addingNew || addHov ? C_TXT() : C_DIM());
+
+            if (deleteMode || delHov) fillRoundRect(g, dbx, bcy, BTN_W, BTN_H, 2, deleteMode ? C_ON() : C_HOVER());
+            MacroConfig.drawStyledText(g, font, "-", dbx + (BTN_W - font.width("-")) / 2, bcy + BTN_H / 2 - 4, deleteMode || delHov ? C_TXT() : C_DIM());
+
+            if (deleteMode && !checkedForDelete.isEmpty()) {
+                int cbw = font.width("confirm");
+                int cbx = confirmBtnX();
+                boolean confHov = mx >= cbx - 2 && mx <= cbx + cbw + 2 && my >= bcy && my <= bcy + BTN_H;
+                MacroConfig.drawStyledText(g, font, "confirm", cbx, bcy + BTN_H / 2 - 4, confHov ? 0xFFFF5555 : C_DIM());
+            }
+
+            {
+                boolean hasPendingChanges = hasPendingThemeChanges();
+                if (hasPendingChanges) {
+                    int sbx = saveBtnX(font);
+                    int svw = font.width("save");
+                    boolean saveHov = mx >= sbx - 2 && mx <= sbx + svw + 2 && my >= bcy && my <= bcy + BTN_H;
+                    fillRoundRect(g, sbx - 2, bcy, svw + 4, BTN_H, 2, saveHov ? C_BTN() : C_HOVER());
+                    MacroConfig.drawStyledText(g, font, "save", sbx, bcy + BTN_H / 2 - 4, C_TXT());
+                }
+            }
+
+            int lY = listY(), lH = listVisibleH();
+            g.enableScissor(panelX, lY, panelX + W, lY + lH);
+            int ey = lY - scrollOffset;
+            java.util.List<String> themes = MacroConfig.savedThemes;
+            for (int i = 0; i < themes.size(); i++) {
+                String[] parts = themes.get(i).split("\\|", 2);
+                String name = parts.length > 0 ? parts[0] : "?";
+                boolean checked = checkedForDelete.contains(i);
+
+                if (deleteMode) {
+                    int chkX = panelX + PAD + 2;
+                    int chkS = ROW_H - 4;
+                    boolean chkHov = mx >= chkX && mx <= chkX + chkS && my >= ey + 2 && my < ey + ROW_H - 2;
+                    fillRoundRect(g, chkX, ey + 2, chkS, chkS, 2, checked ? C_ON() : (chkHov ? C_HOVER() : C_OFF()));
+                    MacroConfig.drawStyledText(g, font, name, panelX + PAD + chkS + 6, ey + (ROW_H - 8) / 2, checked ? C_DIM() : C_TXT());
+                } else {
+                    int copyX = panelX + W - PAD - 34;
+                    int editX = copyX - 30 - 3;
+                    boolean rowHov  = mx >= panelX + PAD && mx < editX && my >= ey && my < ey + ROW_H;
+                    boolean editHov = mx >= editX && mx <= editX + 28 && my >= ey + 2 && my < ey + ROW_H - 2;
+                    boolean copyHov = mx >= copyX && mx <= copyX + 32 && my >= ey + 2 && my < ey + ROW_H - 2;
+                    if (activeLibraryIndex == i) fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_ON());
+                    else if (rowHov) fillRoundRect(g, panelX + PAD, ey, editX - panelX - PAD, ROW_H, 2, C_HOVER());
+                    if (editHov || (editingMode && editingIndex == i)) fillRoundRect(g, editX, ey + 2, 28, ROW_H - 4, 2, (editingMode && editingIndex == i) ? C_ON() : C_HOVER());
+                    if (copyHov) fillRoundRect(g, copyX, ey + 2, 32, ROW_H - 4, 2, C_HOVER());
+                    MacroConfig.drawStyledText(g, font, "edit", editX + (28 - font.width("edit")) / 2, ey + (ROW_H - 8) / 2, editHov || (editingMode && editingIndex == i) ? C_TXT() : C_DIM());
+                    MacroConfig.drawStyledText(g, font, "copy", copyX + (32 - font.width("copy")) / 2, ey + (ROW_H - 8) / 2, copyHov ? C_TXT() : C_DIM());
+                    MacroConfig.drawStyledText(g, font, name, panelX + PAD + 4, ey + (ROW_H - 8) / 2, C_TXT());
+                }
+                ey += ROW_H + PAD;
+            }
+            g.disableScissor();
+
+            if (maxScroll() > 0) {
+                int bh = Math.max(10, lH * lH / listContentH());
+                int by = lY + (int)((lH - bh) * ((float) scrollOffset / maxScroll()));
+                g.fill(panelX + W - 4, lY, panelX + W - 2, lY + lH, C_OFF());
+                g.fill(panelX + W - 4, by, panelX + W - 2, by + bh, C_ACC());
+            }
+
+            if (isFormOpen()) {
+                int fy  = formY();
+                int ep  = addFormH();
+                int fx  = panelX + PAD + 4;
+                int fw  = W - PAD * 2 - 8;
+                int lw  = font.width("Name:");
+                int cy  = fy + PAD;
+
+                String formTitle = editingMode ? "Edit Theme" : "Add Theme";
+                MacroConfig.drawStyledText(g, font, formTitle, fx, cy + (ROW_H - 8) / 2, C_TXT());
+                cy += ROW_H + PAD;
+
+                MacroConfig.drawStyledText(g, font, "Name:", fx, cy + (ROW_H - 8) / 2, C_DIM());
+                tfName.render(g, font, fx + lw + 4, cy, fw - lw - 4, ROW_H, focusedField == 0);
+                cy += ROW_H + PAD;
+
+                int _codeLabelY = cy + (ROW_H - 8) / 2;
+                MacroConfig.drawStyledText(g, font, "Code:", fx, _codeLabelY, C_DIM());
+                if (tfCode.value.isBlank()) {
+                    String _hint = "*optional";
+                    int _hw = font.width(_hint);
+                    int _hx = fx + (font.width("Code:") - _hw) / 2;
+                    int _hy = _codeLabelY + font.lineHeight + 3;
+                    MacroConfig.drawStyledText(g, font, _hint, _hx, _hy, darken(C_DIM(), 0x202020));
+                }
+                tfCode.render(g, font, fx + lw + 4, cy, fw - lw - 4, ROW_H, focusedField == 1);
+                cy += ROW_H + PAD;
+
+
+                int saveLbl = font.width("Save");
+                int saveW   = saveLbl + 16;
+                int saveX   = fx + (fw - saveW) / 2;
+                boolean saveHov = mx >= saveX && mx <= saveX + saveW && my >= cy && my < cy + ROW_H;
+                fillRoundRect(g, saveX, cy, saveW, ROW_H, 2, saveHov ? C_BTN() : brighten(C_ON(), 0x111111));
+                MacroConfig.drawStyledText(g, font, "Save", saveX + (saveW - saveLbl) / 2, cy + (ROW_H - 8) / 2, C_TXT());
+            }
+        }
+
+        @Override
+        public boolean contains(int mx, int my) {
+            int h = calcTotalHeight();
+            return mx >= panelX - 2 && mx <= panelX + W + 2
+                    && my >= panelY - 2 && my <= panelY + h + 2;
+        }
+
+        @Override
+        public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
+            if (mx >= panelX && mx <= panelX + W && my >= panelY && my <= panelY + HDR_H) {
+                int bcy = btnCenterY();
+                int abx = addBtnX(), dbx = delBtnX();
+                if (mx >= abx && mx <= abx + BTN_W && my >= bcy && my <= bcy + BTN_H) {
+                    addingNew = !addingNew;
+                    if (addingNew) {
+                        editingMode = false; editingIndex = -1;
+                        deleteMode = false; checkedForDelete.clear();
+                        tfName.value = ""; tfName.cursor = 0; tfName.clearSelection(); tfCode.value = ""; tfCode.cursor = 0; tfCode.clearSelection(); focusedField = 0;
+                    }
+                    return true;
+                }
+                if (mx >= dbx && mx <= dbx + BTN_W && my >= bcy && my <= bcy + BTN_H) {
+                    deleteMode = !deleteMode;
+                    if (deleteMode) { addingNew = false; editingMode = false; editingIndex = -1; checkedForDelete.clear(); }
+                    return true;
+                }
+                if (deleteMode && !checkedForDelete.isEmpty()) {
+                    int cbx = confirmBtnX();
+                    int cbw = net.minecraft.client.Minecraft.getInstance().font.width("confirm");
+                    if (mx >= cbx - 2 && mx <= cbx + cbw + 2 && my >= bcy && my <= bcy + BTN_H) {
+                        java.util.List<Integer> sorted = new java.util.ArrayList<>(checkedForDelete);
+                        sorted.sort(java.util.Collections.reverseOrder());
+                        for (int idx : sorted) if (idx < MacroConfig.savedThemes.size()) MacroConfig.savedThemes.remove(idx);
+                        if (checkedForDelete.contains(activeLibraryIndex)) { activeLibraryIndex = -1; previewOriginalCode = null; }
+                        else {
+                            long shifted = checkedForDelete.stream().filter(idx -> idx < activeLibraryIndex).count();
+                            activeLibraryIndex = (int)(activeLibraryIndex - shifted);
+                        }
+                        MacroConfig.save();
+                        checkedForDelete.clear();
+                        deleteMode = false;
+                        return true;
+                    }
+                }
+                {
+                    net.minecraft.client.gui.Font f = Minecraft.getInstance().font;
+                    int sbx = saveBtnX(f);
+                    int svw = f.width("save");
+                    if (mx >= sbx - 2 && mx <= sbx + svw + 2 && my >= bcy && my <= bcy + BTN_H && hasPendingThemeChanges()) {
+                        if (activeLibraryIndex < MacroConfig.savedThemes.size()) {
+                            String[] parts = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
+                            String name = parts.length > 0 ? parts[0] : "";
+                            String code = encodeTheme();
+                            MacroConfig.savedThemes.set(activeLibraryIndex, name + "|" + code);
+                            previewOriginalCode = null;
+                            if (editingMode && editingIndex == activeLibraryIndex) { tfCode.value = code; tfCode.cursor = code.length(); tfCode.clearSelection(); }
+                            MacroConfig.save();
+                        }
+                        return true;
+                    }
+                }
+                dragging = true;
+                dragOffX = mx - panelX;
+                dragOffY = my - panelY;
+                return true;
+            }
+
+            int lY = listY(), lH = listVisibleH();
+            if (mx >= panelX + PAD && mx <= panelX + W - PAD && my >= lY && my < lY + lH) {
+                int ey = lY - scrollOffset;
+                java.util.List<String> themes = MacroConfig.savedThemes;
+                for (int i = 0; i < themes.size(); i++) {
+                    if (my >= ey && my < ey + ROW_H) {
+                        if (deleteMode) {
+                            int chkX = panelX + PAD + 2;
+                            int chkS = ROW_H - 4;
+                            if (mx >= chkX && mx <= chkX + chkS) {
+                                if (checkedForDelete.contains(i)) checkedForDelete.remove(i);
+                                else checkedForDelete.add(i);
+                            }
+                        } else {
+                            String[] parts = themes.get(i).split("\\|", 2);
+                            int copyX = panelX + W - PAD - 34;
+                            int editX = copyX - 30 - 3;
+                            if (mx >= copyX && mx <= copyX + 32 && parts.length > 1) {
+                                Minecraft.getInstance().keyboardHandler.setClipboard(parts[1]);
+                            } else if (mx >= editX && mx <= editX + 28) {
+                                if (editingMode && editingIndex == i) {
+                                    editingMode = false; editingIndex = -1;
+                                } else {
+                                    editingMode = true; editingIndex = i; addingNew = false;
+                                    tfName.value = parts.length > 0 ? parts[0] : ""; tfName.cursor = tfName.value.length(); tfName.clearSelection();
+                                    tfCode.value = parts.length > 1 ? parts[1] : ""; tfCode.cursor = tfCode.value.length(); tfCode.clearSelection();
+                                    focusedField = 0;
+                                }
+                            } else if (parts.length > 1) {
+                                if (activeLibraryIndex == i) {
+                                    revertLibraryPreview();
+                                } else {
+                                    if (previewOriginalCode == null) {
+                                        previewOriginalCode = encodeTheme();
+                                    }
+                                    activeLibraryIndex = i;
+                                    applyThemeCode(parts[1]);
+                                    if (editingMode && editingIndex == i) { tfCode.value = parts[1]; tfCode.cursor = tfCode.value.length(); tfCode.clearSelection(); }
+                                }
+                            }
+                        }
+                        return true;
+                    }
+                    ey += ROW_H + PAD;
+                }
+                return true;
+            }
+
+            if (isFormOpen()) {
+                net.minecraft.client.gui.Font f = Minecraft.getInstance().font;
+                int fy  = formY();
+                int fx  = panelX + PAD + 4;
+                int fw  = W - PAD * 2 - 8;
+                int lw  = f.width("Name:");
+                int tfx = fx + lw + 4;
+                int tfw = fw - lw - 4;
+                int cy  = fy + PAD + ROW_H + PAD;
+                if (mx >= tfx && mx <= tfx + tfw && my >= cy && my < cy + ROW_H) { tfName.clearSelection(); tfCode.clearSelection(); focusedField = 0; return true; }
+                cy += ROW_H + PAD;
+                if (mx >= tfx && mx <= tfx + tfw && my >= cy && my < cy + ROW_H) { tfName.clearSelection(); tfCode.clearSelection(); focusedField = 1; return true; }
+                cy += ROW_H + PAD;
+                int saveLbl = f.width("Save");
+                int saveW   = saveLbl + 16;
+                int saveX   = fx + (fw - saveW) / 2;
+                if (mx >= saveX && mx <= saveX + saveW && my >= cy && my < cy + ROW_H) {
+                    saveTheme(); return true;
+                }
+            }
+            return true;
+        }
+
+        private void saveTheme() {
+            String name = tfName.value.trim();
+            if (name.isEmpty()) return;
+            String code = tfCode.value.isBlank() ? encodeDefaultTheme() : tfCode.value.trim();
+            String entry = name + "|" + code;
+            if (editingMode && editingIndex >= 0 && editingIndex < MacroConfig.savedThemes.size()) {
+                MacroConfig.savedThemes.set(editingIndex, entry);
+                if (editingIndex == activeLibraryIndex) previewOriginalCode = null;
+                tfCode.value = code; tfCode.cursor = code.length(); tfCode.clearSelection();
+                editingMode = false; editingIndex = -1;
+            } else {
+                MacroConfig.savedThemes.add(0, entry);
+                addingNew = false;
+                tfCode.value = code; tfCode.cursor = code.length(); tfCode.clearSelection();
+                if (activeLibraryIndex >= 0) activeLibraryIndex++;
+            }
+            MacroConfig.save();
+        }
+
+        private boolean hasPendingThemeChanges() {
+            if (activeLibraryIndex < 0 || activeLibraryIndex >= MacroConfig.savedThemes.size()) return false;
+            String[] sp = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
+            return sp.length < 2 || !encodeTheme().equals(sp[1]);
+        }
+
+        public void drag(int mx, int my) {
+            if (!dragging) return;
+            panelX = Math.max(0, Math.min(screenW - W, mx - dragOffX));
+            panelY = Math.max(0, Math.min(screenH - calcTotalHeight(), my - dragOffY));
+        }
+
+        public void stopDrag() { dragging = false; }
+
+        @Override
+        public void scroll(int dir) {
+            scrollOffset = Math.max(0, Math.min(maxScroll(), scrollOffset + dir * 10));
+        }
+
+        @Override
+        public boolean keyPressed(int key, int scan, int mods) {
+            if (!isFormOpen()) return false;
+            if (key == 256) { addingNew = false; editingMode = false; editingIndex = -1; return true; }
+            if ((key == 257 || key == 335) && (mods & GLFW.GLFW_MOD_SHIFT) == 0) {
+                if (focusedField == 1 && !tfCode.value.isBlank() && !editingMode) { applyThemeCode(tfCode.value.trim()); }
+                else { saveTheme(); }
+                return true;
+            }
+            if (key == 258) { focusedField = (focusedField + 1) % 2; return true; }
+            if (key == 259) {
+                TextField _tf = focusedField == 0 ? tfName : tfCode;
+                _tf.keyPressed(259, 0, 0, null);
+                return true;
+            }
+            if (key == 86 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
+                String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
+                if (clip != null) { TextField _tf = focusedField == 0 ? tfName : tfCode; _tf.insert(clip.replace("\r", "").replace("\n", "")); if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim()); }
+                return true;
+            }
+            { TextField _tf = focusedField == 0 ? tfName : tfCode; if (_tf.keyPressed(key, scan, mods, null)) { if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim()); return true; } }
+            if (key == GLFW.GLFW_KEY_SPACE) { (focusedField == 0 ? tfName : tfCode).insert(" "); return true; }
+            Character c = fallbackCharFromKey(key, scan, mods);
+            if (c != null) { (focusedField == 0 ? tfName : tfCode).insert(String.valueOf(c)); return true; }
+            return false;
+        }
+
+        @Override
+        public boolean charTyped(char c, int mods) {
+            if (!isFormOpen() || c == '\r' || c == '\n') return false;
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
+            (focusedField == 0 ? tfName : tfCode).insert(String.valueOf(c));
+            if (focusedField == 1 && !tfCode.value.isBlank()) applyThemeCode(tfCode.value.trim());
+            return true;
+        }
+
+        @Override public void commit() { tfName.clearSelection(); tfCode.clearSelection(); }
+    }
+
+
+    /**
+     * Chat Rules entry — opens a full sub-panel for managing chat alert rules.
+     * Each rule is stored as: "name|matchType|caseSensitive|pingWebhook|enabled|matchText"
+     */
+    static class ChatRulesEntry implements Entry {
+        @Override
+        public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
+            if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
+            int count = MacroConfig.chatRules.size();
+            String lbl = "Manage Rules (" + count + ")";
+            int tw = font.width(lbl);
+            MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
+        }
+
+        @Override
+        public void onClick(int mx, int my) {}
+
+        @Override
+        public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
             return new ChatRulesSubPanel(mx, my, sw, sh);
         }
     }
@@ -2047,26 +2647,23 @@ public class ClickGui extends Screen {
         private int panelX, panelY;
         private int scrollOffset = 0;
 
-        // Drag state
         private boolean dragging = false;
         private int dragOffX, dragOffY;
 
-        // -2=new rule, -1=not editing, >=0=editing existing
         private int editingIndex = -1;
-        private String editName      = "";
-        private String editMatchText = "";
-        // Only expose the 4 simple match types — no Regex
+        final TextField tfName = new TextField("");
+        final TextField tfMatch = new TextField("");
         private static final com.ihanuat.mod.modules.ChatRuleManager.MatchType[] MATCH_TYPES = {
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.Equals,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.StartsWith,
-            com.ihanuat.mod.modules.ChatRuleManager.MatchType.EndsWith,
+                com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains,
+                com.ihanuat.mod.modules.ChatRuleManager.MatchType.Equals,
+                com.ihanuat.mod.modules.ChatRuleManager.MatchType.StartsWith,
+                com.ihanuat.mod.modules.ChatRuleManager.MatchType.EndsWith,
         };
         private com.ihanuat.mod.modules.ChatRuleManager.MatchType editMatchType =
                 com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains;
         private boolean editCaseSensitive = false;
         private boolean editEnabled       = true;
-        private int focusedField = 0; // 0=name, 1=pattern
+        int focusedField = 0;
         private boolean cursorVisible = true;
         private long lastBlink = System.currentTimeMillis();
 
@@ -2077,50 +2674,44 @@ public class ClickGui extends Screen {
             this.panelY = Math.max(4, Math.min(my, sh - h - 4));
         }
 
-        // ── Heights ──────────────────────────────────────────────────────────
         private int listContentH() {
             return Math.max(PAD, MacroConfig.chatRules.size() * (ROW_H + PAD) + PAD);
         }
         private int listVisibleH() { return Math.min(listContentH(), LIST_MAX); }
         private int maxScroll()    { return Math.max(0, listContentH() - listVisibleH()); }
-        // edit panel: name row + pattern row + options row + save/cancel row = 4 rows
         private int editPanelH()   { return PAD + 4 * (ROW_H + PAD) + PAD; }
         private int calcTotalHeight() {
             int h = HDR_H + PAD
-                  + listVisibleH() + PAD
-                  + ROW_H + PAD;
+                    + listVisibleH() + PAD
+                    + ROW_H + PAD;
             if (isEditing()) h += editPanelH() + PAD;
             return Math.min(h, screenH - 8);
         }
         private boolean isEditing() { return editingIndex == -2 || editingIndex >= 0; }
 
-        // ── Y anchors ────────────────────────────────────────────────────────
         private int listY()  { return panelY + HDR_H + PAD; }
         private int addBtnY(){ return listY() + listVisibleH() + PAD; }
         private int editY()  { return addBtnY() + ROW_H + PAD; }
 
-        // ── render ───────────────────────────────────────────────────────────
         @Override
         public void render(GuiGraphics g, int mx, int my, net.minecraft.client.gui.Font font) {
-            if (System.currentTimeMillis() - lastBlink > 500) {
-                cursorVisible = !cursorVisible;
-                lastBlink = System.currentTimeMillis();
-            }
             int totalH = calcTotalHeight();
-            // Recalculate Y so panel doesn't fall off-screen when edit area opens
             panelY = Math.max(4, Math.min(panelY, screenH - totalH - 4));
 
             fillRoundRect(g, panelX - 2, panelY - 2, W + 4, totalH + 4, 4, C_SPBD());
             fillRoundRect(g, panelX, panelY, W, totalH, 3, C_SPBG());
 
-            // Header (draggable)
             fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
             g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
             g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
             MacroConfig.drawStyledText(g, font, "Chat Rules", panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
+            int crQx = panelX + W - 10 - font.width("?") - 4;
+            boolean crQhov = mx >= crQx - 1 && mx <= crQx + font.width("?") + 3 && my >= panelY && my <= panelY + HDR_H;
+            boolean crQactive = "chatrules".equals(helperTopic);
+            if (crQhov || crQactive) fillRoundRect(g, crQx - 1, panelY + 2, font.width("?") + 4, HDR_H - 4, 2, crQactive ? C_ON() : C_HOVER());
+            MacroConfig.drawStyledText(g, font, "?", crQx + 1, panelY + HDR_H / 2 - 4, crQactive || crQhov ? C_TXT() : C_DIM());
             MacroConfig.drawStyledText(g, font, "v", panelX + W - 10, panelY + HDR_H / 2 - 4, C_DIM());
 
-            // Rule list with scissor
             int lY = listY(), lH = listVisibleH();
             g.enableScissor(panelX, lY, panelX + W, lY + lH);
             int ey = lY - scrollOffset;
@@ -2129,29 +2720,24 @@ public class ClickGui extends Screen {
                 com.ihanuat.mod.modules.ChatRuleManager.ChatRule rule =
                         new com.ihanuat.mod.modules.ChatRuleManager.ChatRule(rules.get(i));
                 boolean hov = mx >= panelX + PAD && mx <= panelX + W - PAD - 20
-                           && my >= ey && my < ey + ROW_H;
+                        && my >= ey && my < ey + ROW_H;
                 boolean sel = editingIndex == i;
                 if (sel)      fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_ON());
                 else if (hov) fillRoundRect(g, panelX + PAD, ey, W - PAD * 2, ROW_H, 2, C_HOVER());
 
-                // Enabled dot
                 g.fill(panelX + PAD + 2, ey + 5, panelX + PAD + 7, ey + ROW_H - 5,
-                       rule.enabled ? C_ON() : C_OFF());
+                        rule.enabled ? C_ON() : C_OFF());
 
-                // Name — scissored to stay inside panel
                 String name = truncate(font, rule.name, 110);
                 MacroConfig.drawStyledText(g, font, name, panelX + PAD + 10, ey + (ROW_H - 8) / 2,
                         rule.enabled ? C_TXT() : C_DIM());
 
-                // Match type badge
                 String badge = rule.matchType.name().substring(0, Math.min(4, rule.matchType.name().length()));
                 MacroConfig.drawStyledText(g, font, badge, panelX + PAD + 118, ey + (ROW_H - 8) / 2, C_DIM());
 
-                // Pattern preview
                 String prev = truncate(font, rule.matchText, W - PAD * 2 - 165);
                 MacroConfig.drawStyledText(g, font, prev, panelX + PAD + 158, ey + (ROW_H - 8) / 2, C_DIM());
 
-                // Delete button
                 int delX = panelX + W - PAD - 18;
                 boolean delHov = mx >= delX && mx <= delX + 16 && my >= ey + 1 && my < ey + ROW_H - 1;
                 fillRoundRect(g, delX, ey + 2, 16, ROW_H - 4, 2, delHov ? 0xFFCC2222 : 0xFF441111);
@@ -2161,7 +2747,6 @@ public class ClickGui extends Screen {
             }
             g.disableScissor();
 
-            // List scrollbar
             if (maxScroll() > 0) {
                 int bh = Math.max(10, lH * lH / listContentH());
                 int by = lY + (int)((lH - bh) * ((float) scrollOffset / maxScroll()));
@@ -2169,7 +2754,6 @@ public class ClickGui extends Screen {
                 g.fill(panelX + W - 4, by, panelX + W - 2, by + bh, C_ACC());
             }
 
-            // Add-rule button
             int aY = addBtnY();
             boolean addHov = mx >= panelX + PAD && mx <= panelX + W - PAD && my >= aY && my < aY + ROW_H;
             fillRoundRect(g, panelX + PAD, aY, W - PAD * 2, ROW_H, 3, addHov ? C_BTN() : C_OFF());
@@ -2177,12 +2761,11 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, addLbl,
                     panelX + (W - font.width(addLbl)) / 2, aY + (ROW_H - 8) / 2, C_TXT());
 
-            // Edit panel
             if (isEditing()) renderEditPanel(g, mx, my, font, editY());
         }
 
         private void renderEditPanel(GuiGraphics g, int mx, int my,
-                net.minecraft.client.gui.Font font, int ry) {
+                                     net.minecraft.client.gui.Font font, int ry) {
             int ep = editPanelH();
             fillRoundRect(g, panelX + PAD - 2, ry, W - PAD * 2 + 4, ep, 3, C_SPBD());
             fillRoundRect(g, panelX + PAD, ry + 2, W - PAD * 2, ep - 2, 2, C_SBGR());
@@ -2191,26 +2774,22 @@ public class ClickGui extends Screen {
             int fw = W - PAD * 2 - 8;
             int cy = ry + PAD;
 
-            // Name row
             MacroConfig.drawStyledText(g, font, "Name:", fx, cy + (ROW_H - 8) / 2, C_DIM());
             int nfx = fx + 40;
-            drawTextField(g, font, nfx, cy, fw - 40, editName, focusedField == 0);
+            tfName.render(g, font, nfx, cy, fw - 40, ROW_H, focusedField == 0);
             cy += ROW_H + PAD;
 
-            // Pattern row
             MacroConfig.drawStyledText(g, font, "Pattern:", fx, cy + (ROW_H - 8) / 2, C_DIM());
             int mfx = fx + 52;
-            drawTextField(g, font, mfx, cy, fw - 52, editMatchText, focusedField == 1);
+            tfMatch.render(g, font, mfx, cy, fw - 52, ROW_H, focusedField == 1);
             cy += ROW_H + PAD;
 
-            // Options row: match type | Case | Active
             int ox = fx;
             ox = drawOptionBtn(g, font, mx, my, ox, cy, editMatchType.name(), true) + 3;
             ox = drawOptionBtn(g, font, mx, my, ox, cy, "Case", editCaseSensitive) + 3;
             drawOptionBtn(g, font, mx, my, ox, cy, "Active", editEnabled);
             cy += ROW_H + PAD;
 
-            // Save / Cancel
             int hw = (fw - 4) / 2;
             boolean saveHov = mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H;
             fillRoundRect(g, fx, cy, hw, ROW_H, 2, saveHov ? C_BTN() : brighten(C_ON(), 0x111111));
@@ -2224,13 +2803,11 @@ public class ClickGui extends Screen {
         }
 
         private void drawTextField(GuiGraphics g, net.minecraft.client.gui.Font font,
-                int fx, int fy, int fw, String value, boolean focused) {
+                                   int fx, int fy, int fw, String value, boolean focused) {
             g.fill(fx, fy, fx + fw, fy + ROW_H, C_SBGR());
             g.fill(fx, fy + ROW_H - 1, fx + fw, fy + ROW_H, focused ? C_ACC() : C_DIM());
-            // Clamp displayed text to fit inside the field using scissor
             g.enableScissor(fx + 2, fy, fx + fw - 2, fy + ROW_H);
             String disp = value + (focused && cursorVisible ? "|" : "");
-            // Scroll text right-to-left if too long
             while (font.width(disp) > fw - 6 && disp.length() > 1)
                 disp = disp.substring(1);
             MacroConfig.drawStyledText(g, font, disp, fx + 3, fy + (ROW_H - 8) / 2, C_TXT());
@@ -2238,7 +2815,7 @@ public class ClickGui extends Screen {
         }
 
         private int drawOptionBtn(GuiGraphics g, net.minecraft.client.gui.Font font,
-                int mx, int my, int bx, int by, String label, boolean active) {
+                                  int mx, int my, int bx, int by, String label, boolean active) {
             int bw = font.width(label) + 8;
             boolean hov = mx >= bx && mx <= bx + bw && my >= by && my < by + ROW_H;
             fillRoundRect(g, bx, by, bw, ROW_H, 2, active ? C_ON() : (hov ? C_HOVER() : C_OFF()));
@@ -2256,19 +2833,26 @@ public class ClickGui extends Screen {
             return s + "..";
         }
 
-        // ── contains ─────────────────────────────────────────────────────────
         @Override
         public boolean contains(int mx, int my) {
             int h = calcTotalHeight();
             return mx >= panelX - 2 && mx <= panelX + W + 2
-                && my >= panelY - 2 && my <= panelY + h + 2;
+                    && my >= panelY - 2 && my <= panelY + h + 2;
         }
 
-        // ── mouseClicked ─────────────────────────────────────────────────────
         @Override
         public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            // Header drag start
             if (mx >= panelX && mx <= panelX + W && my >= panelY && my <= panelY + HDR_H) {
+                net.minecraft.client.gui.Font f = Minecraft.getInstance().font;
+                int crQx = panelX + W - 10 - f.width("?") - 4;
+                if (mx >= crQx - 1 && mx <= crQx + f.width("?") + 3) {
+                    if ("chatrules".equals(helperTopic)) {
+                        helperTopic = null; helperTitle = null; helperScrollOffset = 0;
+                    } else {
+                        helperTopic = "chatrules"; helperTitle = "Chat Rules"; helperScrollOffset = 0;
+                    }
+                    return true;
+                }
                 dragging = true;
                 dragOffX = mx - panelX;
                 dragOffY = my - panelY;
@@ -2280,9 +2864,8 @@ public class ClickGui extends Screen {
             int aY  = addBtnY();
             int eY  = editY();
 
-            // ── List area ────────────────────────────────────────────────────
             if (mx >= panelX + PAD && mx <= panelX + W - PAD
-             && my >= lY && my < lY + lH) {
+                    && my >= lY && my < lY + lH) {
                 int ey = lY - scrollOffset;
                 List<String> rules = MacroConfig.chatRules;
                 for (int i = 0; i < rules.size(); i++) {
@@ -2304,15 +2887,14 @@ public class ClickGui extends Screen {
                 return true;
             }
 
-            // ── Add / Cancel button ──────────────────────────────────────────
             if (mx >= panelX + PAD && mx <= panelX + W - PAD
-             && my >= aY && my < aY + ROW_H) {
+                    && my >= aY && my < aY + ROW_H) {
                 if (editingIndex == -2) {
                     editingIndex = -1;
                 } else {
                     editingIndex      = -2;
-                    editName          = "";
-                    editMatchText     = "";
+                    tfName.value = ""; tfName.cursor = 0; tfName.clearSelection();
+                    tfMatch.value = ""; tfMatch.cursor = 0; tfMatch.clearSelection();
                     editMatchType     = com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains;
                     editCaseSensitive = false;
                     editEnabled       = true;
@@ -2321,27 +2903,23 @@ public class ClickGui extends Screen {
                 return true;
             }
 
-            // ── Edit panel ───────────────────────────────────────────────────
             if (!isEditing()) return true;
             int fx = panelX + PAD + 4;
             int fw = W - PAD * 2 - 8;
             int cy = eY + PAD;
 
-            // Name field
             int nfx = fx + 40;
             if (mx >= nfx && mx <= nfx + fw - 40 && my >= cy && my < cy + ROW_H) {
-                focusedField = 0; return true;
+                tfName.clearSelection(); tfMatch.clearSelection(); focusedField = 0; return true;
             }
             cy += ROW_H + PAD;
 
-            // Pattern field
             int mfx = fx + 52;
             if (mx >= mfx && mx <= mfx + fw - 52 && my >= cy && my < cy + ROW_H) {
-                focusedField = 1; return true;
+                tfName.clearSelection(); tfMatch.clearSelection(); focusedField = 1; return true;
             }
             cy += ROW_H + PAD;
 
-            // Options row
             {
                 net.minecraft.client.gui.Font f = net.minecraft.client.Minecraft.getInstance().font;
                 int ox = fx; int bw;
@@ -2369,7 +2947,6 @@ public class ClickGui extends Screen {
             }
             cy += ROW_H + PAD;
 
-            // Save / Cancel
             int hw = (fw - 4) / 2;
             if (mx >= fx && mx <= fx + hw && my >= cy && my < cy + ROW_H) {
                 saveRule(); return true;
@@ -2381,7 +2958,12 @@ public class ClickGui extends Screen {
             return true;
         }
 
-        // ── drag (called from handleMouseDragged) ────────────────────────────
+        private boolean hasPendingThemeChanges() {
+            if (activeLibraryIndex < 0 || activeLibraryIndex >= MacroConfig.savedThemes.size()) return false;
+            String[] sp = MacroConfig.savedThemes.get(activeLibraryIndex).split("\\|", 2);
+            return sp.length < 2 || !encodeTheme().equals(sp[1]);
+        }
+
         public void drag(int mx, int my) {
             if (!dragging) return;
             panelX = Math.max(0, Math.min(screenW - W, mx - dragOffX));
@@ -2394,9 +2976,8 @@ public class ClickGui extends Screen {
             com.ihanuat.mod.modules.ChatRuleManager.ChatRule rule =
                     new com.ihanuat.mod.modules.ChatRuleManager.ChatRule(
                             MacroConfig.chatRules.get(idx));
-            editName          = rule.name;
-            editMatchText     = rule.matchText;
-            // Map Regex to Contains if somehow a Regex rule was saved
+            tfName.value = rule.name; tfName.cursor = tfName.value.length(); tfName.clearSelection();
+            tfMatch.value = rule.matchText; tfMatch.cursor = tfMatch.value.length(); tfMatch.clearSelection();
             editMatchType = rule.matchType == com.ihanuat.mod.modules.ChatRuleManager.MatchType.Regex
                     ? com.ihanuat.mod.modules.ChatRuleManager.MatchType.Contains : rule.matchType;
             editCaseSensitive = rule.caseSensitive;
@@ -2406,10 +2987,10 @@ public class ClickGui extends Screen {
         }
 
         private void saveRule() {
-            if (editName.isBlank()) return;
-            String encoded = editName + "|" + editMatchType.name() + "|"
+            if (tfName.value.isBlank()) return;
+            String encoded = tfName.value + "|" + editMatchType.name() + "|"
                     + editCaseSensitive + "|true|"
-                    + editEnabled + "|" + editMatchText;
+                    + editEnabled + "|" + tfMatch.value;
             List<String> rules = MacroConfig.chatRules;
             if (editingIndex == -2)                                    rules.add(encoded);
             else if (editingIndex >= 0 && editingIndex < rules.size()) rules.set(editingIndex, encoded);
@@ -2427,21 +3008,15 @@ public class ClickGui extends Screen {
             if (!isEditing()) return false;
             if (key == 256) { editingIndex = -1; return true; }
             if (key == 257 || key == 335) { saveRule(); return true; }
-            if (key == 258) { focusedField = (focusedField + 1) % 2; return true; }
-            if (key == 259) {
-                if (focusedField == 0 && !editName.isEmpty())
-                    editName = editName.substring(0, editName.length() - 1);
-                else if (focusedField == 1 && !editMatchText.isEmpty())
-                    editMatchText = editMatchText.substring(0, editMatchText.length() - 1);
+            if (key == 258) {
+                tfName.clearSelection(); tfMatch.clearSelection();
+                focusedField = (focusedField + 1) % 2;
                 return true;
             }
-            if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) appendToFocused(clip.replace("\r", "").replace("\n", " "));
-                return true;
-            }
+            TextField _tf = focusedField == 0 ? tfName : tfMatch;
+            if (_tf.keyPressed(key, scan, mods, null)) return true;
             Character c = fallbackCharFromKey(key, scan, mods);
-            if (c != null) { appendToFocused(String.valueOf(c)); return true; }
+            if (c != null) { _tf.insert(String.valueOf(c)); return true; }
             return false;
         }
 
@@ -2449,16 +3024,13 @@ public class ClickGui extends Screen {
         public boolean charTyped(char c, int mods) {
             if (!isEditing()) return false;
             if (c == '\r' || c == '\n') return true;
-            appendToFocused(String.valueOf(c));
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
+            (focusedField == 0 ? tfName : tfMatch).insert(String.valueOf(c));
             return true;
         }
 
-        private void appendToFocused(String s) {
-            if (focusedField == 0) editName      += s;
-            else                   editMatchText += s;
-        }
-
-        @Override public void commit() {}
+        @Override public void commit() { tfName.clearSelection(); tfMatch.clearSelection(); }
     }
 
     static class ScriptSelectorEntry implements Entry {
@@ -2498,7 +3070,6 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, "Farm Script", x + 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
             String disp = displayName();
             int dw = font.width(disp);
-            // shrink if too long
             while (dw > w - font.width("Farm Script") - 20 && disp.length() > 4) {
                 disp = disp.substring(0, disp.length() - 1);
                 dw = font.width(disp + "..");
@@ -2602,13 +3173,12 @@ public class ClickGui extends Screen {
         void commit();
     }
 
-    // color picker sub-panel with R/G/B/A sliders
     static class ColorSubPanel implements SubPanel {
         final String label;
         int r, g, b, a;
         final Consumer<Integer> setter;
         final int x, y, w = 260, h = 110;
-        int draggingSlider = -1; // 0=R,1=G,2=B,3=A
+        int draggingSlider = -1;
         boolean editingHex = false;
         String hexBuffer = "";
         boolean cursorVisible = true;
@@ -2667,16 +3237,13 @@ public class ClickGui extends Screen {
             fillRoundRect(g2, x - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g2, x, y, w, h, 3, C_SPBG());
 
-            // label
             g2.drawString(font, label, x + 4, y + 4, C_TXT(), false);
 
-            // swatch
             int sw2 = 20;
             int sx = x + w - sw2 - 4, sy0 = y + 4;
             g2.fill(sx - 1, sy0 - 1, sx + sw2 + 1, sy0 + sw2 + 1, 0xFF555555);
             g2.fill(sx, sy0, sx + sw2, sy0 + sw2, packed());
 
-            // hex field — clickable to edit
             if (System.currentTimeMillis() - lastBlink > 500) {
                 cursorVisible = !cursorVisible;
                 lastBlink = System.currentTimeMillis();
@@ -2686,11 +3253,9 @@ public class ClickGui extends Screen {
             g2.fill(x + 4, y + 15, x + w - sw2 - 10, y + 27, C_SBGR());
             g2.fill(x + 4, y + 27, x + w - sw2 - 10, y + 28, editingHex ? C_ACC() : 0xFF333355);
             g2.drawString(font, hexDisplay, x + 6, y + 17, hexColor, false);
-            // small hint
             if (!editingHex)
                 g2.drawString(font, "click hex to edit", x + w - sw2 - 9 - font.width("click hex to edit"), y + 18, C_DIM(), false);
 
-            // R/G/B/A sliders
             int[] cols = {0xFFCC4444, 0xFF44CC44, 0xFF4444CC, 0xFFAAAAAA};
             String[] names = {"R", "G", "B", "A"};
             int bx = sliderBx(), bw2 = sliderBw();
@@ -2715,7 +3280,6 @@ public class ClickGui extends Screen {
 
         @Override
         public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            // click on hex field
             int sw2 = 20;
             if (mx >= x + 4 && mx <= x + w - sw2 - 10 && my >= y + 15 && my <= y + 28) {
                 editingHex = !editingHex;
@@ -2723,7 +3287,6 @@ public class ClickGui extends Screen {
                 return true;
             }
             editingHex = false;
-            // click on slider
             int bx = sliderBx(), bw2 = sliderBw();
             for (int i = 0; i < 4; i++) {
                 int sy = sliderSy(i);
@@ -2736,7 +3299,6 @@ public class ClickGui extends Screen {
             return true;
         }
 
-        // called from handleMouseDragged via activeSubPanel
         public void drag(int mx) {
             applyDrag(mx);
         }
@@ -2761,18 +3323,18 @@ public class ClickGui extends Screen {
                     editingHex = false;
                     return true;
                 }
+                if (key == 65 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) { hexBuffer = ""; return true; }
                 if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
                     String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
                     if (clip != null) hexBuffer += clip.replaceAll("[^0-9a-fA-F#]", "");
                     return true;
                 }
-                // GLFW fallback for typing since charTyped may not fire
                 Character c = fallbackCharFromKey(key, scan, mods);
                 if (c != null && (Character.isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
                     if (hexBuffer.length() < 8) hexBuffer += c;
                     return true;
                 }
-                return true; // swallow all keys while editing hex
+                return true;
             }
             return false;
         }
@@ -2813,16 +3375,121 @@ public class ClickGui extends Screen {
         }
     }
 
+    static class TextField {
+        String value;
+        int cursor = 0;
+        int selStart = -1, selEnd = -1;
+        boolean cursorVisible = true;
+        long lastBlink = System.currentTimeMillis();
+
+        TextField(String initial) { this.value = initial; this.cursor = initial.length(); }
+
+        boolean hasSelection() { return selStart >= 0 && selEnd >= 0 && selStart != selEnd; }
+        int selMin() { return Math.min(selStart, selEnd); }
+        int selMax() { return Math.max(selStart, selEnd); }
+        String selected() { return hasSelection() ? value.substring(selMin(), selMax()) : ""; }
+
+        void selectAll() { selStart = 0; selEnd = value.length(); cursor = value.length(); }
+        void clearSelection() { selStart = -1; selEnd = -1; }
+
+        void deleteSelection() {
+            if (!hasSelection()) return;
+            int lo = selMin(), hi = selMax();
+            value = value.substring(0, lo) + value.substring(hi);
+            cursor = lo;
+            clearSelection();
+        }
+
+        void insert(String s) {
+            if (hasSelection()) deleteSelection();
+            value = value.substring(0, cursor) + s + value.substring(cursor);
+            cursor += s.length();
+        }
+
+        void moveCursor(int pos) { cursor = Math.max(0, Math.min(value.length(), pos)); clearSelection(); }
+
+        boolean keyPressed(int key, int scan, int mods, java.util.function.Predicate<Character> charFilter) {
+            boolean ctrl = (mods & GLFW.GLFW_MOD_CONTROL) != 0;
+            if (key == 65 && ctrl) { selectAll(); return true; }
+            if (key == 67 && ctrl) {
+                String sel = hasSelection() ? selected() : value;
+                if (!sel.isEmpty()) Minecraft.getInstance().keyboardHandler.setClipboard(sel);
+                return true;
+            }
+            if (key == 86 && ctrl) {
+                String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
+                if (clip != null) insert(clip.replaceAll("[\\r\\n]", ""));
+                return true;
+            }
+            if (key == 259) {
+                if (hasSelection()) deleteSelection();
+                else if (cursor > 0) { value = value.substring(0, cursor - 1) + value.substring(cursor); cursor--; }
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_LEFT)  { moveCursor(cursor - 1); return true; }
+            if (key == GLFW.GLFW_KEY_RIGHT) { moveCursor(cursor + 1); return true; }
+            if (key == GLFW.GLFW_KEY_HOME)  { moveCursor(0); return true; }
+            if (key == GLFW.GLFW_KEY_END)   { moveCursor(value.length()); return true; }
+            return false;
+        }
+
+        boolean charTyped(char ch, java.util.function.Predicate<Character> filter) {
+            if (filter != null && !filter.test(ch)) return false;
+            insert(String.valueOf(ch));
+            return true;
+        }
+
+        void tickBlink() {
+            long now = System.currentTimeMillis();
+            if (now - lastBlink > 500) { cursorVisible = !cursorVisible; lastBlink = now; }
+        }
+
+        void render(GuiGraphics g, net.minecraft.client.gui.Font font, int fx, int fy, int fw, int fh) {
+            render(g, font, fx, fy, fw, fh, true);
+        }
+
+        void render(GuiGraphics g, net.minecraft.client.gui.Font font, int fx, int fy, int fw, int fh, boolean focused) {
+            if (focused) tickBlink();
+            g.fill(fx, fy, fx + fw, fy + fh, C_SBGR());
+            g.fill(fx, fy + fh - 1, fx + fw, fy + fh, focused ? C_ACC() : C_DIM());
+            int textY = fy + (fh - 8) / 2;
+            int textX = fx + 3;
+            int maxW = fw - 6;
+
+            String pre = value.substring(0, cursor);
+            int fullPreW = font.width(pre);
+            int scrollX = Math.max(0, fullPreW - maxW + 2);
+
+            g.enableScissor(fx, fy, fx + fw, fy + fh);
+
+            if (hasSelection()) {
+                int lo = selMin(), hi = selMax();
+                String sPre = value.substring(0, lo);
+                String sSel = value.substring(lo, hi);
+                int selX0 = textX + font.width(sPre) - scrollX;
+                int selX1 = selX0 + font.width(sSel);
+                g.fill(Math.max(fx, selX0), fy + 1, Math.min(fx + fw, selX1), fy + fh - 1, 0x664488FF);
+            }
+
+            MacroConfig.drawStyledText(g, font, value, textX - scrollX, textY, C_TXT());
+
+            if (focused && cursorVisible && !hasSelection()) {
+                int cx = textX + fullPreW - scrollX;
+                g.fill(cx, textY - 1, cx + 1, textY + 9, C_TXT());
+            }
+
+            g.disableScissor();
+        }
+    }
+
     static class StringInputSubPanel implements SubPanel {
         final String label;
-        String value;
+        final TextField tf;
         final String defaultValue;
         final Consumer<String> setter;
         final String placeholder;
         int w = -1;
         final int x, y, h = 50, screenW;
-        boolean cursorVisible = true;
-        long lastBlink = System.currentTimeMillis();
 
         StringInputSubPanel(int mx, int my, int sw, int sh, String label, String initial, Consumer<String> setter) {
             this(mx, my, sw, sh, label, initial, initial, setter, "");
@@ -2831,7 +3498,7 @@ public class ClickGui extends Screen {
             this(mx, my, sw, sh, label, initial, defaultVal, setter, "");
         }
         StringInputSubPanel(int mx, int my, int sw, int sh, String label, String initial, String defaultVal, Consumer<String> setter, String placeholder) {
-            this.label = label; this.value = initial; this.defaultValue = defaultVal;
+            this.label = label; this.tf = new TextField(initial); this.defaultValue = defaultVal;
             this.setter = setter; this.placeholder = placeholder == null ? "" : placeholder;
             this.screenW = sw; this.x = mx; this.y = Math.min(my, sh - h - 4);
         }
@@ -2853,14 +3520,12 @@ public class ClickGui extends Screen {
             fillRoundRect(g, rx, y, w, h, 3, C_SPBG());
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
             MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
-            g.fill(rx + 4, y + 20, rx + w - 4, y + 42, C_SBGR());
-            g.fill(rx + 4, y + 42, rx + w - 4, y + 43, C_ACC());
-            if (System.currentTimeMillis() - lastBlink > 500) { cursorVisible = !cursorVisible; lastBlink = System.currentTimeMillis(); }
-            if (value.isEmpty() && !placeholder.isEmpty()) {
+            if (tf.value.isEmpty() && !placeholder.isEmpty()) {
+                g.fill(rx + 4, y + 20, rx + w - 4, y + 42, C_SBGR());
+                g.fill(rx + 4, y + 42, rx + w - 4, y + 43, C_ACC());
                 MacroConfig.drawStyledText(g, font, placeholder, rx + 6, y + 26, C_DIM());
             } else {
-                String disp = value.length() > 38 ? value.substring(value.length() - 38) : value;
-                MacroConfig.drawStyledText(g, font, disp + (cursorVisible ? "|" : ""), rx + 6, y + 26, C_TXT());
+                tf.render(g, font, rx + 4, y + 20, w - 8, 22);
             }
         }
         @Override public boolean contains(int mx, int my) {
@@ -2868,42 +3533,44 @@ public class ClickGui extends Screen {
             int rx = rx(); return mx >= rx - 2 && mx <= rx + w + 2 && my >= y - 2 && my <= y + h + 2;
         }
         @Override public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            if (overReset(mx, my, font)) { value = defaultValue; commit(); }
+            if (overReset(mx, my, font)) { tf.value = defaultValue; tf.cursor = tf.value.length(); tf.clearSelection(); commit(); }
             return true;
         }
         @Override public void scroll(int dir) {}
         @Override public boolean keyPressed(int key, int scan, int mods) {
-            if (key == 259 && !value.isEmpty()) { value = value.substring(0, value.length() - 1); return true; }
             if (key == 257 || key == 335) { commit(); return true; }
-            if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) value += clip; return true;
-            }
-            Character c = fallbackCharFromKey(key, scan, mods);
-            if (c != null) { value += c; return true; }
+            if (key == 65 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            if (tf.keyPressed(key, 0, mods, null)) return true;
+            Character ch = fallbackCharFromKey(key, 0, mods);
+            if (ch != null) { tf.charTyped(ch, null); return true; }
             return false;
         }
-        @Override public boolean charTyped(char c, int mods) { value += c; return true; }
-        @Override public void commit() { setter.accept(value); }
+        @Override public boolean charTyped(char c, int mods) {
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
+            tf.charTyped(c, null); return true;
+        }
+        @Override public void commit() { tf.clearSelection(); setter.accept(tf.value); }
     }
 
     static class IntInputSubPanel implements SubPanel {
         final String label;
-        String raw;
+        final TextField tf;
         final String defaultRaw;
         final int min, max;
         final Consumer<Integer> setter;
         int w = -1;
         final int x, y, h = 50, screenW;
-        boolean cursorVisible = true;
-        long lastBlink = System.currentTimeMillis();
 
         IntInputSubPanel(int mx, int my, int sw, int sh, String label, int initial, String defaultVal, int min, int max, Consumer<Integer> setter) {
-            this.label = label; this.raw = String.valueOf(initial); this.defaultRaw = defaultVal;
+            this.label = label; this.tf = new TextField(String.valueOf(initial)); this.defaultRaw = defaultVal;
             this.min = min; this.max = max; this.setter = setter;
             this.screenW = sw; this.x = mx; this.y = Math.min(my, sh - h - 4);
         }
 
+        private java.util.function.Predicate<Character> intFilter() {
+            return ch -> Character.isDigit(ch) || (ch == '-' && tf.value.isEmpty() && !tf.hasSelection());
+        }
         private void ensureWidth(net.minecraft.client.gui.Font font) {
             if (w < 0) {
                 String range = min == Integer.MIN_VALUE ? "" : "[" + min + "-" + max + "]";
@@ -2926,73 +3593,57 @@ public class ClickGui extends Screen {
             String range = min == Integer.MIN_VALUE ? "" : "[" + min + "-" + max + "]";
             MacroConfig.drawStyledText(g, font, range, rx + w - font.width(range) - font.width("reset") - 18, y + 6, C_DIM());
             MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
-            g.fill(rx + 4, y + 20, rx + w - 4, y + 42, C_SBGR());
-            g.fill(rx + 4, y + 42, rx + w - 4, y + 43, C_ACC());
-            if (System.currentTimeMillis() - lastBlink > 500) { cursorVisible = !cursorVisible; lastBlink = System.currentTimeMillis(); }
-            MacroConfig.drawStyledText(g, font, raw + (cursorVisible ? "|" : ""), rx + 6, y + 26, C_TXT());
+            tf.render(g, font, rx + 4, y + 20, w - 8, 22);
         }
         @Override public boolean contains(int mx, int my) {
             if (w < 0) return false;
             int rx = rx(); return mx >= rx - 2 && mx <= rx + w + 2 && my >= y - 2 && my <= y + h + 2;
         }
         @Override public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            if (overReset(mx, my, font)) { raw = defaultRaw; commit(); }
+            if (overReset(mx, my, font)) { tf.value = defaultRaw; tf.cursor = tf.value.length(); tf.clearSelection(); commit(); }
             return true;
         }
         @Override public void scroll(int dir) {}
         @Override public boolean keyPressed(int key, int scan, int mods) {
-            if (key == 259 && !raw.isEmpty()) { raw = raw.substring(0, raw.length() - 1); return true; }
             if (key == 257 || key == 335) { commit(); return true; }
-            if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) for (char ch : clip.toCharArray()) charTyped(ch, 0);
-                return true;
-            }
-            if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) == 0) {
-                // Primary path: unshifted key name (works for QWERTY and numpad)
-                String name = org.lwjgl.glfw.GLFW.glfwGetKeyName(key, scan);
-                if (name != null && name.length() == 1) {
-                    char c = name.charAt(0);
-                    if (Character.isDigit(c) || (c == '-' && raw.isEmpty())) { raw += c; return true; }
-                }
-                // Fallback for layouts where digits require Shift (e.g. French/AZERTY):
-                // GLFW key codes 48-57 are the top-row digit keys 0-9 regardless of layout.
-                if ((mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) {
-                    char c = (char) key; // key code 48='0'...57='9'
-                    raw += c; return true;
-                }
-                // Numpad digits (GLFW_KEY_KP_0=320 .. GLFW_KEY_KP_9=329)
-                if (key >= 320 && key <= 329) {
-                    raw += (char)('0' + key - 320); return true;
-                }
+            if (tf.keyPressed(key, scan, mods, intFilter())) return true;
+            if ((mods & GLFW.GLFW_MOD_CONTROL) == 0) {
+                String name = GLFW.glfwGetKeyName(key, scan);
+                if (name != null && name.length() == 1) { tf.charTyped(name.charAt(0), intFilter()); return true; }
+                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) { tf.charTyped((char) key, intFilter()); return true; }
+                if (key >= 320 && key <= 329) { tf.charTyped((char)('0' + key - 320), intFilter()); return true; }
             }
             return false;
         }
         @Override public boolean charTyped(char c, int mods) {
-            if (Character.isDigit(c) || (c == '-' && raw.isEmpty())) { raw += c; return true; }
-            return false;
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            tf.charTyped(c, intFilter()); return true;
         }
         @Override public void commit() {
-            try { int v = Integer.parseInt(raw); setter.accept(min == Integer.MIN_VALUE ? v : Math.max(min, Math.min(max, v))); }
+            tf.clearSelection();
+            try { int v = Integer.parseInt(tf.value); setter.accept(min == Integer.MIN_VALUE ? v : Math.max(min, Math.min(max, v))); }
             catch (NumberFormatException ignored) {}
         }
     }
 
     static class DoubleInputSubPanel implements SubPanel {
         final String label;
-        String raw;
+        final TextField tf;
         final String defaultRaw;
         final Consumer<Double> setter;
         int w = -1;
         final int x, y, h = 50, screenW;
-        boolean cursorVisible = true;
-        long lastBlink = System.currentTimeMillis();
 
         DoubleInputSubPanel(int mx, int my, int sw, int sh, String label, double initial, String defaultVal, Consumer<Double> setter) {
-            this.label = label; this.raw = trimDouble(initial); this.defaultRaw = defaultVal;
+            this.label = label; this.tf = new TextField(trimDouble(initial)); this.defaultRaw = defaultVal;
             this.setter = setter; this.screenW = sw; this.x = mx; this.y = Math.min(my, sh - h - 4);
         }
 
+        private java.util.function.Predicate<Character> dblFilter() {
+            return ch -> Character.isDigit(ch)
+                    || (ch == '-' && tf.value.isEmpty() && !tf.hasSelection())
+                    || (ch == '.' && !tf.value.contains("."));
+        }
         private void ensureWidth(net.minecraft.client.gui.Font font) {
             if (w < 0) w = Math.max(200, font.width(label) + 80);
         }
@@ -3010,54 +3661,36 @@ public class ClickGui extends Screen {
             fillRoundRect(g, rx, y, w, h, 3, C_SPBG());
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
             MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
-            g.fill(rx + 4, y + 20, rx + w - 4, y + 42, C_SBGR());
-            g.fill(rx + 4, y + 42, rx + w - 4, y + 43, C_ACC());
-            if (System.currentTimeMillis() - lastBlink > 500) { cursorVisible = !cursorVisible; lastBlink = System.currentTimeMillis(); }
-            MacroConfig.drawStyledText(g, font, raw + (cursorVisible ? "|" : ""), rx + 6, y + 26, C_TXT());
+            tf.render(g, font, rx + 4, y + 20, w - 8, 22);
         }
         @Override public boolean contains(int mx, int my) {
             if (w < 0) return false;
             int rx = rx(); return mx >= rx - 2 && mx <= rx + w + 2 && my >= y - 2 && my <= y + h + 2;
         }
         @Override public boolean mouseClicked(int mx, int my, int btn, net.minecraft.client.gui.Font font) {
-            if (overReset(mx, my, font)) { raw = defaultRaw; commit(); }
+            if (overReset(mx, my, font)) { tf.value = defaultRaw; tf.cursor = tf.value.length(); tf.clearSelection(); commit(); }
             return true;
         }
         @Override public void scroll(int dir) {}
         @Override public boolean keyPressed(int key, int scan, int mods) {
-            if (key == 259 && !raw.isEmpty()) { raw = raw.substring(0, raw.length() - 1); return true; }
             if (key == 257 || key == 335) { commit(); return true; }
-            if (key == 86 && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
-                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) for (char ch : clip.toCharArray()) charTyped(ch, 0);
-                return true;
-            }
+            if (tf.keyPressed(key, scan, mods, dblFilter())) return true;
             if ((mods & GLFW.GLFW_MOD_CONTROL) == 0) {
                 String name = GLFW.glfwGetKeyName(key, scan);
-                if (name != null && name.length() == 1) {
-                    char c = name.charAt(0);
-                    if (Character.isDigit(c) || (c == '-' && raw.isEmpty()) || (c == '.' && !raw.contains("."))) { raw += c; return true; }
-                }
-                // French/AZERTY: Shift+numrow produces digits; GLFW key 48-57 = '0'-'9'
-                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) {
-                    raw += (char) key; return true;
-                }
-                if (key >= 320 && key <= 329) {
-                    raw += (char)('0' + key - 320); return true;
-                }
-                // Decimal point: numpad decimal (330) or period key
-                if ((key == 330 || key == 46) && !raw.contains(".")) {
-                    raw += '.'; return true;
-                }
+                if (name != null && name.length() == 1) { tf.charTyped(name.charAt(0), dblFilter()); return true; }
+                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && key >= 48 && key <= 57) { tf.charTyped((char) key, dblFilter()); return true; }
+                if (key >= 320 && key <= 329) { tf.charTyped((char)('0' + key - 320), dblFilter()); return true; }
+                if ((key == 330 || key == 46) && !tf.value.contains(".")) { tf.charTyped('.', dblFilter()); return true; }
             }
             return false;
         }
         @Override public boolean charTyped(char c, int mods) {
-            if (Character.isDigit(c) || (c == '-' && raw.isEmpty()) || (c == '.' && !raw.contains("."))) { raw += c; return true; }
-            return false;
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            tf.charTyped(c, dblFilter()); return true;
         }
         @Override public void commit() {
-            try { setter.accept(Double.parseDouble(raw)); } catch (NumberFormatException ignored) {}
+            tf.clearSelection();
+            try { setter.accept(Double.parseDouble(tf.value)); } catch (NumberFormatException ignored) {}
         }
         private static String trimDouble(double value) {
             String formatted = String.format("%.2f", value);
@@ -3077,7 +3710,20 @@ public class ClickGui extends Screen {
         boolean cursorVisible = true;
         long lastBlink = System.currentTimeMillis();
         int cursorIndex;
+        int selStart = -1, selEnd = -1;
         int scrollLine = 0;
+
+        boolean hasSelection() { return selStart >= 0 && selEnd >= 0 && selStart != selEnd; }
+        int selMin() { return Math.min(selStart, selEnd); }
+        int selMax() { return Math.max(selStart, selEnd); }
+        void clearSel() { selStart = -1; selEnd = -1; }
+        void deleteSelection() {
+            if (!hasSelection()) return;
+            int lo = selMin(), hi = selMax();
+            value.delete(lo, hi);
+            cursorIndex = lo;
+            clearSel();
+        }
 
         ListInputSubPanel(int mx, int my, int sw, int sh, String label, String defaultVal, List<String> initial, Consumer<List<String>> setter, String... hints) {
             this.label = label; this.setter = setter;
@@ -3093,7 +3739,6 @@ public class ClickGui extends Screen {
             if (w < 0) {
                 int base = font.width(label) + 60;
                 for (String hint : hints) base = Math.max(base, font.width(hint) + 20);
-                // Increase minimum width to 340 for better default text handling
                 w = Math.max(340, base);
             }
         }
@@ -3162,8 +3807,21 @@ public class ClickGui extends Screen {
             int caretLine = cursorLine(), caretCol = cursorColumn();
             for (int li = scrollLine; li < lines.size() && li < scrollLine + visible; li++) {
                 String line = lines.get(li);
+                if (hasSelection()) {
+                    int lo = selMin(), hi = selMax();
+                    int lineStart = lineStartIndex(li);
+                    int lineEnd = lineEndIndex(lineStart);
+                    int slo = Math.max(lo, lineStart), shi = Math.min(hi, lineEnd);
+                    if (slo < shi) {
+                        String pre = value.substring(lineStart, slo);
+                        String sel = value.substring(slo, shi);
+                        int sx0 = textLeft() + font.width(pre);
+                        int sx1 = sx0 + font.width(sel);
+                        g.fill(Math.max(textLeft(), sx0), drawY, Math.min(textRight(), sx1), drawY + font.lineHeight, 0x664488FF);
+                    }
+                }
                 MacroConfig.drawStyledText(g, font, line, textLeft(), drawY, C_TXT());
-                if (cursorVisible && li == caretLine) {
+                if (cursorVisible && li == caretLine && !hasSelection()) {
                     int caretX = textLeft() + font.width(line.substring(0, Math.min(caretCol, line.length())));
                     g.fill(caretX, drawY - 1, caretX + 1, drawY + font.lineHeight, C_TXT());
                 }
@@ -3198,6 +3856,7 @@ public class ClickGui extends Screen {
                 for (int i = 1; i <= textLine.length(); i++) { if (textLeft() + font.width(textLine.substring(0, i)) > clickedX) break; column = i; }
                 int ls = lineStartIndex(line);
                 cursorIndex = Math.min(ls + column, ls + textLine.length());
+                clearSel();
                 ensureCursorVisible(font);
             }
             return true;
@@ -3208,19 +3867,34 @@ public class ClickGui extends Screen {
         }
         @Override public boolean keyPressed(int key, int scan, int mods) {
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
-            if (key == GLFW.GLFW_KEY_SPACE) { insertText(" "); ensureCursorVisible(font); return true; }
-            if (key == 259 && value.length() > 0) {
-                if (cursorIndex > 0) { value.deleteCharAt(cursorIndex - 1); cursorIndex--; ensureCursorVisible(font); } return true;
+            if (key == GLFW.GLFW_KEY_SPACE) { if (hasSelection()) deleteSelection(); insertText(" "); ensureCursorVisible(font); return true; }
+            if (key == 259) {
+                if (hasSelection()) { deleteSelection(); ensureCursorVisible(font); }
+                else if (cursorIndex > 0) { value.deleteCharAt(cursorIndex - 1); cursorIndex--; ensureCursorVisible(font); }
+                return true;
             }
-            if (key == 261 && cursorIndex < value.length()) { value.deleteCharAt(cursorIndex); ensureCursorVisible(font); return true; }
-            if (key == 257 || key == 335) { insertText("\n"); ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_LEFT)  { moveCursorHorizontal(-1); ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_RIGHT) { moveCursorHorizontal(1);  ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_UP)    { moveCursorVertical(-1);   ensureCursorVisible(font); return true; }
-            if (key == GLFW.GLFW_KEY_DOWN)  { moveCursorVertical(1);    ensureCursorVisible(font); return true; }
+            if (key == 261) {
+                if (hasSelection()) { deleteSelection(); ensureCursorVisible(font); }
+                else if (cursorIndex < value.length()) { value.deleteCharAt(cursorIndex); ensureCursorVisible(font); }
+                return true;
+            }
+            if (key == 257 || key == 335) {
+                if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { commit(); }
+                else { if (hasSelection()) deleteSelection(); insertText("\n"); ensureCursorVisible(font); }
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_LEFT)  { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorHorizontal(-1); selEnd = cursorIndex; } else { clearSel(); moveCursorHorizontal(-1); } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_RIGHT) { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorHorizontal(1);  selEnd = cursorIndex; } else { clearSel(); moveCursorHorizontal(1);  } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_UP)    { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorVertical(-1);   selEnd = cursorIndex; } else { clearSel(); moveCursorVertical(-1);   } ensureCursorVisible(font); return true; }
+            if (key == GLFW.GLFW_KEY_DOWN)  { int prev = cursorIndex; if ((mods & GLFW.GLFW_MOD_SHIFT) != 0) { if (!hasSelection()) selStart = prev; moveCursorVertical(1);    selEnd = cursorIndex; } else { clearSel(); moveCursorVertical(1);    } ensureCursorVisible(font); return true; }
+            if (key == 67 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
+                String toCopy = hasSelection() ? value.substring(selMin(), selMax()) : value.toString();
+                Minecraft.getInstance().keyboardHandler.setClipboard(toCopy); return true;
+            }
             if (key == 86 && (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0) {
+                if (hasSelection()) deleteSelection();
                 String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-                if (clip != null) insertText(clip.replace("\r", "")); ensureCursorVisible(font); return true;
+                if (clip != null) { insertText(clip.replace("\r", "")); ensureCursorVisible(font); } return true;
             }
             Character c = fallbackCharFromKey(key, scan, mods);
             if (c != null) { insertText(String.valueOf(c)); ensureCursorVisible(font); return true; }
@@ -3228,9 +3902,13 @@ public class ClickGui extends Screen {
         }
         @Override public boolean charTyped(char c, int mods) {
             if (c == '\r') return true;
+            if ((mods & GLFW.GLFW_MOD_CONTROL) != 0) return true;
+            if ((mods & GLFW.GLFW_MOD_SHIFT) != 0 && c >= 128) return true;
+            if (hasSelection()) deleteSelection();
             insertText(String.valueOf(c)); ensureCursorVisible(Minecraft.getInstance().font); return true;
         }
         @Override public void commit() {
+            clearSel();
             List<String> values = new ArrayList<>();
             for (String line : value.toString().split("\\R")) { String t = line.trim(); if (!t.isEmpty()) values.add(t); }
             setter.accept(values);

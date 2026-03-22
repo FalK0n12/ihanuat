@@ -25,6 +25,7 @@ import com.ihanuat.mod.modules.RecoveryManager;
 import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
+import com.ihanuat.mod.modules.SuperCrafter;
 import com.ihanuat.mod.modules.VisitorManager;
 import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
@@ -54,32 +55,12 @@ public class IhanuatClient implements ClientModInitializer {
     private static boolean hasCheckedPersistenceOnJoin = false;
     private static boolean hasCheckedUpdate = false;
     private static long lastStashPickupTime = 0;
-    private static final long STASH_PICKUP_MIN_MS = 3300;
-    private static final long STASH_PICKUP_MAX_MS = 3700;
-    private static long currentStashPickupDelay = STASH_PICKUP_MIN_MS;
-    private static void refreshStashPickupDelay() {
-        currentStashPickupDelay = STASH_PICKUP_MIN_MS
-                + (long)(Math.random() * (STASH_PICKUP_MAX_MS - STASH_PICKUP_MIN_MS + 1));
-    }
+    private static final long STASH_PICKUP_DELAY_MS = 3300;
     private static long lastRewarpTime = 0;
     private static final long REWARP_COOLDOWN_MS = 5000;
 
     private static boolean isPickingUpStash = false;
-    private static boolean hasPendingStash = false;
     private static boolean lastScreenWasBoosterCookie = false;
-    /** Called by BoosterCookieManager when autosell completes, to arm the stash pickup. */
-    public static void armStashPickupAfterAutosell() {
-        if (!MacroConfig.autoStashManager) return;
-        if (!hasPendingStash) return;
-        hasPendingStash = false;
-        isPickingUpStash = true;
-        lastStashPickupTime = 0; // fire first command immediately
-        refreshStashPickupDelay();
-        if (MacroConfig.showDebug) {
-            ClientUtils.sendDebugMessage(Minecraft.getInstance(),
-                    "Stash pickup armed after autosell completed.");
-        }
-    }
     private static String lastScannedVisitorTitle = null;
     private static long lastUnexpectedRecoveryTriggerMs = 0;
     private static final long UNEXPECTED_RECOVERY_COOLDOWN_MS = 7000;
@@ -186,8 +167,6 @@ public class IhanuatClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) {
                 hasCheckedPersistenceOnJoin = false;
-                isPickingUpStash = false;
-                hasPendingStash = false;
 
                 // Failsafe: if macro is still marked active during an unexpected disconnect,
                 // force RECOVERING and ensure reconnect is scheduled.
@@ -459,14 +438,11 @@ public class IhanuatClient implements ClientModInitializer {
                 }
 
                 if (lowerText.contains("stashed away!")) {
-                    hasPendingStash = true;
-                    // Pickup is deliberately deferred — it arms after autosell completes,
-                    // not immediately, to avoid interfering with ongoing macro sequences.
+                    isPickingUpStash = true;
                 }
 
                 if (lowerText.contains("your stash isn't holding any items or materials!")) {
                     isPickingUpStash = false;
-                    hasPendingStash = false;
                 }
 
                 ProfitManager.handleChatMessage(message);
@@ -508,6 +484,10 @@ public class IhanuatClient implements ClientModInitializer {
         ClientSendMessageEvents.COMMAND.register((command) -> {
             if (command.equalsIgnoreCase("call george")) {
                 GeorgeManager.onCallGeorgeSent();
+            }
+            // Add this:
+            if (command.equalsIgnoreCase("testcraft")) {
+                SuperCrafter.startSuperCraft(Minecraft.getInstance());
             }
         });
 
@@ -628,6 +608,8 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.handleAnvilMenu(client, currentScreen);
                 if (client.screen == currentScreen)
                     JunkManager.handleInventoryMenu(client, currentScreen);
+                if (client.screen == currentScreen)
+                    SuperCrafter.handleRecipeGui(client, currentScreen);
             } else {
                 if (lastScreenWasBoosterCookie) {
                     BoosterCookieManager.onMenuClosed();
@@ -699,13 +681,10 @@ public class IhanuatClient implements ClientModInitializer {
 
             // Stash Pickup Logic
             if (MacroConfig.autoStashManager && isPickingUpStash && client.player != null) {
-                MacroState.State state = MacroStateManager.getCurrentState();
-                if (client.screen == null && state != MacroState.State.VISITING
-                    && state != MacroState.State.CLEANING && state != MacroState.State.SPRAYING) {
+                if (client.screen == null) {
                     long now = System.currentTimeMillis();
-                    if (now - lastStashPickupTime >= currentStashPickupDelay) {
+                    if (now - lastStashPickupTime >= STASH_PICKUP_DELAY_MS) {
                         lastStashPickupTime = now;
-                        refreshStashPickupDelay(); // compute delay for NEXT interval
                         client.player.connection.sendCommand("pickupstash");
                     }
                 }
