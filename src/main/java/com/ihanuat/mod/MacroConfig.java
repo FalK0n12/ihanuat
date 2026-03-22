@@ -78,6 +78,10 @@ public class MacroConfig {
     public static final int DEFAULT_REST_SCRIPTING_TIME_OFFSET = 3;
     public static final int DEFAULT_REST_BREAK_TIME = 20;
     public static final int DEFAULT_REST_BREAK_TIME_OFFSET = 3;
+    public static final boolean DEFAULT_SUPER_CRAFT_BEFORE_REST = false;
+    public static final java.util.List<String> DEFAULT_SUPER_CRAFT_CROPS = java.util.Arrays.asList(
+    "enchanted hay bale", "box of seeds", "mutant nether wart",
+    "enchanted baked potato", "enchanted golden carrot");
     public static final boolean DEFAULT_ENABLE_PLOT_TP_REWARP = false;
     public static final boolean DEFAULT_HOLD_W_UNTIL_WALL = false;
     public static final String DEFAULT_PLOT_TP_NUMBER = "0";
@@ -194,6 +198,8 @@ public class MacroConfig {
     // Dynamic Rest: break duration range (minutes)
     public static int restBreakTimeMin = DEFAULT_REST_BREAK_TIME - DEFAULT_REST_BREAK_TIME_OFFSET;
     public static int restBreakTimeMax = DEFAULT_REST_BREAK_TIME + DEFAULT_REST_BREAK_TIME_OFFSET;
+    public static boolean superCraftBeforeRest = DEFAULT_SUPER_CRAFT_BEFORE_REST;
+    public static java.util.List<String> superCraftCrops = new java.util.ArrayList<>(DEFAULT_SUPER_CRAFT_CROPS);
     public static boolean enablePlotTpRewarp = DEFAULT_ENABLE_PLOT_TP_REWARP;
     public static boolean holdWUntilWall = DEFAULT_HOLD_W_UNTIL_WALL;
     public static String plotTpNumber = DEFAULT_PLOT_TP_NUMBER;
@@ -509,6 +515,8 @@ public class MacroConfig {
         d.restScriptingTimeMax = restScriptingTimeMax;
         d.restBreakTimeMin = restBreakTimeMin;
         d.restBreakTimeMax = restBreakTimeMax;
+        d.superCraftBeforeRest = superCraftBeforeRest;
+        d.superCraftCrops = new java.util.ArrayList<>(superCraftCrops);
         d.enablePlotTpRewarp = enablePlotTpRewarp;
         d.holdWUntilWall = holdWUntilWall;
         d.plotTpNumber = plotTpNumber;
@@ -651,6 +659,8 @@ public class MacroConfig {
                 restBreakTimeMin = Math.max(1, d.restBreakTime - off);
                 restBreakTimeMax = d.restBreakTime + off;
             }
+            superCraftBeforeRest = d.superCraftBeforeRest;
+            if (d.superCraftCrops != null) superCraftCrops = new java.util.ArrayList<>(d.superCraftCrops);
             enablePlotTpRewarp = d.enablePlotTpRewarp;
             holdWUntilWall = d.holdWUntilWall;
             if (d.plotTpNumber != null) plotTpNumber = d.plotTpNumber;
@@ -837,6 +847,8 @@ public class MacroConfig {
         int restScriptingTimeMax = 0;
         int restBreakTimeMin = 0;
         int restBreakTimeMax = 0;
+        boolean superCraftBeforeRest = DEFAULT_SUPER_CRAFT_BEFORE_REST;
+        java.util.List<String> superCraftCrops = new java.util.ArrayList<>(DEFAULT_SUPER_CRAFT_CROPS);
         boolean enablePlotTpRewarp = DEFAULT_ENABLE_PLOT_TP_REWARP;
         boolean holdWUntilWall = DEFAULT_HOLD_W_UNTIL_WALL;
         String plotTpNumber = DEFAULT_PLOT_TP_NUMBER;

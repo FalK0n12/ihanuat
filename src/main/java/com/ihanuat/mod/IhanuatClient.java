@@ -25,6 +25,7 @@ import com.ihanuat.mod.modules.RecoveryManager;
 import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
+import com.ihanuat.mod.modules.SuperCrafter;
 import com.ihanuat.mod.modules.VisitorManager;
 import com.ihanuat.mod.modules.WardrobeManager;
 import com.ihanuat.mod.util.ClientUtils;
@@ -509,6 +510,10 @@ public class IhanuatClient implements ClientModInitializer {
             if (command.equalsIgnoreCase("call george")) {
                 GeorgeManager.onCallGeorgeSent();
             }
+            // Add this:
+            if (command.equalsIgnoreCase("testcraft")) {
+                SuperCrafter.startSuperCraft(Minecraft.getInstance());
+            }
         });
 
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
@@ -628,6 +633,8 @@ public class IhanuatClient implements ClientModInitializer {
                     BookCombineManager.handleAnvilMenu(client, currentScreen);
                 if (client.screen == currentScreen)
                     JunkManager.handleInventoryMenu(client, currentScreen);
+                if (client.screen == currentScreen)
+                    SuperCrafter.handleRecipeGui(client, currentScreen);
             } else {
                 if (lastScreenWasBoosterCookie) {
                     BoosterCookieManager.onMenuClosed();

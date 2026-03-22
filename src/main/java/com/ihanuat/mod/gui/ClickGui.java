@@ -694,6 +694,14 @@ public class ClickGui extends Screen {
             MacroConfig.showTotalToday = v;
             save();
         }));
+        p.add(toggle("Supercraft Before Rest", () -> MacroConfig.superCraftBeforeRest, v -> {
+            MacroConfig.superCraftBeforeRest = v;
+            save();
+        }));
+        p.add(listSetting("Supercraft Crops", "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
+                MacroConfig.superCraftCrops = new ArrayList<>(v);
+                save();
+        }));
         p.add(doubleField("Quit Threshold", "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
             save();

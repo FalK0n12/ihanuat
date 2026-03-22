@@ -17,6 +17,7 @@ public class PestReturnManager {
     public static int flightStopStage = 0;
     public static int flightStopTicks = 0;
 
+
     public static void resetState() {
         isReturningFromPestVisitor = false;
         isReturnToLocationActive = false;
@@ -38,13 +39,11 @@ public class PestReturnManager {
             try {
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
-                if (MacroConfig.unflyMode == MacroConfig.UnflyMode.DOUBLE_TAP_SPACE) {
-                    ClientUtils.sendDebugMessage(client, "Finisher: Performing unfly (Double Tap Space)...");
-                    performUnfly(client);
-                    MacroWorkerThread.sleep(150);
-                    if (MacroWorkerThread.shouldAbortTask(client))
-                        return;
-                }
+                ClientUtils.sendDebugMessage(client, "Finisher: Performing unfly ...");
+                performUnfly(client);
+                MacroWorkerThread.sleep(150);
+                if (MacroWorkerThread.shouldAbortTask(client))
+                    return;
 
                 int visitors = VisitorManager.getVisitorCount(client);
                 ClientUtils.sendDebugMessage(client, "Finisher: Visitor count check: " + visitors + " (Threshold: "
@@ -58,6 +57,7 @@ public class PestReturnManager {
                                         "\u00A7dVisitor Threshold Met (" + visitors + "). Warping to Garden..."),
                                 true);
                         com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                        performSneakUnfly(client);
                         MacroWorkerThread.sleep(250);
                     } else {
                         ClientUtils.sendDebugMessage(client, "Already in Garden, skipping /warp garden for visitors");
@@ -92,12 +92,12 @@ public class PestReturnManager {
                             "Finisher (Visitor): stability reached, transitioning to VISITING.");
                     ClientUtils.sendDebugMessage(client,
                             "Wardrobe swap done, now triggering visitor macro. Next state: VISITING");
+                    PestManager.isCleaningInProgress = false;
                     MacroStateManager.setCurrentState(MacroState.State.VISITING);
                     ClientUtils.sendDebugMessage(client, "Stopping script: Visitor threshold reached");
                     com.ihanuat.mod.util.CommandUtils.stopScript(client, 250);
                     ClientUtils.sendDebugMessage(client, "Starting visitor macro script");
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:visitor", 0);
-                    PestManager.isCleaningInProgress = false;
                     client.player.displayClientMessage(
                             Component.literal("§ePest cleaner finished (visitors)."), false);
                     return;
@@ -122,6 +122,7 @@ public class PestReturnManager {
 
                 ClientUtils.sendDebugMessage(client, "Finisher: Warping to garden (Return to Farm)...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
+                performSneakUnfly(client);
                 MacroWorkerThread.sleep(250);
                 if (MacroWorkerThread.shouldAbortTask(client))
                     return;
@@ -139,6 +140,7 @@ public class PestReturnManager {
                 ClientUtils.sendDebugMessage(client, "§6Failsafe: Warping to garden...");
                 com.ihanuat.mod.util.CommandUtils.warpGarden(client);
                 MacroWorkerThread.sleep(250);
+                try { performSneakUnfly(client); } catch (InterruptedException ignored) {}
                 client.execute(() -> {
                     GearManager.swapToFarmingTool(client);
                     com.ihanuat.mod.util.CommandUtils.startScript(client, MacroConfig.getFullRestartCommand(), 0);
@@ -162,8 +164,15 @@ public class PestReturnManager {
             while (isStoppingFlight && System.currentTimeMillis() < deadline) {
                 Thread.sleep(50);
             }
-        } else {
-            // SNEAK mode
+        }
+    }
+
+    private static void performSneakUnfly(Minecraft client) throws InterruptedException {
+        if (client.player == null)
+            return;
+
+        if (MacroConfig.unflyMode == MacroConfig.UnflyMode.SNEAK) {
+            Thread.sleep(50);
             client.execute(() -> {
                 if (client.options != null)
                     client.options.keyShift.setDown(true);
