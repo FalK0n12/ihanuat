@@ -1,12 +1,11 @@
-package com.ihanuat.mod.modules;
+package com.ihanuat.mod.modules.profitTracker;
 
 import com.ihanuat.mod.MacroConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.PlayerInfo;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -111,10 +110,10 @@ public class PetXpTracker {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_COLOR = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
-    private static java.util.Map<String, Long> lastPetXp = new java.util.HashMap<>();
-    private static java.util.Map<String, long[]> xpTableCache = new java.util.HashMap<>();
+    private static Map<String, Long> lastPetXp = new HashMap<>();
+    private static Map<String, long[]> xpTableCache = new HashMap<>();
 
-    private static final java.util.Map<String, Pattern> petNamePatternCache = new java.util.HashMap<>();
+    private static final Map<String, Pattern> petNamePatternCache = new HashMap<>();
 
     public static void reset() {
         lastPetXp.clear();
@@ -184,7 +183,7 @@ public class PetXpTracker {
         // Iterate through all tracked pets to find which one is active in tab list
         for (String petConfig : MacroConfig.petXpTrackedPets) {
             MacroConfig.PetInfo info = new MacroConfig.PetInfo(petConfig);
-            Pattern petNamePattern = petNamePatternCache.computeIfAbsent(info.name, k -> 
+            Pattern petNamePattern = petNamePatternCache.computeIfAbsent(info.name, k ->
                 Pattern.compile("\\[Lvl\\s*(\\d+)]\\s*" + Pattern.quote(k), Pattern.CASE_INSENSITIVE));
 
             for (int i = 0; i < tabLines.size(); i++) {

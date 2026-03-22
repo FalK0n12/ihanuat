@@ -12,7 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
-import com.ihanuat.mod.modules.ProfitManager;
+import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;

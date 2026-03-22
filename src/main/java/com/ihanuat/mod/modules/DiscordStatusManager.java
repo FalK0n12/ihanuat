@@ -2,6 +2,7 @@ package com.ihanuat.mod.modules;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
+import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 

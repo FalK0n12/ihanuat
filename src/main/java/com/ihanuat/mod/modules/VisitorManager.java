@@ -9,6 +9,7 @@ import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.MacroWorkerThread;
 import com.ihanuat.mod.util.ClientUtils;
+import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;

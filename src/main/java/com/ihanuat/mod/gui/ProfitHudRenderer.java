@@ -4,7 +4,7 @@ import java.util.Map;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
-import com.ihanuat.mod.modules.ProfitManager;
+import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 import com.ihanuat.mod.util.ClientUtils;
 import com.ihanuat.mod.MacroState;
 

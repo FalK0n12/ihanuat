@@ -19,7 +19,7 @@ import com.ihanuat.mod.modules.PestAotvManager;
 import com.ihanuat.mod.modules.PestManager;
 import com.ihanuat.mod.modules.PestPrepSwapManager;
 import com.ihanuat.mod.modules.PestReturnManager;
-import com.ihanuat.mod.modules.ProfitManager;
+import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 import com.ihanuat.mod.modules.QuitThresholdManager;
 import com.ihanuat.mod.modules.RecoveryManager;
 import com.ihanuat.mod.modules.RestartManager;

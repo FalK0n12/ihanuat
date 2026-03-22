@@ -19,7 +19,7 @@ public class MacroStateManager {
             lastSessionStartTime = 0;
         }
         sessionAccumulated = 0;
-        com.ihanuat.mod.modules.ProfitManager.reset();
+        com.ihanuat.mod.modules.profitTracker.ProfitManager.reset();
         com.ihanuat.mod.modules.DynamicRestManager.reset();
     }
 
@@ -84,7 +84,7 @@ public class MacroStateManager {
             lastSessionStartTime = System.currentTimeMillis();
             if (!MacroConfig.persistSessionTimer) {
                 sessionAccumulated = 0;
-                com.ihanuat.mod.modules.ProfitManager.reset();
+                com.ihanuat.mod.modules.profitTracker.ProfitManager.reset();
             }
             lastPeriodicSaveTime = System.currentTimeMillis();
             TodayTimeTracker.onMacroStart();
@@ -127,7 +127,7 @@ public class MacroStateManager {
         com.ihanuat.mod.modules.RecoveryManager.reset();
         if (!MacroConfig.persistSessionTimer) {
             com.ihanuat.mod.modules.DynamicRestManager.reset();
-            com.ihanuat.mod.modules.ProfitManager.reset();
+            com.ihanuat.mod.modules.profitTracker.ProfitManager.reset();
         }
         // pauseTimer already called by setCurrentState(OFF) above when persistSessionTimer=true
         ReconnectScheduler.cancel();
