@@ -58,6 +58,8 @@ public class ProfitHudRenderer {
 
     // ── Edit-mode render ──────────────────────────────────────────────────────
     public static void renderInEditMode(GuiGraphics g, Minecraft client) {
+        if (MacroConfig.guiOnlyInGarden && ClientUtils.getCurrentLocation(client) != MacroState.Location.GARDEN)
+            return;
         if (MacroConfig.showSessionProfitHud) render(g, client, "session", true);
         if (MacroConfig.showLifetimeHud)      render(g, client, "lifetime", true);
     }
@@ -68,6 +70,9 @@ public class ProfitHudRenderer {
     }
 
     public static boolean isHovered(double mouseX, double mouseY) {
+        Minecraft client = Minecraft.getInstance();
+        if (MacroConfig.guiOnlyInGarden && ClientUtils.getCurrentLocation(client) != MacroState.Location.GARDEN)
+            return false;
         if (MacroConfig.showSessionProfitHud && isHoveredInternal(mouseX, mouseY, "session")) return true;
         if (MacroConfig.showLifetimeHud      && isHoveredInternal(mouseX, mouseY, "lifetime")) return true;
         return false;

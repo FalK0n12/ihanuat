@@ -73,13 +73,15 @@ public class MacroHudRenderer {
 
     // ── Public API for ScreenEvents ──────────────────────────────────────────
     public static void renderInEditMode(GuiGraphics g, Minecraft client) {
-        if (!MacroConfig.showHud) return;
+        if (!MacroConfig.showHud || !shouldShow(client)) return;
         render(g, client, true);
     }
 
     public static boolean isInteracting() { return isDragging || isResizing; }
 
     public static boolean isHovered(double mouseX, double mouseY) {
+        Minecraft client = Minecraft.getInstance();
+        if (!shouldShow(client)) return false;
         float scale = MacroConfig.hudScale;
         double localX = (mouseX - MacroConfig.hudX) / scale;
         double localY = (mouseY - MacroConfig.hudY) / scale;
