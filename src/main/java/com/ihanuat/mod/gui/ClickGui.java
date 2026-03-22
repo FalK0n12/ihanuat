@@ -28,7 +28,7 @@ public class ClickGui extends Screen {
     }
 
     static int C_HDR() {
-        return MacroConfig.themePanelHeader | 0xFF000000;
+        return MacroConfig.themePanelHeader;
     }
 
     static int C_LINE() {
@@ -840,59 +840,59 @@ public class ClickGui extends Screen {
             MacroConfig.themeButtonHover = v;
             save();
         }));
-        p.add(colorEntry("HUD Background", () -> MacroConfig.toArgb(MacroConfig.hudBgColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Background", () -> MacroConfig.toArgb(MacroConfig.hudBgColor), v -> {
             MacroConfig.hudBgColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Accent", () -> MacroConfig.toArgb(MacroConfig.hudAccentColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Accent", () -> MacroConfig.toArgb(MacroConfig.hudAccentColor), v -> {
             MacroConfig.hudAccentColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Title", () -> MacroConfig.toArgb(MacroConfig.hudTitleColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Title", () -> MacroConfig.toArgb(MacroConfig.hudTitleColor), v -> {
             MacroConfig.hudTitleColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Label", () -> MacroConfig.toArgb(MacroConfig.hudLabelColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Label", () -> MacroConfig.toArgb(MacroConfig.hudLabelColor), v -> {
             MacroConfig.hudLabelColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Value", () -> MacroConfig.toArgb(MacroConfig.hudValueColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Value", () -> MacroConfig.toArgb(MacroConfig.hudValueColor), v -> {
             MacroConfig.hudValueColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Bar BG", () -> MacroConfig.toArgb(MacroConfig.hudBarBgColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Bar BG", () -> MacroConfig.toArgb(MacroConfig.hudBarBgColor), v -> {
             MacroConfig.hudBarBgColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD Bar Fill", () -> MacroConfig.toArgb(MacroConfig.hudBarFillColor), v -> {
+        p.add(colorEntryNoAlpha("HUD Bar Fill", () -> MacroConfig.toArgb(MacroConfig.hudBarFillColor), v -> {
             MacroConfig.hudBarFillColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Off", () -> MacroConfig.toArgb(MacroConfig.hudStateOffColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Off", () -> MacroConfig.toArgb(MacroConfig.hudStateOffColor), v -> {
             MacroConfig.hudStateOffColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Farm", () -> MacroConfig.toArgb(MacroConfig.hudStateFarmingColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Farm", () -> MacroConfig.toArgb(MacroConfig.hudStateFarmingColor), v -> {
             MacroConfig.hudStateFarmingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Clean", () -> MacroConfig.toArgb(MacroConfig.hudStateCleaningColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Clean", () -> MacroConfig.toArgb(MacroConfig.hudStateCleaningColor), v -> {
             MacroConfig.hudStateCleaningColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Rec", () -> MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Rec", () -> MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor), v -> {
             MacroConfig.hudStateRecoveringColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Visit", () -> MacroConfig.toArgb(MacroConfig.hudStateVisitingColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Visit", () -> MacroConfig.toArgb(MacroConfig.hudStateVisitingColor), v -> {
             MacroConfig.hudStateVisitingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Sell", () -> MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Sell", () -> MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor), v -> {
             MacroConfig.hudStateAutosellingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntry("HUD State Spray", () -> MacroConfig.toArgb(MacroConfig.hudStateSprayingColor), v -> {
+        p.add(colorEntryNoAlpha("HUD State Spray", () -> MacroConfig.toArgb(MacroConfig.hudStateSprayingColor), v -> {
             MacroConfig.hudStateSprayingColor = v & 0xFFFFFF;
             save();
         }));
@@ -981,7 +981,10 @@ public class ClickGui extends Screen {
     }
 
     private static ColorEntry colorEntry(String l, Supplier<Integer> g, Consumer<Integer> s) {
-        return new ColorEntry(l, g, s);
+        return new ColorEntry(l, g, s, true);
+    }
+    private static ColorEntry colorEntryNoAlpha(String l, Supplier<Integer> g, Consumer<Integer> s) {
+        return new ColorEntry(l, g, s, false);
     }
 
 
@@ -1770,11 +1773,16 @@ public class ClickGui extends Screen {
             if (!q.isEmpty() && filtered.isEmpty() && !title.toLowerCase().contains(q.toLowerCase())) return;
             boolean effectiveCollapsed = collapsed || (!q.isEmpty() && filtered.isEmpty());
             int totalH = effectiveCollapsed ? HEADER_H : HEADER_H + Math.min(contentHeight(q), visibleHeight());
-            fillRoundRect(g, x, y, PANEL_W, totalH, PANEL_RADIUS, C_BG());
             int hdrCol = effectiveCollapsed ? C_HDR() : brighten(C_HDR(), 0x101010);
+            boolean hdrTransparent = ((hdrCol >> 24) & 0xFF) < 255;
+            if (hdrTransparent) {
+                if (!effectiveCollapsed) g.fill(x, y + HEADER_H, x + PANEL_W, y + totalH, C_BG());
+            } else {
+                fillRoundRect(g, x, y, PANEL_W, totalH, PANEL_RADIUS, C_BG());
+            }
             fillRoundRect(g, x, y, PANEL_W, HEADER_H, PANEL_RADIUS, hdrCol);
-            if (!effectiveCollapsed) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, hdrCol);
-            g.fill(x + 2, y + HEADER_H - 1, x + PANEL_W - 2, y + HEADER_H, C_LINE());
+            if (!effectiveCollapsed && !hdrTransparent) g.fill(x, y + HEADER_H - PANEL_RADIUS, x + PANEL_W, y + HEADER_H, hdrCol);
+            if (!hdrTransparent) g.fill(x + 2, y + HEADER_H - 1, x + PANEL_W - 2, y + HEADER_H, C_LINE());
             int arrowLX = x + 5;
             int arrowW = font.width("v") + 4;
             MacroConfig.drawStyledText(g, font, effectiveCollapsed ? ">" : "v", arrowLX, y + HEADER_H / 2 - 4, C_DIM());
@@ -1786,7 +1794,7 @@ public class ClickGui extends Screen {
                 int hbx = x + PANEL_W - hlblW - 4;
                 boolean hbHov = mx >= hbx - 1 && mx <= hbx + hlblW + 3 && my >= y + 1 && my <= y + HEADER_H - 1;
                 boolean hbActive = title.equals(helperTitle);
-                if (hbHov || hbActive) fillRoundRect(g, hbx - 1, y + 3, hlblW + 3, HEADER_H - 6, 2, hbActive ? C_ON() : C_HOVER());
+                if (hbHov || hbActive) fillRoundRect(g, hbx, y + 3, hlblW + 2, HEADER_H - 6, 2, hbActive ? C_ON() : C_HOVER());
                 MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + HEADER_H / 2 - 4, hbActive || hbHov ? C_TXT() : C_DIM());
             }
             if (effectiveCollapsed) return;
@@ -1850,7 +1858,7 @@ public class ClickGui extends Screen {
                 String hlbl = "?";
                 int hlblW = font.width(hlbl);
                 int hbx = x + w - hlblW - 4;
-                if (hqActive || hqHov) fillRoundRect(g, hbx - 1, y + 3, hlblW + 3, h - 6, 2, hqActive ? C_ON() : C_HOVER());
+                if (hqActive || hqHov) fillRoundRect(g, hbx, y + 3, hlblW + 2, h - 6, 2, hqActive ? C_ON() : C_HOVER());
                 MacroConfig.drawStyledText(g, font, hlbl, hbx + 1, y + h / 2 - 4, hqActive || hqHov ? C_TXT() : C_DIM());
             }
             int secArrowW = font.width("v") + 4;
@@ -2142,11 +2150,13 @@ public class ClickGui extends Screen {
         final String label;
         final Supplier<Integer> getter;
         final Consumer<Integer> setter;
+        final boolean supportsAlpha;
 
         ColorEntry(String l, Supplier<Integer> g, Consumer<Integer> s) {
-            label = l;
-            getter = g;
-            setter = s;
+            this(l, g, s, true);
+        }
+        ColorEntry(String l, Supplier<Integer> g, Consumer<Integer> s, boolean supportsAlpha) {
+            label = l; getter = g; setter = s; this.supportsAlpha = supportsAlpha;
         }
 
         @Override
@@ -2168,7 +2178,7 @@ public class ClickGui extends Screen {
 
         @Override
         public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
-            return new ColorSubPanel(mx, my, sw, sh, label, getter.get(), setter);
+            return new ColorSubPanel(mx, my, sw, sh, label, getter.get(), setter, supportsAlpha);
         }
     }
 
@@ -3179,6 +3189,7 @@ public class ClickGui extends Screen {
         final String label;
         int r, g, b, a;
         final Consumer<Integer> setter;
+        final boolean supportsAlpha;
         final int x, y, w = 260, h = 110;
         int draggingSlider = -1;
         boolean editingHex = false;
@@ -3187,13 +3198,17 @@ public class ClickGui extends Screen {
         long lastBlink = System.currentTimeMillis();
 
         ColorSubPanel(int mx, int my, int sw, int sh, String label, int initial, Consumer<Integer> setter) {
+            this(mx, my, sw, sh, label, initial, setter, true);
+        }
+        ColorSubPanel(int mx, int my, int sw, int sh, String label, int initial, Consumer<Integer> setter, boolean supportsAlpha) {
+            this.supportsAlpha = supportsAlpha;
             this.label = label;
             this.setter = setter;
             a = (initial >> 24) & 0xFF;
             r = (initial >> 16) & 0xFF;
             g = (initial >> 8) & 0xFF;
             b = initial & 0xFF;
-            if (a == 0) a = 255;
+            if (a == 0 && r == 0 && g == 0 && b == 0) a = 255;
             this.x = Math.min(mx, sw - w - 4);
             this.y = Math.min(my, sh - h - 4);
         }
@@ -3261,7 +3276,7 @@ public class ClickGui extends Screen {
             int[] cols = {0xFFCC4444, 0xFF44CC44, 0xFF4444CC, 0xFFAAAAAA};
             String[] names = {"R", "G", "B", "A"};
             int bx = sliderBx(), bw2 = sliderBw();
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < (supportsAlpha ? 4 : 3); i++) {
                 int val = getChannel(i);
                 int sy = sliderSy(i);
                 g2.drawString(font, names[i], x + 4, sy + 1, cols[i], false);
@@ -3290,7 +3305,7 @@ public class ClickGui extends Screen {
             }
             editingHex = false;
             int bx = sliderBx(), bw2 = sliderBw();
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < (supportsAlpha ? 4 : 3); i++) {
                 int sy = sliderSy(i);
                 if (my >= sy && my <= sy + 10 && mx >= bx && mx <= bx + bw2) {
                     draggingSlider = i;
