@@ -66,11 +66,27 @@ public class BazaarService {
         if ("[Spray] Sprayonator".equals(itemName) || "Purse".equals(itemName)) {
             return 1.0;
         }
-        double price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
-        if (price == 0.0) {
-            price = bazaarPrices.getOrDefault(itemName, 0.0);
+        switch (MacroConfig.pricingMode) {
+            case INSTA_BUY: {
+                double live = bazaarPrices.getOrDefault(itemName, 0.0);
+                if (live > 0) return live;
+                return ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+            }
+            case INSTA_SELL: {
+                double sell = bazaarSellPrices.getOrDefault(itemName, 0.0);
+                if (sell > 0) return sell;
+                double buy = bazaarPrices.getOrDefault(itemName, 0.0);
+                if (buy > 0) return buy;
+                return ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+            }
+            default: { // NPC
+                double price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+                if (price == 0.0) {
+                    price = bazaarPrices.getOrDefault(itemName, 0.0);
+                }
+                return price;
+            }
         }
-        return price;
     }
 
     /**
