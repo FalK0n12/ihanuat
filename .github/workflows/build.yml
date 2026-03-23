@@ -29,30 +29,67 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      - name: Resolve Release Version
+        id: vars
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const content = fs.readFileSync('gradle.properties', 'utf8');
+            const match = content.match(/^mod_version\s*=\s*(.+)\s*$/m);
+            if (!match) {
+              core.setFailed('mod_version was not found in gradle.properties');
+              return;
+            }
+
+            const baseVersion = match[1].trim().replace(/^[vV]/, '');
+            const prefix = `${baseVersion}-r`;
+
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            let maxRevision = 0;
+            for (const release of releases) {
+              const tag = (release.tag_name || '').trim().replace(/^[vV]/, '');
+              if (!tag.startsWith(prefix)) continue;
+
+              const revision = Number.parseInt(tag.slice(prefix.length), 10);
+              if (Number.isInteger(revision) && revision > maxRevision) {
+                maxRevision = revision;
+              }
+            }
+
+            const releaseVersion = `${baseVersion}-r${maxRevision + 1}`;
+
+            core.setOutput('base_version', baseVersion);
+            core.setOutput('release_version', releaseVersion);
+            core.setOutput('release_tag', releaseVersion);
+
       - name: Build with Gradle
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x gradlew
-            ./gradlew build
+            ./gradlew build -Pmod_version=${{ steps.vars.outputs.release_version }}
           else
             echo "Gradle wrapper not found, using system gradle"
-            gradle build
+            gradle build -Pmod_version=${{ steps.vars.outputs.release_version }}
           fi
-
-      - name: Extract Variables
-        id: vars
-        run: |
-          echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-          echo "mod_version=$(grep 'mod_version' gradle.properties | cut -d'=' -f2 | tr -d '\r')" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'push'
         with:
-          tag_name: "build-${{ steps.vars.outputs.sha_short }}"
-          name: "${{ steps.vars.outputs.mod_version }} Automated Build"
+          tag_name: "${{ steps.vars.outputs.release_tag }}"
+          name: "${{ steps.vars.outputs.release_version }}"
           body: |
             ## Automated Build
+            Version: ${{ steps.vars.outputs.release_version }}
+            Base Version: ${{ steps.vars.outputs.base_version }}
             Commit: ${{ github.sha }}
             Branch: ${{ github.ref_name }}
             Message: ${{ github.event.head_commit.message }}
@@ -68,11 +105,11 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/build-${{ steps.vars.outputs.sha_short }}"
-          VERSION="${{ steps.vars.outputs.mod_version }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ steps.vars.outputs.release_tag }}"
+          VERSION="${{ steps.vars.outputs.release_version }}"
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           JAR_FILE=$(basename $(ls build/libs/*.jar | grep -v 'sources' | grep -v 'dev' | head -n 1))
-          JAR_URL="https://github.com/${{ github.repository }}/releases/download/build-${{ steps.vars.outputs.sha_short }}/$JAR_FILE"
+          JAR_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.release_tag }}/$JAR_FILE"
           
           printf -v DESC_VAR "A new build has been released! :rocket:\n\n**Commit Message:**\n%s" "$COMMIT_MSG"
           

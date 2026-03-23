@@ -127,29 +127,52 @@ public final class UpdateChecker {
     }
 
     // returns true if candidate is strictly newer than current using semver comparison
-    // e.g. isNewer("3.0.2", "3.0.1") = true, isNewer("3.0.1", "3.0.1") = false
+    // e.g. isNewer("3.0.0-r2", "3.0.0-r1") = true, isNewer("3.1.0-r1", "3.0.9-r9") = true
     static boolean isNewer(String candidate, String current) {
-        int[] c = parseSemver(candidate);
-        int[] v = parseSemver(current);
-        for (int i = 0; i < Math.max(c.length, v.length); i++) {
-            int a = i < c.length ? c[i] : 0;
-            int b = i < v.length ? v[i] : 0;
+        VersionParts candidateParts = parseVersion(candidate);
+        VersionParts currentParts = parseVersion(current);
+
+        for (int i = 0; i < Math.max(candidateParts.numbers.length, currentParts.numbers.length); i++) {
+            int a = i < candidateParts.numbers.length ? candidateParts.numbers[i] : 0;
+            int b = i < currentParts.numbers.length ? currentParts.numbers[i] : 0;
             if (a > b) return true;
             if (a < b) return false;
         }
-        return false;
+
+        return candidateParts.revision > currentParts.revision;
     }
 
-    private static int[] parseSemver(String version) {
-        if (version == null || version.isEmpty()) return new int[]{0};
-        // strip any pre-release suffix like -beta.1
-        String clean = version.split("-")[0].split("\\+")[0];
+    private static VersionParts parseVersion(String version) {
+        if (version == null || version.isEmpty()) return new VersionParts(new int[]{0}, 0);
+
+        String clean = version.split("\\+")[0];
+        int revision = 0;
+
+        int revisionMarker = clean.lastIndexOf("-r");
+        if (revisionMarker >= 0) {
+            String revisionPart = clean.substring(revisionMarker + 2);
+            try {
+                revision = Integer.parseInt(revisionPart);
+                clean = clean.substring(0, revisionMarker);
+            } catch (NumberFormatException ignored) {
+                // Leave revision at 0 if the suffix is malformed.
+            }
+        } else {
+            int suffixMarker = clean.indexOf('-');
+            if (suffixMarker >= 0) {
+                clean = clean.substring(0, suffixMarker);
+            }
+        }
+
         String[] parts = clean.split("\\.");
         int[] nums = new int[parts.length];
         for (int i = 0; i < parts.length; i++) {
             try { nums[i] = Integer.parseInt(parts[i]); }
             catch (NumberFormatException e) { nums[i] = 0; }
         }
-        return nums;
+        return new VersionParts(nums, revision);
+    }
+
+    private record VersionParts(int[] numbers, int revision) {
     }
 }
