@@ -1,6 +1,7 @@
 package com.ihanuat.mod.modules.profitTracker;
 
 import com.ihanuat.mod.MacroConfig;
+import com.ihanuat.mod.util.ClientUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -25,10 +26,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BazaarService {
 
     private static final Map<String, Double> bazaarPrices = new LinkedHashMap<>();
+    private static final Map<String, Double> bazaarSellPrices = new LinkedHashMap<>();
     private static final Map<String, Long> petLvl1Prices = new java.util.HashMap<>();
     private static final Map<String, Long> petMaxLvlPrices = new java.util.HashMap<>();
     private static final Map<String, String> idByNameCache = new ConcurrentHashMap<>();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final java.io.File BAZAAR_CACHE_FILE = net.fabricmc.loader.api.FabricLoader.getInstance()
+            .getConfigDir().resolve("ihanuat_bazaar_cache.json").toFile();
 
     private static long lastBazaarFetchTime = 0;
 
@@ -62,14 +66,54 @@ public class BazaarService {
         if ("[Spray] Sprayonator".equals(itemName) || "Purse".equals(itemName)) {
             return 1.0;
         }
-        double price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
-        if (price == 0.0) {
-            price = bazaarPrices.getOrDefault(itemName, 0.0);
+        switch (MacroConfig.pricingMode) {
+            case INSTA_BUY: {
+                double live = bazaarPrices.getOrDefault(itemName, 0.0);
+                if (live > 0) return live;
+                return ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+            }
+            case INSTA_SELL: {
+                double sell = bazaarSellPrices.getOrDefault(itemName, 0.0);
+                if (sell > 0) return sell;
+                double buy = bazaarPrices.getOrDefault(itemName, 0.0);
+                if (buy > 0) return buy;
+                return ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+            }
+            default: { // NPC
+                double price = ItemConstants.TRACKED_ITEMS.getOrDefault(itemName, 0.0);
+                if (price == 0.0) {
+                    price = bazaarPrices.getOrDefault(itemName, 0.0);
+                }
+                return price;
+            }
         }
-        return price;
+    }
+
+    /**
+     * Resolves the sell (insta-sell) price for a single unit of the given item.
+     * Falls back to buy price if no sell price is available.
+     */
+    public static double getItemSellPrice(String itemName) {
+        double sellPrice = bazaarSellPrices.getOrDefault(itemName, 0.0);
+        if (sellPrice > 0) {
+            return sellPrice;
+        }
+        return getItemPrice(itemName);
     }
 
     public static void startStartupPriceFetch() {
+        loadBazaarCache();
+
+        // Skip API fetch if cache is fresh (less than 1 hour old)
+        if (BAZAAR_CACHE_FILE.exists()) {
+            long ageMs = System.currentTimeMillis() - BAZAAR_CACHE_FILE.lastModified();
+            if (ageMs < 3600000L && !bazaarPrices.isEmpty()) {
+                debug("[Bazaar] Cache is " + (ageMs / 60000) + "m old, skipping API fetch");
+                lastBazaarFetchTime = System.currentTimeMillis();
+                return;
+            }
+        }
+
         fetchBazaarPrices();
     }
 
@@ -180,11 +224,21 @@ public class BazaarService {
     }
 
     private static void performFetchInternal(HttpClient client) {
+        long fetchStart = System.currentTimeMillis();
+        int totalItems = ItemConstants.BAZAAR_MAPPING.size();
+        int successCount = 0;
+        int failCount = 0;
+
+        debug("[Bazaar] Starting price fetch for " + totalItems + " items...");
+
         for (Map.Entry<String, String> entry : ItemConstants.BAZAAR_MAPPING.entrySet()) {
             String itemName = entry.getKey();
             String itemTag = entry.getValue();
 
             try {
+                // Rate-limit: wait 100ms between requests to avoid 429
+                Thread.sleep(100);
+
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("https://sky.coflnet.com/api/item/price/" + itemTag + "/current"))
                         .GET()
@@ -192,16 +246,41 @@ public class BazaarService {
 
                 HttpResponse<String> response = client.send(request,
                         HttpResponse.BodyHandlers.ofString());
+
+                // Retry once on 429 after a longer backoff
+                if (response.statusCode() == 429) {
+                    debug("[Bazaar] Rate-limited on " + itemName + ", retrying in 2s...");
+                    Thread.sleep(2000);
+                    response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                }
+
                 if (response.statusCode() == 200) {
                     BazaarApiResponse data = GSON.fromJson(response.body(), BazaarApiResponse.class);
                     if (data != null && data.buy > 0) {
                         bazaarPrices.put(itemName, data.buy);
+                        if (data.sell > 0) {
+                            bazaarSellPrices.put(itemName, data.sell);
+                        }
+                        successCount++;
+                    } else {
+                        debug("[Bazaar] No valid buy price for: " + itemName + " (tag=" + itemTag + ")");
+                        failCount++;
                     }
+                } else {
+                    debug("[Bazaar] HTTP " + response.statusCode() + " for: " + itemName + " (tag=" + itemTag + ")");
+                    failCount++;
                 }
             } catch (Exception e) {
-                System.err.println("Failed to fetch bazaar price for " + itemName + ": " + e.getMessage());
+                debug("[Bazaar] FAILED " + itemName + ": " + e.getMessage());
+                failCount++;
             }
         }
+
+        long elapsed = System.currentTimeMillis() - fetchStart;
+        debug("[Bazaar] Fetch complete: " + successCount + "/" + totalItems + " OK, "
+                + failCount + " failed, took " + elapsed + "ms");
+
+        saveBazaarCache();
         updateConfiguredPetXpPrices();
         ProfitManager.markAllHudDirty();
     }
@@ -296,8 +375,70 @@ public class BazaarService {
         }
     }
 
+    // ── Cache Persistence ─────────────────────────────────────────────────────
+
+    private static void saveBazaarCache() {
+        try (java.io.FileWriter writer = new java.io.FileWriter(BAZAAR_CACHE_FILE)) {
+            BazaarCacheData cacheData = new BazaarCacheData();
+            cacheData.buyPrices = new LinkedHashMap<>(bazaarPrices);
+            cacheData.sellPrices = new LinkedHashMap<>(bazaarSellPrices);
+            GSON.toJson(cacheData, writer);
+            debug("[Bazaar] Saved " + bazaarPrices.size() + " buy + " + bazaarSellPrices.size() + " sell prices to cache");
+        } catch (java.io.IOException e) {
+            debug("[Bazaar] Failed to save cache: " + e.getMessage());
+        }
+    }
+
+    private static void loadBazaarCache() {
+        if (!BAZAAR_CACHE_FILE.exists()) {
+            debug("[Bazaar] No cache file found, starting with empty prices");
+            return;
+        }
+        try (java.io.FileReader reader = new java.io.FileReader(BAZAAR_CACHE_FILE)) {
+            // BazaarCacheData buy + sell
+            BazaarCacheData cacheData = GSON.fromJson(reader, BazaarCacheData.class);
+            if (cacheData != null && cacheData.buyPrices != null) {
+                bazaarPrices.putAll(cacheData.buyPrices);
+                if (cacheData.sellPrices != null) {
+                    bazaarSellPrices.putAll(cacheData.sellPrices);
+                }
+                debug("[Bazaar] Loaded " + bazaarPrices.size() + " buy + " + bazaarSellPrices.size() + " sell prices from cache");
+                ProfitManager.markAllHudDirty();
+            } else {
+                // Fallback: Map<String, Double> for buy prices only
+                reader.close();
+                try (java.io.FileReader fallbackReader = new java.io.FileReader(BAZAAR_CACHE_FILE)) {
+                    java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, Double>>(){}.getType();
+                    Map<String, Double> cached = GSON.fromJson(fallbackReader, type);
+                    if (cached != null) {
+                        bazaarPrices.putAll(cached);
+                debug("[Bazaar] Loaded " + cached.size() + " cached prices from disk");
+                        ProfitManager.markAllHudDirty();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            debug("[Bazaar] Failed to load cache: " + e.getMessage());
+        }
+    }
+
+    // ── Debug Helper ──────────────────────────────────────────────────────────
+
+    private static void debug(String message) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc != null) {
+            ClientUtils.sendDebugMessage(mc, message);
+        }
+    }
+
     private static class BazaarApiResponse {
         double buy;
+        double sell;
+    }
+
+    private static class BazaarCacheData {
+        Map<String, Double> buyPrices;
+        Map<String, Double> sellPrices;
     }
 
     /** One entry from /api/auctions/tag/{tag}/active/overview */

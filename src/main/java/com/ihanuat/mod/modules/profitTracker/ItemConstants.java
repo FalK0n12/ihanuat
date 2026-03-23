@@ -22,9 +22,8 @@ public final class ItemConstants {
             "Pumpkin", "Enchanted Pumpkin", "Polished Pumpkin",
             "Sugar Cane", "Enchanted Sugar", "Enchanted Sugar Cane",
             "Cactus", "Enchanted Cactus Green", "Enchanted Cactus",
-            "Mushroom", "Red Mushroom", "Brown Mushroom",
-            "Enchanted Red Mushroom", "Enchanted Brown Mushroom",
-            "Enchanted Red Mushroom Block", "Enchanted Brown Mushroom Block",
+            "Red Mushroom", "Enchanted Red Mushroom", "Enchanted Red Mushroom Block",
+            "Brown Mushroom", "Enchanted Brown Mushroom", "Enchanted Brown Mushroom Block",
             "Cocoa Beans", "Enchanted Cocoa Beans", "Enchanted Cookie",
             "Nether Wart", "Enchanted Nether Wart", "Mutant Nether Wart",
             "Sunflower", "Enchanted Sunflower", "Compacted Sunflower",
@@ -42,7 +41,16 @@ public final class ItemConstants {
 
     public static final Set<String> PETS_SET = Set.of("Epic Slug", "Legendary Slug", "Rat");
 
-    public static final Set<String> MISC_DROPS_SET = Set.of("Cropie", "Squash", "Fermento", "Helianthus",
+    public static final Set<String> MISC_DROPS_SET = Set.of(
+            "Cropie", "Squash", "Fermento", "Helianthus",
+            "Ashwreath", "Choconut", "Dustgrain", "Gloomgourd", "Lonelily",
+            "Scourroot", "Shadevine", "Veilshroom", "Witherbloom", "Chocoberry",
+            "Cindershade", "Coalroot", "Creambloom", "Duskbloom", "Thornshade",
+            "Blastberry", "Cheesebite", "Chloronite", "Do-not-eat-shroom", "Fleshtrap",
+            "Magic Jellybean", "Noctilume", "Snoozling", "Soggybud", "Chorus Fruit",
+            "PlantBoy Advance", "Puffercloud", "Shellfruit", "Startlevine", "Stoplight Petal",
+            "Thunderling", "Turtlellini", "Zombud", "All-in Aloe", "Devourer",
+            "Glasscorn", "Godseed", "Jerryflower", "Phantomleaf", "Timestalk",
             "Tool EXP Capsule", "Pet XP", "Purse");
 
     public static final Set<String> BASE_CROPS = Set.of(
@@ -97,6 +105,21 @@ public final class ItemConstants {
             // Misc Drops
             Map.entry("Cropie", 25000.0), Map.entry("Squash", 75000.0), Map.entry("Fermento", 250000.0),
             Map.entry("Helianthus", 0.0), Map.entry("Tool EXP Capsule", 100000.0),
+
+            Map.entry("Ashwreath", 0.0), Map.entry("Choconut", 0.0), Map.entry("Dustgrain", 0.0),
+            Map.entry("Gloomgourd", 0.0), Map.entry("Lonelily", 0.0), Map.entry("Scourroot", 0.0),
+            Map.entry("Shadevine", 0.0), Map.entry("Veilshroom", 0.0), Map.entry("Witherbloom", 0.0),
+            Map.entry("Chocoberry", 0.0), Map.entry("Cindershade", 0.0), Map.entry("Coalroot", 0.0),
+            Map.entry("Creambloom", 0.0), Map.entry("Duskbloom", 0.0), Map.entry("Thornshade", 0.0),
+            Map.entry("Blastberry", 0.0), Map.entry("Cheesebite", 0.0), Map.entry("Chloronite", 0.0),
+            Map.entry("Do-not-eat-shroom", 0.0), Map.entry("Fleshtrap", 0.0),
+            Map.entry("Magic Jellybean", 0.0), Map.entry("Noctilume", 0.0), Map.entry("Snoozling", 0.0),
+            Map.entry("Soggybud", 0.0), Map.entry("Chorus Fruit", 0.0),
+            Map.entry("PlantBoy Advance", 0.0), Map.entry("Puffercloud", 0.0), Map.entry("Shellfruit", 0.0),
+            Map.entry("Startlevine", 0.0), Map.entry("Stoplight Petal", 0.0), Map.entry("Thunderling", 0.0),
+            Map.entry("Turtlellini", 0.0), Map.entry("Zombud", 0.0), Map.entry("All-in Aloe", 0.0),
+            Map.entry("Devourer", 0.0), Map.entry("Glasscorn", 0.0), Map.entry("Godseed", 0.0),
+            Map.entry("Jerryflower", 0.0), Map.entry("Phantomleaf", 0.0), Map.entry("Timestalk", 0.0),
             // Pet XP (price per XP point, derived from configured pet values)
             Map.entry("Pet XP", 0.0),
             Map.entry("Pest Shard", 0.0),
@@ -132,18 +155,76 @@ public final class ItemConstants {
             Map.entry("Purse", 1.0));
 
     public static final Map<String, String> BAZAAR_MAPPING = Map.ofEntries(
+
+            // Crops
+            Map.entry("Wheat", "WHEAT"), Map.entry("Enchanted Wheat", "ENCHANTED_WHEAT"), Map.entry("Enchanted Hay Bale", "ENCHANTED_HAY_BALE"),
+            Map.entry("Seeds", "SEEDS"), Map.entry("Enchanted Seeds", "ENCHANTED_SEEDS"), Map.entry("Box of Seeds", "BOX_OF_SEEDS"),
+            Map.entry("Potato", "POTATO_ITEM"), Map.entry("Enchanted Potato", "ENCHANTED_POTATO"), Map.entry("Enchanted Baked Potato", "ENCHANTED_BAKED_POTATO"),
+            Map.entry("Carrot", "CARROT_ITEM"), Map.entry("Enchanted Carrot", "ENCHANTED_CARROT"), Map.entry("Enchanted Golden Carrot", "ENCHANTED_GOLDEN_CARROT"),
+            Map.entry("Melon Slice", "MELON"), Map.entry("Enchanted Melon Slice", "ENCHANTED_MELON"), Map.entry("Enchanted Melon", "ENCHANTED_MELON_BLOCK"),
+            Map.entry("Pumpkin", "PUMPKIN"), Map.entry("Enchanted Pumpkin", "ENCHANTED_PUMPKIN"), Map.entry("Polished Pumpkin", "POLISHED_PUMPKIN"),
+            Map.entry("Sugar Cane", "SUGAR_CANE"), Map.entry("Enchanted Sugar", "ENCHANTED_SUGAR"), Map.entry("Enchanted Sugar Cane", "ENCHANTED_SUGAR_CANE"),
+            Map.entry("Cactus", "CACTUS"), Map.entry("Enchanted Cactus Green", "ENCHANTED_CACTUS_GREEN"), Map.entry("Enchanted Cactus", "ENCHANTED_CACTUS"),
+            Map.entry("Red Mushroom", "RED_MUSHROOM"), Map.entry("Enchanted Red Mushroom", "ENCHANTED_RED_MUSHROOM"), Map.entry("Enchanted Red Mushroom Block", "ENCHANTED_HUGE_MUSHROOM_2"),
+            Map.entry("Brown Mushroom", "BROWN_MUSHROOM"), Map.entry("Enchanted Brown Mushroom", "ENCHANTED_BROWN_MUSHROOM"), Map.entry("Enchanted Brown Mushroom Block", "ENCHANTED_HUGE_MUSHROOM_1"),
+            Map.entry("Cocoa Beans", "INK_SACK"), Map.entry("Enchanted Cocoa Beans", "ENCHANTED_COCOA"), Map.entry("Enchanted Cookie", "ENCHANTED_COOKIE"),
+            Map.entry("Nether Wart", "NETHER_STALK"), Map.entry("Enchanted Nether Wart", "ENCHANTED_NETHER_STALK"), Map.entry("Mutant Nether Wart", "MUTANT_NETHER_STALK"),
+            Map.entry("Sunflower", "DOUBLE_PLANT"), Map.entry("Enchanted Sunflower", "ENCHANTED_SUNFLOWER"), Map.entry("Compacted Sunflower", "COMPACTED_SUNFLOWER"),
+            Map.entry("Moonflower", "MOONFLOWER"), Map.entry("Enchanted Moonflower", "ENCHANTED_MOONFLOWER"), Map.entry("Compacted Moonflower", "COMPACTED_MOONFLOWER"),
+            Map.entry("Wild Rose", "WILD_ROSE"), Map.entry("Enchanted Wild Rose", "ENCHANTED_WILD_ROSE"), Map.entry("Compacted Wild Rose", "COMPACTED_WILD_ROSE"),
+    
+            // Pest Items
+            Map.entry("Beady Eyes", "BEADY_EYES"),
+            Map.entry("Chirping Stereo", "CHIRPING_STEREO"),
             Map.entry("Sunder VI Book", "ENCHANTMENT_SUNDER_6"),
+            Map.entry("Clipped Wings", "CLIPPED_WINGS"),
+            Map.entry("Bookworm's Favorite Book", "BOOKWORM_BOOK"),
+            Map.entry("Atmospheric Filter", "ATMOSPHERIC_FILTER"),
+            Map.entry("Wriggling Larva", "WRIGGLING_LARVA"),
             Map.entry("Pesterminator I Book", "ENCHANTMENT_PESTERMINATOR_1"),
+            Map.entry("Squeaky Toy", "SQUEAKY_TOY"),
+            Map.entry("Squeaky Mousemat", "SQUEAKY_MOUSEMAT"),
+            Map.entry("Fire in a Bottle", "FIRE_IN_A_BOTTLE"),
+            Map.entry("Vermin Vaporizer Chip", "VERMIN_VAPORIZER_GARDEN_CHIP"),
+            Map.entry("Mantid Claw", "MANTID_CLAW"),
+            Map.entry("Overclocker 3000", "OVERCLOCKER_3000"),
             Map.entry("Dung", "DUNG"),
             Map.entry("Honey Jar", "HONEY_JAR"),
             Map.entry("Plant Matter", "PLANT_MATTER"),
             Map.entry("Tasty Cheese", "CHEESE_FUEL"),
             Map.entry("Compost", "COMPOST"),
             Map.entry("Jelly", "JELLY"),
-            Map.entry("Helianthus", "HELIANTHUS"),
-            Map.entry("Vermin Vaporizer Chip", "VERMIN_VAPORIZER_GARDEN_CHIP"),
-            Map.entry("ENCHANTMENT_GREEN_THUMB_1", "ENCHANTMENT_GREEN_THUMB_1"),
             Map.entry("Pest Shard", "SHARD_PEST"),
+
+            //Misc
+            Map.entry("Cropie", "CROPIE"),
+            Map.entry("Squash", "SQUASH"),
+            Map.entry("Fermento", "FERMENTO"),
+            Map.entry("Helianthus", "HELIANTHUS"),
+            Map.entry("Ashwreath", "ASHWREATH"), Map.entry("Choconut", "CHOCONUT"),
+            Map.entry("Dustgrain", "DUSTGRAIN"), Map.entry("Gloomgourd", "GLOOMGOURD"),
+            Map.entry("Lonelily", "LONELILY"), Map.entry("Scourroot", "SCOURROOT"),
+            Map.entry("Shadevine", "SHADEVINE"), Map.entry("Veilshroom", "VEILSHROOM"),
+            Map.entry("Witherbloom", "WITHERBLOOM"), Map.entry("Chocoberry", "CHOCOBERRY"),
+            Map.entry("Cindershade", "CINDERSHADE"), Map.entry("Coalroot", "COALROOT"),
+            Map.entry("Creambloom", "CREAMBLOOM"), Map.entry("Duskbloom", "DUSKBLOOM"),
+            Map.entry("Thornshade", "THORNSHADE"), Map.entry("Blastberry", "BLASTBERRY"),
+            Map.entry("Cheesebite", "CHEESEBITE"), Map.entry("Chloronite", "CHLORONITE"),
+            Map.entry("Do-not-eat-shroom", "DO_NOT_EAT_SHROOM"), Map.entry("Fleshtrap", "FLESHTRAP"),
+            Map.entry("Magic Jellybean", "MAGIC_JELLYBEAN"), Map.entry("Noctilume", "NOCTILUME"),
+            Map.entry("Snoozling", "SNOOZLING"), Map.entry("Soggybud", "SOGGYBUD"),
+            Map.entry("Chorus Fruit", "CHORUS_FRUIT"), Map.entry("PlantBoy Advance", "PLANTBOY_ADVANCE"),
+            Map.entry("Puffercloud", "PUFFERCLOUD"), Map.entry("Shellfruit", "SHELLFRUIT"),
+            Map.entry("Startlevine", "STARTLEVINE"), Map.entry("Stoplight Petal", "STOPLIGHT_PETAL"),
+            Map.entry("Thunderling", "THUNDERLING"), Map.entry("Turtlellini", "TURTLELLINI"),
+            Map.entry("Zombud", "ZOMBUD"), Map.entry("All-in Aloe", "ALL_IN_ALOE"),
+            Map.entry("Devourer", "DEVOURER"), Map.entry("Glasscorn", "GLASSCORN"),
+            Map.entry("Godseed", "GODSEED"),
+            Map.entry("Phantomleaf", "PHANTOMLEAF"), Map.entry("Timestalk", "TIMESTALK"),
+
+            Map.entry("Tool EXP Capsule", "TOOL_EXP_CAPSULE"),
+            Map.entry("ENCHANTMENT_GREEN_THUMB_1", "ENCHANTMENT_GREEN_THUMB_1"),
+
             // Visitor / Rare Drops Mappings
             Map.entry("Overgrown Grass", "OVERGROWN_GRASS"),
             Map.entry("Flowering Bouqet", "FLOWERING_BOUQUET"),
@@ -178,6 +259,7 @@ public final class ItemConstants {
             Map.entry("Pet Cake", "PET_CAKE"),
             Map.entry("Fine Flour", "FINE_FLOUR"),
             Map.entry("Arachne Fragment", "ARACHNE_FRAGMENT"),
+
             // AH Items Mappings
             Map.entry("Biofuel", "BIOFUEL"),
             Map.entry("Farming Exp Boost", "PET_ITEM_FARMING_SKILL_BOOST_UNCOMMON"),
