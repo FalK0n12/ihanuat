@@ -656,6 +656,7 @@ public class ClickGui extends Screen {
             MacroConfig.compactProfitCalculator = v;
             save();
         }));
+        p.add(cycleEnum("Pricing Mode", MacroConfig.PricingMode.values(), () -> MacroConfig.pricingMode, v -> { MacroConfig.pricingMode = v; save(); }));
         p.add(listSetting("Pet XP List", "petXpTrackedPets", () -> MacroConfig.petXpTrackedPets,
                 v -> {
                     MacroConfig.petXpTrackedPets = new ArrayList<>(v);
