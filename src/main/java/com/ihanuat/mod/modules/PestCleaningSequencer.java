@@ -3,6 +3,7 @@ package com.ihanuat.mod.modules;
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroWorkerThread;
+import com.ihanuat.mod.modules.GearManager;
 import com.ihanuat.mod.util.ClientUtils;
 
 import net.minecraft.client.Minecraft;
@@ -74,8 +75,9 @@ public class PestCleaningSequencer {
                     if (MacroConfig.autoRodPestSpawn) {
                         ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn (Bonus inactive).");
                         RodManager.executeRodSequence(client);
+                        // Swap to farming tool after rod usage.
+                        GearManager.swapToFarmingTool(client);
                     }
-
                     com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
                     return;
                 }
@@ -198,6 +200,10 @@ public class PestCleaningSequencer {
             ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
             RodManager.executeRodSequence(client);
         }
+
+        // Swap to farming tool before starting pest cleaner script
+        GearManager.swapToFarmingTool(client);
+
         com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
     }
 }

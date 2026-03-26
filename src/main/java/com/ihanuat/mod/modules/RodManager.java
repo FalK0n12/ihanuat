@@ -2,6 +2,7 @@ package com.ihanuat.mod.modules;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.mixin.AccessorInventory;
+import com.ihanuat.mod.modules.GearManager;
 import com.ihanuat.mod.util.ClientUtils;
 
 import net.minecraft.client.Minecraft;
@@ -43,21 +44,15 @@ public class RodManager {
                 }
             }
 
-            int rodSlot = -1;
-            for (int i = 0; i < 9; i++) {
-                String rodItemName = client.player.getInventory().getItem(i).getHoverName().getString().toLowerCase();
-                if (rodItemName.contains("rod")) {
-                    rodSlot = i;
-                    break;
-                }
-            }
-
+            int rodSlot = findRodSlot(client);
             if (rodSlot == -1) {
                 client.player.displayClientMessage(Component.literal("\u00A7cRod not found in hotbar!"), true);
                 return;
             }
 
             client.player.displayClientMessage(Component.literal("\u00A7eExecuting Rod Swap sequence..."), true);
+            int previousSlot = ((AccessorInventory) client.player.getInventory()).getSelected();
+
 
             final int finalRodSlot = rodSlot;
             // 1. Select the slot
@@ -97,10 +92,30 @@ public class RodManager {
             // 5. Small buffer after click
             Thread.sleep(100);
 
+            // 6. Swap to farming tool
+            GearManager.swapToFarmingTool(client);
+
         } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
             isExecuting.set(false);
         }
+    }
+
+    /**
+     * Automatically finds a rod in the player's hotbar by checking item names.
+     * @param client Minecraft client
+     * @return slot index (0-8) if found, -1 if not found
+     */
+    private static int findRodSlot(Minecraft client) {
+        if (client.player == null) return -1;
+
+        for (int i = 0; i < 9; i++) {
+            String rodItemName = client.player.getInventory().getItem(i).getHoverName().getString().toLowerCase();
+            if (rodItemName.contains("rod")) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

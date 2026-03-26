@@ -122,6 +122,35 @@ public class ClientUtils {
         }
     }
 
+    public static void pressHotbarSlot(Minecraft client, int slotIndex) {
+        // slotIndex is 0-based (0..8), so first slot is 0
+        if (client == null || client.player == null || slotIndex < 0 || slotIndex > 8) {
+            if (client != null) sendDebugMessage(client, "pressHotbarSlot skipped: invalid args (" + slotIndex + ")");
+            return;
+        }
+
+        client.execute(() -> {
+            if (client.player == null) return;
+
+            int currentSlot = ((com.ihanuat.mod.mixin.AccessorInventory) client.player.getInventory()).getSelected();
+            if (currentSlot == slotIndex) {
+                sendDebugMessage(client, "pressHotbarSlot: already on slot " + slotIndex);
+                return;
+            }
+
+            ((com.ihanuat.mod.mixin.AccessorInventory) client.player.getInventory()).setSelected(slotIndex);
+
+            if (MacroConfig.showDebug) {
+                client.player.displayClientMessage(
+                        Component.literal("§epressHotbarSlot: selected slot " + (slotIndex + 1)),
+                        true);
+            }
+            sendDebugMessage(client, "pressHotbarSlot direct setSelected slot " + slotIndex);
+        });
+
+        MacroWorkerThread.sleep(60);
+    }
+
     public static MacroState.Location getCurrentLocation(Minecraft client) {
         if (client.level == null || client.player == null)
             return MacroState.Location.UNKNOWN;

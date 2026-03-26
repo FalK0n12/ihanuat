@@ -190,6 +190,7 @@ public class MacroConfig {
     public static int autosellClickDelay = DEFAULT_AUTOSELL_CLICK_DELAY;
     public static int equipmentSwapDelay = DEFAULT_EQUIPMENT_SWAP_DELAY;
     public static int rodSwapDelay = DEFAULT_ROD_SWAP_DELAY;
+    public static int postRodReturnDelay = 80; // ms delay after restoring slot
     public static int bookCombineDelay = DEFAULT_BOOK_COMBINE_DELAY;
     public static int wardrobePostSwapDelay = DEFAULT_WARDROBE_POST_SWAP_DELAY;
     public static int wardrobeAotvDelay = DEFAULT_WARDROBE_AOTV_DELAY;
@@ -499,6 +500,7 @@ public class MacroConfig {
         d.autosellClickDelay = autosellClickDelay;
         d.equipmentSwapDelay = equipmentSwapDelay;
         d.rodSwapDelay = rodSwapDelay;
+        d.postRodReturnDelay = postRodReturnDelay;
         d.bookCombineDelay = bookCombineDelay;
         d.wardrobePostSwapDelay = wardrobePostSwapDelay;
         d.wardrobeAotvDelay = wardrobeAotvDelay;
@@ -627,6 +629,7 @@ public class MacroConfig {
             autosellClickDelay = d.autosellClickDelay;
             equipmentSwapDelay = d.equipmentSwapDelay;
             rodSwapDelay = d.rodSwapDelay;
+            postRodReturnDelay = d.postRodReturnDelay;
             bookCombineDelay = d.bookCombineDelay;
             wardrobePostSwapDelay = Math.max(0, Math.min(2000, d.wardrobePostSwapDelay));
             wardrobeAotvDelay = Math.max(0, Math.min(1000, d.wardrobeAotvDelay));
@@ -815,6 +818,7 @@ public class MacroConfig {
         int autosellClickDelay = DEFAULT_AUTOSELL_CLICK_DELAY;
         int equipmentSwapDelay = DEFAULT_EQUIPMENT_SWAP_DELAY;
         int rodSwapDelay = DEFAULT_ROD_SWAP_DELAY;
+        int postRodReturnDelay = 80;
         int bookCombineDelay = DEFAULT_BOOK_COMBINE_DELAY;
         int wardrobePostSwapDelay = DEFAULT_WARDROBE_POST_SWAP_DELAY;
         int wardrobeAotvDelay = DEFAULT_WARDROBE_AOTV_DELAY;
