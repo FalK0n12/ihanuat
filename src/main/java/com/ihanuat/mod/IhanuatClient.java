@@ -446,7 +446,6 @@ public class IhanuatClient implements ClientModInitializer {
                 }
 
                 ProfitManager.handleChatMessage(message);
-                PestManager.handlePhillipMessage(Minecraft.getInstance(), text);
                 com.ihanuat.mod.modules.CropFeverManager.handleChatMessage(Minecraft.getInstance(), plainText);
 
                 com.ihanuat.mod.util.CommandUtils.onChatMessage(plainText);
@@ -486,7 +485,7 @@ public class IhanuatClient implements ClientModInitializer {
                 GeorgeManager.onCallGeorgeSent();
             }
             // Add this:
-            if (command.equalsIgnoreCase("testcraft")) {
+            if (command.equalsIgnoreCase("supercraft")) {
                 SuperCrafter.startSuperCraft(Minecraft.getInstance());
             }
         });

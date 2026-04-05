@@ -39,6 +39,8 @@ public class MacroConfig {
     public static final boolean DEFAULT_AUTO_ROD_PEST_CD = false;
     public static final boolean DEFAULT_AUTO_ROD_PEST_SPAWN = false;
     public static final boolean DEFAULT_AUTO_ROD_RETURN_TO_FARM = false;
+    public static final boolean DEFAULT_CALL_PHILLIP_FOR_BONUS = true;
+    public static final boolean DEFAULT_SPRAY_SINGLE_PLOT = false;
     public static final UnflyMode DEFAULT_UNFLY_MODE = UnflyMode.DOUBLE_TAP_SPACE;
     public static final boolean DEFAULT_AUTO_VISITOR = true;
     public static final boolean DEFAULT_AUTO_EQUIPMENT = true;
@@ -168,6 +170,8 @@ public class MacroConfig {
     public static boolean autoRodPestCd = DEFAULT_AUTO_ROD_PEST_CD;
     public static boolean autoRodPestSpawn = DEFAULT_AUTO_ROD_PEST_SPAWN;
     public static boolean autoRodReturnToFarm = DEFAULT_AUTO_ROD_RETURN_TO_FARM;
+    public static boolean callPhillipForBonus = DEFAULT_CALL_PHILLIP_FOR_BONUS;
+    public static boolean spraySinglePlot = DEFAULT_SPRAY_SINGLE_PLOT;
     public static UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
     public static boolean autoVisitor = DEFAULT_AUTO_VISITOR;
     public static boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;
@@ -479,6 +483,8 @@ public class MacroConfig {
         d.autoRodPestCd = autoRodPestCd;
         d.autoRodPestSpawn = autoRodPestSpawn;
         d.autoRodReturnToFarm = autoRodReturnToFarm;
+        d.callPhillipForBonus = callPhillipForBonus;
+        d.spraySinglePlot = spraySinglePlot;
         d.unflyMode = unflyMode;
         d.autoVisitor = autoVisitor;
         d.autoEquipment = autoEquipment;
@@ -609,6 +615,8 @@ public class MacroConfig {
             autoRodPestCd = d.autoRodPestCd;
             autoRodPestSpawn = d.autoRodPestSpawn;
             autoRodReturnToFarm = d.autoRodReturnToFarm;
+            callPhillipForBonus = d.callPhillipForBonus;
+            spraySinglePlot = d.spraySinglePlot;
             unflyMode = d.unflyMode != null ? d.unflyMode : DEFAULT_UNFLY_MODE;
             autoVisitor = d.autoVisitor;
             autoEquipment = d.autoEquipment;
@@ -799,6 +807,8 @@ public class MacroConfig {
         boolean autoRodPestCd = DEFAULT_AUTO_ROD_PEST_CD;
         boolean autoRodPestSpawn = DEFAULT_AUTO_ROD_PEST_SPAWN;
         boolean autoRodReturnToFarm = DEFAULT_AUTO_ROD_RETURN_TO_FARM;
+        boolean callPhillipForBonus = DEFAULT_CALL_PHILLIP_FOR_BONUS;
+        boolean spraySinglePlot = DEFAULT_SPRAY_SINGLE_PLOT;
         UnflyMode unflyMode = DEFAULT_UNFLY_MODE;
         boolean autoVisitor = DEFAULT_AUTO_VISITOR;
         boolean autoEquipment = DEFAULT_AUTO_EQUIPMENT;

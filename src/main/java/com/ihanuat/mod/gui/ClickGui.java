@@ -586,6 +586,14 @@ public class ClickGui extends Screen {
             MacroConfig.breakBlocksBeforeAotv = v;
             save();
         }));
+        p.add(toggle("Call Phillip for Bonus", () -> MacroConfig.callPhillipForBonus, v -> {
+            MacroConfig.callPhillipForBonus = v;
+            save();
+        }));
+        p.add(toggle("Spray Single Plot", () -> MacroConfig.spraySinglePlot, v -> {
+            MacroConfig.spraySinglePlot = v;
+            save();
+        }));
         p.add(slider("Roof Pitch", "aotvRoofPitch", 45, 90, () -> MacroConfig.aotvRoofPitch, v -> {
             MacroConfig.aotvRoofPitch = v;
             save();
