@@ -9,6 +9,8 @@ import net.minecraft.world.item.ItemStack;
 
 public class SprayonatorManager {
 
+    public static boolean needsSpraying = true;
+
     /**
      * Finds the Sprayonator in the player's hotbar by display name (anvil-renamed).
      *
@@ -88,5 +90,6 @@ public class SprayonatorManager {
         GearManager.swapToFarmingTool(client);
 
         ClientUtils.sendDebugMessage(client, "[SprayonatorManager] Spray complete.");
+        needsSpraying = false;
     }
 }

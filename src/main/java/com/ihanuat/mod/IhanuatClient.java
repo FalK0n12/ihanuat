@@ -25,6 +25,7 @@ import com.ihanuat.mod.modules.RecoveryManager;
 import com.ihanuat.mod.modules.RestartManager;
 import com.ihanuat.mod.modules.RodManager;
 import com.ihanuat.mod.modules.RotationManager;
+import com.ihanuat.mod.modules.SprayonatorManager;
 import com.ihanuat.mod.modules.SuperCrafter;
 import com.ihanuat.mod.modules.VisitorManager;
 import com.ihanuat.mod.modules.WardrobeManager;
@@ -302,6 +303,10 @@ public class IhanuatClient implements ClientModInitializer {
                 if (lowerPlainText.contains("script stopped") && lowerPlainText.contains("remote control")) {
                     MacroStateManager.stopMacro(Minecraft.getInstance());
                     return;
+                }
+
+                if (lowerPlainText.contains("the smell of")) {
+                    SprayonatorManager.needsSpraying = true;
                 }
 
                 boolean isPestCleanerFinishSignal = lowerPlainText.contains("pest cleaner")
