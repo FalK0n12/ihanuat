@@ -16,6 +16,7 @@ public class PestManager {
     private static final long PEST_REENTRY_COOLDOWN_MS = 30_000;
     private static final long DEFAULT_NO_PEST_RETURN_DELAY_MS = 10_000;
     private static long lastZeroPestTime = 0;
+    private static volatile boolean manualReturnArmed = false;
     private static volatile int predictedAliveCount = 0;
     private static volatile long lastChatSpawnUpdateMs = 0;
     private static volatile long pestReentryCooldownUntilMs = 0;
@@ -49,6 +50,7 @@ public class PestManager {
         isCleaningInProgress = false;
         currentInfestedPlot = null;
         lastZeroPestTime = 0;
+        manualReturnArmed = false;
         predictedAliveCount = 0;
         lastChatSpawnUpdateMs = 0;
         pestReentryCooldownUntilMs = 0;
@@ -92,8 +94,11 @@ public class PestManager {
         }
 
         if (currentState == MacroState.State.CLEANING) {
+            if (MacroConfig.manualPestClean && effectiveAlive > getReturnReadyPestCount()) {
+                manualReturnArmed = true;
+            }
 
-            if (effectiveAlive <= getReturnReadyPestCount()) {
+            if (effectiveAlive <= getReturnReadyPestCount() && (!MacroConfig.manualPestClean || manualReturnArmed)) {
                 if (lastZeroPestTime == 0) {
                     lastZeroPestTime = System.currentTimeMillis();
                 } else if (System.currentTimeMillis() - lastZeroPestTime > getNoPestReturnDelayMs()) {
@@ -110,6 +115,7 @@ public class PestManager {
             }
         } else {
             lastZeroPestTime = 0;
+            manualReturnArmed = false;
         }
 
         if (!MacroConfig.autoPestEnabled) {
