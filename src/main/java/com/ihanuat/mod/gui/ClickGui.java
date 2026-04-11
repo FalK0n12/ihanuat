@@ -1188,7 +1188,7 @@ public class ClickGui extends Screen {
             case "manualpest" -> new String[]{
                     "Manual Clean — Let the macro handle setup and movement, then stop before launching the pest cleaner script so you can clear pests manually.",
                     "Manual Ding — Play a local alert sound when Manual Clean reaches the point where you need to take over.",
-                    "Custom Sound — Optional local audio file path for the Manual Ding. If blank or invalid, the mod falls back to the system beep.",
+                    "Custom Sound — Optional local audio file for the Manual Ding. Put your file in config/ihanuat/sounds/ and enter the full filename with extension, for example ding.wav. You can also paste a full absolute file path. If blank or invalid, the mod falls back to the system beep.",
                     "Manual Return — How long the macro should wait after the pest count reaches your target before returning to garden in Manual Clean mode.",
                     "Rewarp At — Return to garden when the live pest count is at or below this number. Set it to 0 for full clears, or 1+ if you intentionally want to leave pests behind.",
             };
