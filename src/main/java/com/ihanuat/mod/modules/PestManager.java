@@ -71,6 +71,10 @@ public class PestManager {
         PestTabListParser.TabListData data = PestTabListParser.parseTabList(client);
         syncPredictedAliveFromTab(data.aliveCount);
         int effectiveAlive = getEffectiveAliveCount(data.aliveCount);
+        if (currentState == MacroState.State.CLEANING && MacroConfig.manualPestClean && data.aliveCount >= 0) {
+            predictedAliveCount = data.aliveCount;
+            effectiveAlive = data.aliveCount;
+        }
         
         // Update bonus status
         PestBonusManager.isBonusInactive = data.bonusFound;

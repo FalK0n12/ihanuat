@@ -205,6 +205,10 @@ public class PestCleaningSequencer {
                     triggerRodOnPestSpawn(client);
                 }
 
+                if (MacroConfig.manualPestClean && shouldDoAotv) {
+                    equipVacuumForManualClean(client);
+                }
+
                 if (MacroConfig.manualPestClean) {
                     ClientUtils.sendDebugMessage(client,
                             "Manual Pest Clean enabled; pausing after setup instead of starting pest cleaner script.");
@@ -333,6 +337,18 @@ public class PestCleaningSequencer {
             ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
             RodManager.executeRodSequence(client);
         }
+    }
+
+    private static void equipVacuumForManualClean(Minecraft client) {
+        int vacuumSlot = ClientUtils.findVacuumSlot(client);
+        if (vacuumSlot == -1) {
+            ClientUtils.sendDebugMessage(client, "Manual pest clean: no vacuum found in hotbar after AOTV.");
+            return;
+        }
+
+        final int targetSlot = vacuumSlot;
+        client.execute(() -> ((com.ihanuat.mod.mixin.AccessorInventory) client.player.getInventory()).setSelected(targetSlot));
+        ClientUtils.sendDebugMessage(client, "Manual pest clean: equipped vacuum in slot " + targetSlot + ".");
     }
 
     private static void playManualCleanAlert(Minecraft client) {
