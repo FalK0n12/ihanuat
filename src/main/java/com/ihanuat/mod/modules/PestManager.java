@@ -41,6 +41,10 @@ public class PestManager {
         return MacroConfig.manualPestClean ? MacroConfig.manualPestReturnDelay : DEFAULT_NO_PEST_RETURN_DELAY_MS;
     }
 
+    private static int getReturnReadyPestCount() {
+        return MacroConfig.manualPestClean ? MacroConfig.manualPestRewarpAt : 0;
+    }
+
     public static void reset() {
         isCleaningInProgress = false;
         currentInfestedPlot = null;
@@ -85,7 +89,7 @@ public class PestManager {
 
         if (currentState == MacroState.State.CLEANING) {
 
-            if (effectiveAlive <= 0) {
+            if (effectiveAlive <= getReturnReadyPestCount()) {
                 if (lastZeroPestTime == 0) {
                     lastZeroPestTime = System.currentTimeMillis();
                 } else if (System.currentTimeMillis() - lastZeroPestTime > getNoPestReturnDelayMs()) {

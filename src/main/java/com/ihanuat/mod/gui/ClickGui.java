@@ -378,11 +378,12 @@ public class ClickGui extends Screen {
         panels.add(delaysPanel(pos(saved, 1, nextPos)));
         panels.add(wardrobePanel(pos(saved, 2, nextPos)));
         panels.add(autoPestPanel(pos(saved, 3, nextPos)));
-        panels.add(profitPanel(pos(saved, 4, nextPos)));
-        panels.add(dynamicRestPanel(pos(saved, 5, nextPos)));
-        panels.add(qolPanel(pos(saved, 6, nextPos)));
-        panels.add(themePanel(pos(saved, 7, nextPos)));
-        panels.add(chatRulesPanel(pos(saved, 8, nextPos)));
+        panels.add(manualPestPanel(pos(saved, 4, nextPos)));
+        panels.add(profitPanel(pos(saved, 5, nextPos)));
+        panels.add(dynamicRestPanel(pos(saved, 6, nextPos)));
+        panels.add(qolPanel(pos(saved, 7, nextPos)));
+        panels.add(themePanel(pos(saved, 8, nextPos)));
+        panels.add(chatRulesPanel(pos(saved, 9, nextPos)));
     }
 
     private static int[] pos(int[][] saved, int i, Supplier<int[]> fallback) {
@@ -558,18 +559,6 @@ public class ClickGui extends Screen {
             MacroConfig.autoPestEnabled = v;
             save();
         }));
-        p.add(toggle("Manual Clean", () -> MacroConfig.manualPestClean, v -> {
-            MacroConfig.manualPestClean = v;
-            save();
-        }));
-        p.add(toggle("Manual Ding", () -> MacroConfig.manualPestAlertSound, v -> {
-            MacroConfig.manualPestAlertSound = v;
-            save();
-        }));
-        p.add(slider("Manual Return", "manualPestReturnDelay", 0, 10000, () -> MacroConfig.manualPestReturnDelay, v -> {
-            MacroConfig.manualPestReturnDelay = v;
-            save();
-        }, ""));
         p.add(slider("Threshold", "pestThreshold", 1, 8, () -> MacroConfig.pestThreshold, v -> {
             MacroConfig.pestThreshold = v;
             save();
@@ -626,6 +615,31 @@ public class ClickGui extends Screen {
         SectionEntry equipSection = new SectionEntry("Equipment Swap", "equipmentswap");
         equipSection.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> { MacroConfig.autoEquipment = v; save(); }));
         p.add(equipSection);
+        return p;
+    }
+
+    private Panel manualPestPanel(int[] pos) {
+        Panel p = makePanel("Manual Pest", pos);
+        p.add(toggle("Manual Clean", () -> MacroConfig.manualPestClean, v -> {
+            MacroConfig.manualPestClean = v;
+            save();
+        }));
+        p.add(toggle("Manual Ding", () -> MacroConfig.manualPestAlertSound, v -> {
+            MacroConfig.manualPestAlertSound = v;
+            save();
+        }));
+        p.add(textSetting("Custom Sound", "manualPestSoundPath", () -> MacroConfig.manualPestSoundPath, v -> {
+            MacroConfig.manualPestSoundPath = v;
+            save();
+        }));
+        p.add(slider("Manual Return", "manualPestReturnDelay", 0, 10000, () -> MacroConfig.manualPestReturnDelay, v -> {
+            MacroConfig.manualPestReturnDelay = v;
+            save();
+        }, ""));
+        p.add(slider("Rewarp At", "manualPestRewarpAt", 0, 8, () -> MacroConfig.manualPestRewarpAt, v -> {
+            MacroConfig.manualPestRewarpAt = v;
+            save();
+        }, ""));
         return p;
     }
 
@@ -1053,6 +1067,7 @@ public class ClickGui extends Screen {
             case "Auto Rod"          -> "autorod";
             case "Equipment & George" -> "equipmentgeorge";
             case "Auto Pest"         -> "autopest";
+            case "Manual Pest"       -> "manualpest";
             case "Auto Visitor"      -> "autovisitor";
             case "Auto Sell"         -> "autosell";
             case "Profit Calculator" -> "profitcalculator";
@@ -1064,7 +1079,7 @@ public class ClickGui extends Screen {
     private static boolean hasHelperTopic(String panelTitle) {
         return switch (panelTitle) {
             case "General", "Delays", "Dynamic Rest", "QOL", "Chat Rules",
-                 "Auto Rod", "Equipment & George", "Auto Pest", "Auto Visitor",
+                 "Auto Rod", "Equipment & George", "Auto Pest", "Manual Pest", "Auto Visitor",
                  "Auto Sell", "Profit Calculator", "Wardrobe Swap" -> true;
             default -> false;
         };
@@ -1080,6 +1095,7 @@ public class ClickGui extends Screen {
             case "Auto Rod"            -> "autorod";
             case "Equipment & George" -> "equipmentgeorge";
             case "Auto Pest"           -> "autopest";
+            case "Manual Pest"         -> "manualpest";
             case "Auto Visitor"        -> "autovisitor";
             case "Auto Sell"           -> "autosell";
             case "Wardrobe Swap"     -> "wardrobeswap";
@@ -1160,9 +1176,6 @@ public class ClickGui extends Screen {
             };
             case "autopest" -> new String[]{
                     "Enabled — Master switch for automatic pest handling. Turn this off to pause auto-starting pest runs while leaving the rest of the macro alone.",
-                    "Manual Clean — Let the macro handle setup and movement, then stop before launching the pest cleaner script so you can clear pests manually. Once pests are gone, it will warp back to garden and resume farming automatically.",
-                    "Manual Ding — Play a local alert sound when Manual Clean reaches the point where you need to take over.",
-                    "Manual Return — How long the macro should wait after pests reach zero before returning to garden in Manual Clean mode.",
                     "Threshold — Number of pests that must be present before the pest cleaner activates.",
                     "Trigger on Chat — Automatically start the pest cleaner when the pest spawning notification appears in chat.",
                     "Delay Crop Fever — Wait for Crop Fever to expire before clearing pests, so you don't lose the bonus.",
@@ -1171,6 +1184,13 @@ public class ClickGui extends Screen {
                     "Break Before AOTV — Break blocks in the way before firing the AOTV etherwarp to the roof.",
                     "Roof Pitch — How far upward (in degrees) to look when aiming the AOTV etherwarp at the roof.",
                     "Pitch Human. — Randomize the roof pitch slightly to appear more human-like.",
+            };
+            case "manualpest" -> new String[]{
+                    "Manual Clean — Let the macro handle setup and movement, then stop before launching the pest cleaner script so you can clear pests manually.",
+                    "Manual Ding — Play a local alert sound when Manual Clean reaches the point where you need to take over.",
+                    "Custom Sound — Optional local audio file path for the Manual Ding. If blank or invalid, the mod falls back to the system beep.",
+                    "Manual Return — How long the macro should wait after the pest count reaches your target before returning to garden in Manual Clean mode.",
+                    "Rewarp At — Return to garden when the live pest count is at or below this number. Set it to 0 for full clears, or 1+ if you intentionally want to leave pests behind.",
             };
             case "autovisitor" -> new String[]{
                     "Auto-Visitor — Automatically handle visitors that appear on your farm.",
@@ -1671,7 +1691,7 @@ public class ClickGui extends Screen {
     }
 
     private void savePanelPositions() {
-        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Pest", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
+        String[] order = {"General", "Delays", "Wardrobe Swap", "Auto Pest", "Manual Pest", "Profit Calculator", "Dynamic Rest", "QOL", "Theme", "Chat Rules"};
         int[][] positions = new int[order.length][3];
         for (int i = 0; i < order.length; i++)
             for (Panel p : panels)
