@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - main
+      - manual-pest-farming
     paths-ignore:
       - 'README.md'
       - '.gitignore'
@@ -46,7 +47,11 @@ jobs:
             }
 
             const baseVersion = match[1].trim().replace(/^[vV]/, '');
-            const prefix = `${baseVersion}-r`;
+            const branchName = context.ref.replace('refs/heads/', '');
+            const isManualTestingBranch = branchName === 'manual-pest-farming';
+            const prefix = isManualTestingBranch
+              ? `${baseVersion}-manual-r`
+              : `${baseVersion}-r`;
 
             const releases = await github.paginate(github.rest.repos.listReleases, {
               owner: context.repo.owner,
@@ -70,6 +75,8 @@ jobs:
             core.setOutput('base_version', baseVersion);
             core.setOutput('release_version', releaseVersion);
             core.setOutput('release_tag', releaseVersion);
+            core.setOutput('is_prerelease', isManualTestingBranch ? 'true' : 'false');
+            core.setOutput('make_latest', isManualTestingBranch ? 'false' : 'true');
 
       - name: Build with Gradle
         run: |
@@ -97,8 +104,8 @@ jobs:
             Message: ${{ github.event.head_commit.message }}
           files: build/libs/*.jar
           draft: false
-          prerelease: false
-          make_latest: true
+          prerelease: ${{ steps.vars.outputs.is_prerelease }}
+          make_latest: ${{ steps.vars.outputs.make_latest }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
