@@ -1,6 +1,7 @@
 name: Build and Release
 
 on:
+  pull_request:
   push:
     branches:
       - master
@@ -72,13 +73,14 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew build -Pmod_version=${{ steps.vars.outputs.release_version }}
-          else
-            echo "Gradle wrapper not found, using system gradle"
-            gradle build -Pmod_version=${{ steps.vars.outputs.release_version }}
-          fi
+          chmod +x gradlew
+          ./gradlew build --no-daemon -Pmod_version=${{ steps.vars.outputs.release_version }}
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ihanuat-${{ steps.vars.outputs.release_version }}
+          path: build/libs/*.jar
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

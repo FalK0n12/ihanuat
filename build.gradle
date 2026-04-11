@@ -59,3 +59,8 @@ java {
 if (file('local.gradle').exists()) {
     apply from: 'local.gradle'
 }
+
+tasks.named('wrapper', Wrapper) {
+    gradleVersion = '9.3.1'
+    distributionType = Wrapper.DistributionType.BIN
+}
