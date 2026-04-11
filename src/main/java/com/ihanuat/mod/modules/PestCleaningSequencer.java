@@ -159,6 +159,7 @@ public class PestCleaningSequencer {
                     return;
 
                 ClientUtils.sendDebugMessage(client, "Bonus inactive flag: " + PestBonusManager.isBonusInactive);
+                boolean rodHandledForSpawn = false;
 
                 if (PestBonusManager.isBonusInactive) {
                     client.player.displayClientMessage(
@@ -180,6 +181,7 @@ public class PestCleaningSequencer {
                         RodManager.executeRodSequence(client);
                         // Swap to farming tool after rod usage.
                         GearManager.swapToFarmingTool(client);
+                        rodHandledForSpawn = true;
                     }
                 }
 
@@ -197,6 +199,10 @@ public class PestCleaningSequencer {
                 } else {
                     // AOTV off: always /tptoplot, even on same plot
                     warpToInfestedPlotIfNeeded(client, currentInfestedPlot, false);
+                }
+
+                if (!rodHandledForSpawn) {
+                    triggerRodOnPestSpawn(client);
                 }
 
                 if (MacroConfig.manualPestClean) {
@@ -315,15 +321,18 @@ public class PestCleaningSequencer {
         com.ihanuat.mod.util.CommandUtils.stopScript(client, 50);
 
         ClientUtils.sendDebugMessage(client, "Starting pest cleaner script for plot " + currentInfestedPlot);
-        if (MacroConfig.autoRodPestSpawn) {
-            ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
-            RodManager.executeRodSequence(client);
-        }
 
         // Swap to farming tool before starting pest cleaner script
         GearManager.swapToFarmingTool(client);
 
         com.ihanuat.mod.util.CommandUtils.startScript(client, ".ez-startscript misc:pestCleaner", 0);
+    }
+
+    private static void triggerRodOnPestSpawn(Minecraft client) {
+        if (MacroConfig.autoRodPestSpawn) {
+            ClientUtils.sendDebugMessage(client, "Auto Rod: Triggering rod cast on pest spawn.");
+            RodManager.executeRodSequence(client);
+        }
     }
 
     private static void playManualCleanAlert(Minecraft client) {
