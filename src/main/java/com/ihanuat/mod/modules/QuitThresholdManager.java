@@ -159,7 +159,7 @@ public class QuitThresholdManager {
 
     private static String buildTotalProfitStr() {
         long total = ProfitManager.getTotalProfit("session");
-        return compactCoins(total);
+        return ProfitManager.formatChineseCoins(total);
     }
 
     private static String buildAvgProfitPerHourStr() {
@@ -168,25 +168,9 @@ public class QuitThresholdManager {
         long totalProfit = ProfitManager.getTotalProfit("session");
         double hours = sessionMs / 3_600_000.0;
         long cph = (long) (totalProfit / hours);
-        return compactCoins(cph);
+        return ProfitManager.formatChineseCoins(cph);
     }
 
-    private static String compactCoins(long value) {
-        if (value < 0) return "-" + compactCoins(-value);
-        if (value >= 1_000_000_000L) {
-            String s = String.format("%.1fb", value / 1_000_000_000.0);
-            return s.endsWith(".0b") ? s.replace(".0b", "b") : s;
-        }
-        if (value >= 1_000_000L) {
-            String s = String.format("%.1fm", value / 1_000_000.0);
-            return s.endsWith(".0m") ? s.replace(".0m", "m") : s;
-        }
-        if (value >= 1_000L) {
-            String s = String.format("%.1fk", value / 1_000.0);
-            return s.endsWith(".0k") ? s.replace(".0k", "k") : s;
-        }
-        return String.valueOf(value);
-    }
 
     private static void sendSessionDoneWebhookAsync(Minecraft client, String farmedTime) {
         if (MacroConfig.discordWebhookUrl == null || MacroConfig.discordWebhookUrl.isBlank()) return;

@@ -210,6 +210,19 @@ public class ProfitManager {
 
     // ── Chat Delegation ──────────────────────────────────────────────────────
 
+    public static String formatChineseCoins(long value) {
+        if (value < 0) return "-" + formatChineseCoins(-value);
+        if (value >= 100_000_000L) {
+            String s = String.format("%.1f亿", value / 100_000_000.0);
+            return s.endsWith(".0亿") ? s.replace(".0亿", "亿") : s;
+        }
+        if (value >= 10_000L) {
+            String s = String.format("%.1f万", value / 10_000.0);
+            return s.endsWith(".0万") ? s.replace(".0万", "万") : s;
+        }
+        return String.format("%,d", value);
+    }
+
     public static void handleChatMessage(Component component) {
         ChatParser.handleChatMessage(component);
     }
