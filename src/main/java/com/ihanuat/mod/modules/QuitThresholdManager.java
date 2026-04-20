@@ -37,23 +37,40 @@ public class QuitThresholdManager {
 
     public static void resetThreshold() {
         triggered = false;
+        if (usesDailyTimer()) {
+            TodayTimeTracker.resetToday();
+            return;
+        }
         accumulatedMs = 0L;
         lastStartMs = MacroStateManager.isMacroRunning() ? System.currentTimeMillis() : 0L;
         persistState(getTrackedElapsedMs());
     }
 
     public static void syncFromConfig() {
+        if (usesDailyTimer()) {
+            accumulatedMs = 0L;
+            lastStartMs = 0L;
+            lastPeriodicSaveTime = System.currentTimeMillis();
+            return;
+        }
         accumulatedMs = Math.max(0L, MacroConfig.quitThresholdAccumulatedMs);
         lastStartMs = MacroStateManager.isMacroRunning() ? System.currentTimeMillis() : 0L;
         lastPeriodicSaveTime = System.currentTimeMillis();
     }
 
     public static void onMacroStart() {
+        if (usesDailyTimer()) {
+            lastPeriodicSaveTime = System.currentTimeMillis();
+            return;
+        }
         if (lastStartMs == 0L) lastStartMs = System.currentTimeMillis();
         lastPeriodicSaveTime = System.currentTimeMillis();
     }
 
     public static void onMacroPause() {
+        if (usesDailyTimer()) {
+            return;
+        }
         if (lastStartMs != 0L) {
             accumulatedMs += Math.max(0L, System.currentTimeMillis() - lastStartMs);
             lastStartMs = 0L;
@@ -75,7 +92,7 @@ public class QuitThresholdManager {
         if (MacroConfig.quitThresholdHours <= 0) return;
 
         long now = System.currentTimeMillis();
-        if (now - lastPeriodicSaveTime > 60_000L) {
+        if (!usesDailyTimer() && now - lastPeriodicSaveTime > 60_000L) {
             lastPeriodicSaveTime = now;
             persistState(getTrackedElapsedMs());
         }
@@ -88,8 +105,15 @@ public class QuitThresholdManager {
     }
 
     private static long getTrackedElapsedMs() {
+        if (usesDailyTimer()) {
+            return TodayTimeTracker.getTodayMs();
+        }
         if (lastStartMs == 0L) return accumulatedMs;
         return accumulatedMs + Math.max(0L, System.currentTimeMillis() - lastStartMs);
+    }
+
+    public static boolean usesDailyTimer() {
+        return MacroConfig.quitAfterSessionLength;
     }
 
     private static void persistState(long valueMs) {

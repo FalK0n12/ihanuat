@@ -781,6 +781,11 @@ public class ClickGui extends Screen {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
             save();
         }, "hr"));
+        p.add(toggle(tr("Reset Timer At 00:00", "在 00:00 重置计时器"), () -> MacroConfig.quitAfterSessionLength, v -> {
+            MacroConfig.quitAfterSessionLength = v;
+            com.ihanuat.mod.modules.QuitThresholdManager.syncFromConfig();
+            save();
+        }));
         p.add(button(tr("Reset Quit Timer", "重置退出计时器"), () -> {
             com.ihanuat.mod.modules.QuitThresholdManager.resetThreshold();
             notifyMsg(tr("Quit timer reset!", "退出计时器已重置！"));
@@ -1142,8 +1147,9 @@ public class ClickGui extends Screen {
                     "Break Min/Max — Randomly pick a break (disconnect) duration in this minute range.",
                     "Show Daily Total — Display today's active farming time in the HUD.",
                     "Show Total Farmed — Display lifetime active farming time in the HUD.",
-                    "Quit Threshold — Stop the macro when the dedicated quit timer exceeds this many hours (0 = off).",
-                    "Reset Quit Timer — Clear the dedicated quit timer back to zero.",
+                    "Quit Threshold — Stop the macro when the selected quit timer exceeds this many hours (0 = off).",
+                    "Reset Timer At 00:00 — Use today's farming timer for quit threshold checks and reset it automatically at 00:00. Off = keep using the dedicated quit timer.",
+                    "Reset Quit Timer — Clear whichever quit timer mode is currently active.",
                     "Force Quit MC — Fully close Minecraft when the quit threshold is hit.",
             };
             case "qol" -> new String[]{

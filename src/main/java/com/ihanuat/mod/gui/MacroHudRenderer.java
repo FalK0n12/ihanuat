@@ -217,7 +217,10 @@ public class MacroHudRenderer {
                           : quitRemainingMs < 1_800_000L ? MacroConfig.toArgb(MacroConfig.hudStateCleaningColor)
                           : valueColor;
             }
-            drawRow(g, client, rowY, tr("quit in", "退出倒计时"), quitStr, quitColor, labelColor);
+            String quitLabel = QuitThresholdManager.usesDailyTimer()
+                    ? tr("quit in", "退出倒计时")
+                    : tr("quit in", "退出倒计时");
+            drawRow(g, client, rowY, quitLabel, quitStr, quitColor, labelColor);
             rowY += ROW_HEIGHT;
         }
 
