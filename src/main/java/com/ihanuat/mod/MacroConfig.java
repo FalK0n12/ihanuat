@@ -261,6 +261,7 @@ public class MacroConfig {
     public static double quitThresholdHours = DEFAULT_QUIT_THRESHOLD_HOURS;
     public static boolean forceQuitMinecraft = DEFAULT_FORCE_QUIT_MINECRAFT;
     public static boolean quitAfterSessionLength = DEFAULT_QUIT_AFTER_SESSION_LENGTH;
+    public static long quitThresholdAccumulatedMs = 0;
     public static Language language = Language.ENGLISH;
     public static java.util.List<String> petXpTrackedPets = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
     // Legacy field kept only for backward compatibility with older config files.
@@ -600,6 +601,7 @@ public class MacroConfig {
         d.quitThresholdHours = quitThresholdHours;
         d.forceQuitMinecraft = forceQuitMinecraft;
         d.quitAfterSessionLength = quitAfterSessionLength;
+        d.quitThresholdAccumulatedMs = quitThresholdAccumulatedMs;
         d.language = language;
         d.petXpTrackedPets = new java.util.ArrayList<>(petXpTrackedPets);
         d.petTrackerList = new java.util.ArrayList<>(petTrackerList);
@@ -752,6 +754,7 @@ public class MacroConfig {
             quitThresholdHours = Math.max(0.0, d.quitThresholdHours);
             forceQuitMinecraft = d.forceQuitMinecraft;
             quitAfterSessionLength = d.quitAfterSessionLength;
+            quitThresholdAccumulatedMs = Math.max(0L, d.quitThresholdAccumulatedMs);
             language = d.language != null ? d.language : Language.ENGLISH;
             if (d.petXpTrackedPets != null) petXpTrackedPets = new java.util.ArrayList<>(d.petXpTrackedPets);
             if (d.petTrackerList != null) petTrackerList = new java.util.ArrayList<>(d.petTrackerList);
@@ -946,6 +949,7 @@ public class MacroConfig {
         double quitThresholdHours = DEFAULT_QUIT_THRESHOLD_HOURS;
         boolean forceQuitMinecraft = DEFAULT_FORCE_QUIT_MINECRAFT;
         boolean quitAfterSessionLength = DEFAULT_QUIT_AFTER_SESSION_LENGTH;
+        long quitThresholdAccumulatedMs = 0;
         Language language = Language.ENGLISH;
         java.util.List<String> petXpTrackedPets = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);
         java.util.List<String> petTrackerList = new java.util.ArrayList<>(DEFAULT_PET_TRACKER_LIST);

@@ -1,5 +1,6 @@
 package com.ihanuat.mod.modules;
 
+import com.ihanuat.mod.I18n;
 import com.ihanuat.mod.MacroConfig;
 import net.minecraft.client.Minecraft;
 
@@ -163,7 +164,7 @@ public class ChatRuleManager {
 
     private static void sendTextWebhook(String webhookUrl, String ruleName, String fullMessage) throws Exception {
         String contentText = "||@here||";
-        String embedTitle  = "Chat Alert: " + ruleName;
+        String embedTitle  = I18n.tr("Chat Alert: ", "聊天提醒：") + ruleName;
         String payload = "{"
                 + "\"content\":\"" + jsonEscape(contentText) + "\","
                 + "\"embeds\":[{"

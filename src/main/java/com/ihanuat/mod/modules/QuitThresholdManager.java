@@ -27,6 +27,9 @@ public class QuitThresholdManager {
 
     private static final int EMBED_COLOR_SESSION_DONE = 0x57F287;
     private static volatile boolean triggered = false;
+    private static volatile long accumulatedMs = 0L;
+    private static volatile long lastStartMs = 0L;
+    private static volatile long lastPeriodicSaveTime = 0L;
 
     public static void reset() {
         triggered = false;
@@ -34,7 +37,28 @@ public class QuitThresholdManager {
 
     public static void resetThreshold() {
         triggered = false;
-        MacroStateManager.resetSession();
+        accumulatedMs = 0L;
+        lastStartMs = MacroStateManager.isMacroRunning() ? System.currentTimeMillis() : 0L;
+        persistState(getTrackedElapsedMs());
+    }
+
+    public static void syncFromConfig() {
+        accumulatedMs = Math.max(0L, MacroConfig.quitThresholdAccumulatedMs);
+        lastStartMs = MacroStateManager.isMacroRunning() ? System.currentTimeMillis() : 0L;
+        lastPeriodicSaveTime = System.currentTimeMillis();
+    }
+
+    public static void onMacroStart() {
+        if (lastStartMs == 0L) lastStartMs = System.currentTimeMillis();
+        lastPeriodicSaveTime = System.currentTimeMillis();
+    }
+
+    public static void onMacroPause() {
+        if (lastStartMs != 0L) {
+            accumulatedMs += Math.max(0L, System.currentTimeMillis() - lastStartMs);
+            lastStartMs = 0L;
+        }
+        persistState(accumulatedMs);
     }
 
     public static long getRemainingMs() {
@@ -50,6 +74,12 @@ public class QuitThresholdManager {
         if (!MacroStateManager.isMacroRunning()) return;
         if (MacroConfig.quitThresholdHours <= 0) return;
 
+        long now = System.currentTimeMillis();
+        if (now - lastPeriodicSaveTime > 60_000L) {
+            lastPeriodicSaveTime = now;
+            persistState(getTrackedElapsedMs());
+        }
+
         long thresholdMs = (long) (MacroConfig.quitThresholdHours * 3_600_000.0);
         if (getTrackedElapsedMs() < thresholdMs) return;
 
@@ -58,9 +88,13 @@ public class QuitThresholdManager {
     }
 
     private static long getTrackedElapsedMs() {
-        return MacroConfig.quitAfterSessionLength
-                ? MacroStateManager.getSessionRunningTime()
-                : TodayTimeTracker.getTodayMs();
+        if (lastStartMs == 0L) return accumulatedMs;
+        return accumulatedMs + Math.max(0L, System.currentTimeMillis() - lastStartMs);
+    }
+
+    private static void persistState(long valueMs) {
+        MacroConfig.quitThresholdAccumulatedMs = Math.max(0L, valueMs);
+        MacroConfig.save();
     }
 
     private static void triggerQuit(Minecraft client) {
@@ -227,14 +261,14 @@ public class QuitThresholdManager {
         String json = "{"
                 + "\"content\":\"||@here||\","
                 + "\"embeds\":[{"
-                + "\"title\":\"Finished Farming\","
+                + "\"title\":\"" + jsonEscape(I18n.tr("Finished Farming", "挂机结束")) + "\","
                 + "\"description\":\"" + jsonEscape(description) + "\","
                 + "\"color\":" + EMBED_COLOR_SESSION_DONE + ","
                 + "\"fields\":["
-                + "{\"name\":\"Total Profit\","
+                + "{\"name\":\"" + jsonEscape(I18n.tr("Total Profit", "总利润")) + "\","
                 + "\"value\":\"`" + jsonEscape(totalProfit) + "`\","
                 + "\"inline\":true},"
-                + "{\"name\":\"Avg Profit/Hour\","
+                + "{\"name\":\"" + jsonEscape(I18n.tr("Avg Profit/Hour", "平均每小时利润")) + "\","
                 + "\"value\":\"`" + jsonEscape(avgProfitPerHour) + "`\","
                 + "\"inline\":true}"
                 + "],"
@@ -266,14 +300,14 @@ public class QuitThresholdManager {
         String payload = "{"
                 + "\"content\":\"||@here||\","
                 + "\"embeds\":[{"
-                + "\"title\":\"Finished Farming\","
+                + "\"title\":\"" + jsonEscape(I18n.tr("Finished Farming", "挂机结束")) + "\","
                 + "\"description\":\"" + jsonEscape(description) + "\","
                 + "\"color\":" + EMBED_COLOR_SESSION_DONE + ","
                 + "\"fields\":["
-                + "{\"name\":\"Total Profit\","
+                + "{\"name\":\"" + jsonEscape(I18n.tr("Total Profit", "总利润")) + "\","
                 + "\"value\":\"`" + jsonEscape(totalProfit) + "`\","
                 + "\"inline\":true},"
-                + "{\"name\":\"Avg Profit/Hour\","
+                + "{\"name\":\"" + jsonEscape(I18n.tr("Avg Profit/Hour", "平均每小时利润")) + "\","
                 + "\"value\":\"`" + jsonEscape(avgProfitPerHour) + "`\","
                 + "\"inline\":true}"
                 + "]"

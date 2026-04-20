@@ -1,5 +1,6 @@
 package com.ihanuat.mod.modules;
 
+import com.ihanuat.mod.I18n;
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.profitTracker.ProfitManager;
@@ -127,11 +128,11 @@ public class DiscordStatusManager {
     /** Formats the time remaining until the next Dynamic Rest. */
     private static String buildNextRestStr() {
         long nextRestTriggerMs = DynamicRestManager.getNextRestTriggerMs();
-        if (DynamicRestManager.isRestPending()) return "Resting now\u2026";
+        if (DynamicRestManager.isRestPending()) return I18n.tr("Resting now...", "正在休息...");
         if (nextRestTriggerMs <= 0) return "\u2014";
 
         long remaining = nextRestTriggerMs - System.currentTimeMillis();
-        if (remaining <= 0) return "Starting soon\u2026";
+        if (remaining <= 0) return I18n.tr("Starting soon...", "即将开始...");
 
         long totalSecs = remaining / 1000;
         long h = totalSecs / 3600;
@@ -208,27 +209,27 @@ public class DiscordStatusManager {
         String jsonFileName   = imageFile.getName();
 
         String fieldsJson = ""
-                +   "{\"name\":\"Session Time\","
+                +   "{\"name\":\"" + jsonEscape(I18n.tr("Session Time", "会话时长")) + "\","
                 +    "\"value\":\"`" + jsonEscape(sessionStr) + "`\","
                 +    "\"inline\":true},";
         if (MacroConfig.showTotalFarmed) {
             fieldsJson += ""
-                    + "{\"name\":\"Lifetime Farmed\","
+                    + "{\"name\":\"" + jsonEscape(I18n.tr("Lifetime Farmed", "累计挂机时长")) + "\","
                     +  "\"value\":\"`" + jsonEscape(lifetimeStr) + "`\","
                     +  "\"inline\":true},";
         }
         fieldsJson += ""
-                +   "{\"name\":\"Next Rest\","
+                +   "{\"name\":\"" + jsonEscape(I18n.tr("Next Rest", "下次休息")) + "\","
                 +    "\"value\":\"`" + jsonEscape(nextRestStr) + "`\","
                 +    "\"inline\":true},"
-                +   "{\"name\":\"Profit/Hour\","
+                +   "{\"name\":\"" + jsonEscape(I18n.tr("Profit/Hour", "每小时利润")) + "\","
                 +    "\"value\":\"`" + jsonEscape(profitPerHour) + "`\","
                 +    "\"inline\":true}";
 
         // Clean, no-description embed: title only + inline fields + attached image.
         String json = "{"
                 + "\"embeds\":[{"
-                + "\"title\":\"Status Update\","
+                + "\"title\":\"" + jsonEscape(I18n.tr("Status Update", "状态更新")) + "\","
                 + "\"color\":" + EMBED_COLOR_STATUS + ","
                 + "\"fields\":["
                 + fieldsJson

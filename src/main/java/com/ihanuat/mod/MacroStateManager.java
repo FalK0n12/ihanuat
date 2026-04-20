@@ -26,6 +26,7 @@ public class MacroStateManager {
     public static void syncFromConfig() {
         lifetimeAccumulated = MacroConfig.lifetimeAccumulated;
         TodayTimeTracker.syncFromConfig();
+        com.ihanuat.mod.modules.QuitThresholdManager.syncFromConfig();
     }
 
     public static void periodicUpdate() {
@@ -88,10 +89,12 @@ public class MacroStateManager {
             }
             lastPeriodicSaveTime = System.currentTimeMillis();
             TodayTimeTracker.onMacroStart();
+            com.ihanuat.mod.modules.QuitThresholdManager.onMacroStart();
 
         } else if (prev == MacroState.State.RECOVERING && willActive) {
             lastSessionStartTime = System.currentTimeMillis();
             TodayTimeTracker.onMacroStart();
+            com.ihanuat.mod.modules.QuitThresholdManager.onMacroStart();
 
         } else if (wasActive && !willActive) {
             if (lastSessionStartTime != 0) {
@@ -103,6 +106,7 @@ public class MacroStateManager {
                 MacroConfig.save();
             }
             TodayTimeTracker.onMacroPause();
+            com.ihanuat.mod.modules.QuitThresholdManager.onMacroPause();
             // Pause the dynamic-rest countdown so it doesn't tick while macro is off
             com.ihanuat.mod.modules.DynamicRestManager.pauseTimer();
         }
