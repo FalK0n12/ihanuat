@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
+import com.ihanuat.mod.I18n;
 import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
@@ -22,6 +23,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class ClickGui extends Screen {
+
+    private static String tr(String english, String simplifiedChinese) {
+        return I18n.tr(english, simplifiedChinese);
+    }
 
     static int C_BG() {
         return MacroConfig.themePanelBg;
@@ -401,14 +406,15 @@ public class ClickGui extends Screen {
 
     private Panel generalPanel(int[] pos) {
         Panel p = makePanel("General", pos);
-        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
-        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
-        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
-        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
-        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
+        p.add(cycleEnum(tr("Language", "语言"), MacroConfig.Language.values(), () -> MacroConfig.language, v -> { MacroConfig.language = v; save(); }));
+        p.add(toggle(tr("Show Macro HUD", "显示宏 HUD"), () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
+        p.add(toggle(tr("GUI Only in Garden", "仅在花园显示 GUI"), () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
+        p.add(toggle(tr("Enable PlotTP Rewarp", "启用 PlotTP 回传"), () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
+        p.add(toggle(tr("Hold W Until Wall", "按住 W 直到撞墙"), () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
+        p.add(cycleEnum(tr("Unfly Mode", "取消飞行模式"), MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
         p.add(new ScriptSelectorEntry());
-        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
-        p.add(button("Capture Rewarp Pos", () -> {
+        p.add(textSetting(tr("PlotTP Number", "PlotTP 编号"), "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
+        p.add(button(tr("Capture Rewarp Pos", "记录回传坐标"), () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 MacroConfig.rewarpEndX = mc.player.getX();
@@ -416,12 +422,12 @@ public class ClickGui extends Screen {
                 MacroConfig.rewarpEndZ = mc.player.getZ();
                 MacroConfig.rewarpEndPosSet = true;
                 save();
-                mc.player.displayClientMessage(Component.literal("Rewarp position captured!"), true);
+                mc.player.displayClientMessage(Component.literal(tr("Rewarp position captured!", "已记录回传坐标！")), true);
             }
         }));
-        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
-        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
-        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
+        p.add(toggle(tr("Auto-Resume After Rest", "休息后自动继续"), () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
+        p.add(toggle(tr("Auto-Recover Disconnect", "断线后自动恢复"), () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
+        p.add(toggle(tr("Persist Session Timer", "保留会话计时器"), () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
 
         SectionEntry visitorSection = new SectionEntry("Auto Visitor", "autovisitor");
         visitorSection.add(toggle("Auto-Visitor", () -> MacroConfig.autoVisitor, v -> { MacroConfig.autoVisitor = v; save(); }));
@@ -746,27 +752,31 @@ public class ClickGui extends Screen {
             MacroConfig.restBreakTimeMax = Math.max(1, v);
             save();
         }, "min"));
-        p.add(toggle("Show Daily Total", () -> MacroConfig.showTotalToday, v -> {
+        p.add(toggle(tr("Show Daily Total", "显示今日总时长"), () -> MacroConfig.showTotalToday, v -> {
             MacroConfig.showTotalToday = v;
             save();
         }));
-        p.add(toggle("Show Total Farmed", () -> MacroConfig.showTotalFarmed, v -> {
+        p.add(toggle(tr("Show Total Farmed", "显示累计总时长"), () -> MacroConfig.showTotalFarmed, v -> {
             MacroConfig.showTotalFarmed = v;
             save();
         }));
-        p.add(toggle("Supercraft Before Rest", () -> MacroConfig.superCraftBeforeRest, v -> {
+        p.add(toggle(tr("Supercraft Before Rest", "休息前超级合成"), () -> MacroConfig.superCraftBeforeRest, v -> {
             MacroConfig.superCraftBeforeRest = v;
             save();
         }));
-        p.add(listSetting("Supercraft Crops", "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
+        p.add(listSetting(tr("Supercraft Crops", "超级合作物"), "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
                 MacroConfig.superCraftCrops = new ArrayList<>(v);
                 save();
         }));
-        p.add(doubleField("Quit Threshold", "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
+        p.add(doubleField(tr("Quit Threshold", "退出阈值"), "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
             save();
         }, "hr"));
-        p.add(toggle("Force Quit MC", () -> MacroConfig.forceQuitMinecraft, v -> {
+        p.add(toggle(tr("Quit After Session Length", "按会话时长退出"), () -> MacroConfig.quitAfterSessionLength, v -> {
+            MacroConfig.quitAfterSessionLength = v;
+            save();
+        }));
+        p.add(toggle(tr("Force Quit MC", "强制关闭 MC"), () -> MacroConfig.forceQuitMinecraft, v -> {
             MacroConfig.forceQuitMinecraft = v;
             save();
         }));
@@ -1048,12 +1058,12 @@ public class ClickGui extends Screen {
         fillRoundRect(g, searchX - 1, searchY - 1, searchW + 2, SEARCH_H + 2, 4, searchActive ? C_ACC() : C_OFF());
         fillRoundRect(g, searchX, searchY, searchW, SEARCH_H, 3, C_BG());
         String searchText = searchQuery.isEmpty() && !searchActive
-                ? "Search modules..."
+                ? tr("Search modules...", "搜索模块...")
                 : searchQuery + (searchActive && (System.currentTimeMillis() / 500) % 2 == 0 ? "|" : "");
         g.drawString(font, searchText, searchX + 5, searchY + 4, searchQuery.isEmpty() && !searchActive ? C_DIM() : C_TXT(), false);
         for (int i = panels.size() - 1; i >= 0; i--) panels.get(i).render(g, mx, my, font, searchQuery);
         if (activeSubPanel != null) activeSubPanel.render(g, mx, my, font);
-        g.drawString(font, "ihanuat  shift+scroll=pan", 3, height - 9, 0xFF333355, false);
+        g.drawString(font, tr("ihanuat  shift+scroll=pan", "ihanuat  shift+滚轮=平移"), 3, height - 9, 0xFF333355, false);
         renderHelperPanel(g, mx, my, font);
     }
 
@@ -2037,7 +2047,7 @@ public class ClickGui extends Screen {
 
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            String val = getter.get().name();
+            String val = getter.get().toString();
             int vw = font.width(val);
             int mid = y + h / 2 - 4;
             MacroConfig.drawStyledText(g, font, label, x + 2, mid, hov ? C_TXT() : C_DIM());

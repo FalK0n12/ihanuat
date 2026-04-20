@@ -1,6 +1,7 @@
 package com.ihanuat.mod.gui;
 
 import com.ihanuat.mod.MacroConfig;
+import com.ihanuat.mod.I18n;
 import com.ihanuat.mod.MacroState;
 import com.ihanuat.mod.MacroStateManager;
 import com.ihanuat.mod.modules.DynamicRestManager;
@@ -26,6 +27,10 @@ import com.ihanuat.mod.util.ClientUtils;
  * takes effect immediately without a restart.
  */
 public class MacroHudRenderer {
+
+    private static String tr(String english, String simplifiedChinese) {
+        return I18n.tr(english, simplifiedChinese);
+    }
 
     // ── Base layout (at scale = 1.0) ─────────────────────────────────────────
     static final int PANEL_W = 230;
@@ -141,13 +146,13 @@ public class MacroHudRenderer {
         String stateStr;
         int stateColor;
         switch (state) {
-            case FARMING:    stateStr = "farming";     stateColor = MacroConfig.toArgb(MacroConfig.hudStateFarmingColor); break;
-            case CLEANING:   stateStr = "cleaning";    stateColor = MacroConfig.toArgb(MacroConfig.hudStateCleaningColor); break;
-            case RECOVERING: stateStr = "recovering";  stateColor = MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor); break;
-            case VISITING:   stateStr = "visitor";     stateColor = MacroConfig.toArgb(MacroConfig.hudStateVisitingColor); break;
-            case AUTOSELLING:stateStr = "autoselling"; stateColor = MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor); break;
-            case SPRAYING:   stateStr = "sprayonator"; stateColor = MacroConfig.toArgb(MacroConfig.hudStateSprayingColor); break;
-            default:         stateStr = "off";         stateColor = MacroConfig.toArgb(MacroConfig.hudStateOffColor); break;
+            case FARMING:    stateStr = tr("farming", "耕种中");     stateColor = MacroConfig.toArgb(MacroConfig.hudStateFarmingColor); break;
+            case CLEANING:   stateStr = tr("cleaning", "清理中");    stateColor = MacroConfig.toArgb(MacroConfig.hudStateCleaningColor); break;
+            case RECOVERING: stateStr = tr("recovering", "恢复中");  stateColor = MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor); break;
+            case VISITING:   stateStr = tr("visitor", "访客中");     stateColor = MacroConfig.toArgb(MacroConfig.hudStateVisitingColor); break;
+            case AUTOSELLING:stateStr = tr("autoselling", "出售中"); stateColor = MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor); break;
+            case SPRAYING:   stateStr = tr("sprayonator", "喷洒中"); stateColor = MacroConfig.toArgb(MacroConfig.hudStateSprayingColor); break;
+            default:         stateStr = tr("off", "关闭");           stateColor = MacroConfig.toArgb(MacroConfig.hudStateOffColor); break;
         }
 
         long sessionMs  = MacroStateManager.getSessionRunningTime();
@@ -179,21 +184,21 @@ public class MacroHudRenderer {
         g.fill(PADDING_H, sepY, PANEL_W - PADDING_H, sepY + 1, sepColor);
 
         int rowY = sepY + 1 + 3;
-        drawRow(g, client, rowY, "macro state",     stateStr,           stateColor, labelColor);
+        drawRow(g, client, rowY, tr("macro state", "宏状态"), stateStr, stateColor, labelColor);
         rowY += ROW_HEIGHT;
-        drawRow(g, client, rowY, "current session", formatTime(sessionMs), valueColor, labelColor);
+        drawRow(g, client, rowY, tr("current session", "当前会话"), formatTime(sessionMs), valueColor, labelColor);
         rowY += ROW_HEIGHT;
-        drawRow(g, client, rowY, "next rest",       nextRestStr,        valueColor, labelColor);
+        drawRow(g, client, rowY, tr("next rest", "下次休息"), nextRestStr, valueColor, labelColor);
         rowY += ROW_HEIGHT;
 
         // total today
         if (MacroConfig.showTotalToday) {
-            drawRow(g, client, rowY, "total today", formatTime(todayMs), valueColor, labelColor);
+            drawRow(g, client, rowY, tr("total today", "今日总时长"), formatTime(todayMs), valueColor, labelColor);
             rowY += ROW_HEIGHT;
         }
 
         if (MacroConfig.showTotalFarmed) {
-            drawRow(g, client, rowY, "total farmed", formatTime(lifetimeMs), valueColor, labelColor);
+            drawRow(g, client, rowY, tr("total farmed", "累计总时长"), formatTime(lifetimeMs), valueColor, labelColor);
             rowY += ROW_HEIGHT;
         }
 
@@ -205,19 +210,21 @@ public class MacroHudRenderer {
             if (quitRemainingMs < 0) {
                 quitStr = "---"; quitColor = valueColor;
             } else if (quitRemainingMs == 0) {
-                quitStr = "stopping..."; quitColor = MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor);
+                quitStr = tr("stopping...", "正在停止..."); quitColor = MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor);
             } else {
                 quitStr = formatTime(quitRemainingMs);
                 quitColor = quitRemainingMs < 600_000L  ? MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor)
                           : quitRemainingMs < 1_800_000L ? MacroConfig.toArgb(MacroConfig.hudStateCleaningColor)
                           : valueColor;
             }
-            drawRow(g, client, rowY, "quit in", quitStr, quitColor, labelColor);
+            drawRow(g, client, rowY, tr("quit in", "退出倒计时"), quitStr, quitColor, labelColor);
             rowY += ROW_HEIGHT;
         }
 
         if (editMode) {
-            String hint = isDragging ? "moving..." : isResizing ? "resizing..." : "drag \u2022 hold modifier to resize";
+            String hint = isDragging ? tr("moving...", "移动中...")
+                    : isResizing ? tr("resizing...", "调整大小中...")
+                    : tr("drag \u2022 hold modifier to resize", "拖动 • 按住修饰键调整大小");
             int hintX = (PANEL_W - client.font.width(hint)) / 2;
             g.drawString(client.font, hint, hintX, panelH + 3, labelColor, false);
         }
