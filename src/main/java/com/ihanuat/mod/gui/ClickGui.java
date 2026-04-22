@@ -12,6 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
+import com.ihanuat.mod.I18n;
 import com.ihanuat.mod.modules.profitTracker.ProfitManager;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
@@ -22,6 +23,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class ClickGui extends Screen {
+
+    private static String tr(String english, String simplifiedChinese) {
+        return I18n.tr(english, simplifiedChinese);
+    }
 
     static int C_BG() {
         return MacroConfig.themePanelBg;
@@ -398,17 +403,27 @@ public class ClickGui extends Screen {
         return p;
     }
 
+    private void rebuildPanels() {
+        panels.clear();
+        buildPanels();
+    }
+
 
     private Panel generalPanel(int[] pos) {
-        Panel p = makePanel("General", pos);
-        p.add(toggle("Show Macro HUD", () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
-        p.add(toggle("GUI Only in Garden", () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
-        p.add(toggle("Enable PlotTP Rewarp", () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
-        p.add(toggle("Hold W Until Wall", () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
-        p.add(cycleEnum("Unfly Mode", MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
+        Panel p = makePanel(tr("General", "常规"), pos);
+        p.add(cycleEnum(tr("Language", "语言"), MacroConfig.Language.values(), () -> MacroConfig.language, v -> {
+            MacroConfig.language = v;
+            save();
+            rebuildPanels();
+        }));
+        p.add(toggle(tr("Show Macro HUD", "显示宏 HUD"), () -> MacroConfig.showHud, v -> { MacroConfig.showHud = v; save(); }));
+        p.add(toggle(tr("GUI Only in Garden", "仅在花园显示 GUI"), () -> MacroConfig.guiOnlyInGarden, v -> { MacroConfig.guiOnlyInGarden = v; save(); }));
+        p.add(toggle(tr("Enable PlotTP Rewarp", "启用 PlotTP 回传"), () -> MacroConfig.enablePlotTpRewarp, v -> { MacroConfig.enablePlotTpRewarp = v; save(); }));
+        p.add(toggle(tr("Hold W Until Wall", "按住 W 直到撞墙"), () -> MacroConfig.holdWUntilWall, v -> { MacroConfig.holdWUntilWall = v; save(); }));
+        p.add(cycleEnum(tr("Unfly Mode", "取消飞行模式"), MacroConfig.UnflyMode.values(), () -> MacroConfig.unflyMode, v -> { MacroConfig.unflyMode = v; save(); }));
         p.add(new ScriptSelectorEntry());
-        p.add(textSetting("PlotTP Number", "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
-        p.add(button("Capture Rewarp Pos", () -> {
+        p.add(textSetting(tr("PlotTP Number", "PlotTP 编号"), "plotTpNumber", () -> MacroConfig.plotTpNumber, v -> { MacroConfig.plotTpNumber = v; save(); }));
+        p.add(button(tr("Capture Rewarp Pos", "记录回传坐标"), () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 MacroConfig.rewarpEndX = mc.player.getX();
@@ -416,74 +431,74 @@ public class ClickGui extends Screen {
                 MacroConfig.rewarpEndZ = mc.player.getZ();
                 MacroConfig.rewarpEndPosSet = true;
                 save();
-                mc.player.displayClientMessage(Component.literal("Rewarp position captured!"), true);
+                mc.player.displayClientMessage(Component.literal(tr("Rewarp position captured!", "已记录回传坐标！")), true);
             }
         }));
-        p.add(toggle("Auto-Resume After Rest", () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
-        p.add(toggle("Auto-Recover Disconnect", () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
-        p.add(toggle("Persist Session Timer", () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
+        p.add(toggle(tr("Auto-Resume After Rest", "休息后自动继续"), () -> MacroConfig.autoResumeAfterDynamicRest, v -> { MacroConfig.autoResumeAfterDynamicRest = v; save(); }));
+        p.add(toggle(tr("Auto-Recover Disconnect", "断线后自动恢复"), () -> MacroConfig.autoRecoverUnexpectedDisconnect, v -> { MacroConfig.autoRecoverUnexpectedDisconnect = v; save(); }));
+        p.add(toggle(tr("Persist Session Timer", "保留会话计时器"), () -> MacroConfig.persistSessionTimer, v -> { MacroConfig.persistSessionTimer = v; save(); }));
 
-        SectionEntry visitorSection = new SectionEntry("Auto Visitor", "autovisitor");
-        visitorSection.add(toggle("Auto-Visitor", () -> MacroConfig.autoVisitor, v -> { MacroConfig.autoVisitor = v; save(); }));
-        visitorSection.add(slider("Threshold", "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> { MacroConfig.visitorThreshold = v; save(); }, ""));
+        SectionEntry visitorSection = new SectionEntry(tr("Auto Visitor", "自动访客"), "autovisitor");
+        visitorSection.add(toggle(tr("Auto-Visitor", "自动访客"), () -> MacroConfig.autoVisitor, v -> { MacroConfig.autoVisitor = v; save(); }));
+        visitorSection.add(slider(tr("Threshold", "阈值"), "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> { MacroConfig.visitorThreshold = v; save(); }, ""));
         p.add(visitorSection);
 
-        SectionEntry georgeSection = new SectionEntry("Auto George", "autogeorge");
-        georgeSection.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> { MacroConfig.autoGeorgeSell = v; save(); }));
-        georgeSection.add(slider("Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> { MacroConfig.georgeSellThreshold = v; save(); }, ""));
+        SectionEntry georgeSection = new SectionEntry(tr("Auto George", "自动 George"), "autogeorge");
+        georgeSection.add(toggle(tr("Auto George Sell", "自动 George 出售"), () -> MacroConfig.autoGeorgeSell, v -> { MacroConfig.autoGeorgeSell = v; save(); }));
+        georgeSection.add(slider(tr("Threshold", "阈值"), "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> { MacroConfig.georgeSellThreshold = v; save(); }, ""));
         p.add(georgeSection);
 
-        SectionEntry sellSection = new SectionEntry("Auto Sell", "autosell");
-        sellSection.add(toggle("Custom Autosell", () -> MacroConfig.autoBoosterCookie, v -> { MacroConfig.autoBoosterCookie = v; save(); }));
-        sellSection.add(listSetting("Autosell Item List", "boosterCookieItems", () -> MacroConfig.boosterCookieItems, v -> { MacroConfig.boosterCookieItems = new ArrayList<>(v); save(); }));
+        SectionEntry sellSection = new SectionEntry(tr("Auto Sell", "自动出售"), "autosell");
+        sellSection.add(toggle(tr("Custom Autosell", "自定义自动出售"), () -> MacroConfig.autoBoosterCookie, v -> { MacroConfig.autoBoosterCookie = v; save(); }));
+        sellSection.add(listSetting(tr("Autosell Item List", "自动出售物品列表"), "boosterCookieItems", () -> MacroConfig.boosterCookieItems, v -> { MacroConfig.boosterCookieItems = new ArrayList<>(v); save(); }));
         p.add(sellSection);
 
         return p;
     }
 
     private Panel delaysPanel(int[] pos) {
-        Panel p = makePanel("Delays", pos);
-        p.add(slider("Rand Delay", "additionalRandomDelay", 0, 1000, () -> MacroConfig.additionalRandomDelay, v -> {
+        Panel p = makePanel(tr("Delays", "延迟"), pos);
+        p.add(slider(tr("Rand Delay", "随机延迟"), "additionalRandomDelay", 0, 1000, () -> MacroConfig.additionalRandomDelay, v -> {
             MacroConfig.additionalRandomDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Rotation", "rotationTime", 100, 3000, () -> MacroConfig.rotationTime, v -> {
+        p.add(slider(tr("Rotation", "旋转"), "rotationTime", 100, 3000, () -> MacroConfig.rotationTime, v -> {
             MacroConfig.rotationTime = v;
             save();
         }, "ms"));
-        p.add(slider("GUI Click", "guiClickDelay", 100, 2000, () -> MacroConfig.guiClickDelay, v -> {
+        p.add(slider(tr("GUI Click", "GUI 点击"), "guiClickDelay", 100, 2000, () -> MacroConfig.guiClickDelay, v -> {
             MacroConfig.guiClickDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Equip Swap", "equipmentSwapDelay", 100, 300, () -> MacroConfig.equipmentSwapDelay, v -> {
+        p.add(slider(tr("Equip Swap", "装备切换"), "equipmentSwapDelay", 100, 300, () -> MacroConfig.equipmentSwapDelay, v -> {
             MacroConfig.equipmentSwapDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Rod Swap", "rodSwapDelay", 50, 1000, () -> MacroConfig.rodSwapDelay, v -> {
+        p.add(slider(tr("Rod Swap", "鱼竿切换"), "rodSwapDelay", 50, 1000, () -> MacroConfig.rodSwapDelay, v -> {
             MacroConfig.rodSwapDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Pest Chat", "pestChatTriggerDelay", 0, 3000, () -> MacroConfig.pestChatTriggerDelay, v -> {
+        p.add(slider(tr("Pest Chat", "虫害聊天"), "pestChatTriggerDelay", 0, 3000, () -> MacroConfig.pestChatTriggerDelay, v -> {
             MacroConfig.pestChatTriggerDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Book Combine", "bookCombineDelay", 100, 2000, () -> MacroConfig.bookCombineDelay, v -> {
+        p.add(slider(tr("Book Combine", "书本合成"), "bookCombineDelay", 100, 2000, () -> MacroConfig.bookCombineDelay, v -> {
             MacroConfig.bookCombineDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Autosell Click", "autosellClickDelay", 100, 2000, () -> MacroConfig.autosellClickDelay, v -> {
+        p.add(slider(tr("Autosell Click", "自动出售点击"), "autosellClickDelay", 100, 2000, () -> MacroConfig.autosellClickDelay, v -> {
             MacroConfig.autosellClickDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Wardrobe Post-Swap", "wardrobePostSwapDelay", 0, 2000, () -> MacroConfig.wardrobePostSwapDelay, v -> {
+        p.add(slider(tr("Wardrobe Post-Swap", "衣柜后切换"), "wardrobePostSwapDelay", 0, 2000, () -> MacroConfig.wardrobePostSwapDelay, v -> {
             MacroConfig.wardrobePostSwapDelay = v;
             save();
         }, "ms"));
-        p.add(slider("Wardrobe AOTV", "wardrobeAotvDelay", 0, 2000, () -> MacroConfig.wardrobeAotvDelay, v -> {
+        p.add(slider(tr("Wardrobe AOTV", "衣柜 AOTV"), "wardrobeAotvDelay", 0, 2000, () -> MacroConfig.wardrobeAotvDelay, v -> {
             MacroConfig.wardrobeAotvDelay = v;
             save();
         }, "ms"));
-        p.add(slider("AOTV Vacuum", "aotvVacuumDelay", 0, 2000, () -> MacroConfig.aotvVacuumDelay, v -> {
+        p.add(slider(tr("AOTV Vacuum", "AOTV 吸附"), "aotvVacuumDelay", 0, 2000, () -> MacroConfig.aotvVacuumDelay, v -> {
             MacroConfig.aotvVacuumDelay = v;
             save();
         }, "ms"));
@@ -491,28 +506,28 @@ public class ClickGui extends Screen {
     }
 
     private Panel wardrobePanel(int[] pos) {
-        Panel p = makePanel("Wardrobe Swap", pos);
-        p.add(toggle("Auto Wardrobe (Pest)", () -> MacroConfig.autoWardrobePest, v -> {
+        Panel p = makePanel(tr("Wardrobe Swap", "衣柜切换"), pos);
+        p.add(toggle(tr("Auto Wardrobe (Pest)", "自动衣柜（虫害）"), () -> MacroConfig.autoWardrobePest, v -> {
             MacroConfig.autoWardrobePest = v;
             save();
         }));
-        p.add(toggle("Auto Wardrobe (Visitor)", () -> MacroConfig.autoWardrobeVisitor, v -> {
+        p.add(toggle(tr("Auto Wardrobe (Visitor)", "自动衣柜（访客）"), () -> MacroConfig.autoWardrobeVisitor, v -> {
             MacroConfig.autoWardrobeVisitor = v;
             save();
         }));
-        p.add(toggle("Armor Swap (Visitor)", () -> MacroConfig.armorSwapVisitor, v -> {
+        p.add(toggle(tr("Armor Swap (Visitor)", "护甲切换（访客）"), () -> MacroConfig.armorSwapVisitor, v -> {
             MacroConfig.armorSwapVisitor = v;
             save();
         }));
-        p.add(slider("Farming Slot", "wardrobeSlotFarming", 1, 9, () -> MacroConfig.wardrobeSlotFarming, v -> {
+        p.add(slider(tr("Farming Slot", "耕作槽位"), "wardrobeSlotFarming", 1, 9, () -> MacroConfig.wardrobeSlotFarming, v -> {
             MacroConfig.wardrobeSlotFarming = v;
             save();
         }, ""));
-        p.add(slider("Pest Slot", "wardrobeSlotPest", 1, 9, () -> MacroConfig.wardrobeSlotPest, v -> {
+        p.add(slider(tr("Pest Slot", "虫害槽位"), "wardrobeSlotPest", 1, 9, () -> MacroConfig.wardrobeSlotPest, v -> {
             MacroConfig.wardrobeSlotPest = v;
             save();
         }, ""));
-        p.add(slider("Visitor Slot", "wardrobeSlotVisitor", 1, 9, () -> MacroConfig.wardrobeSlotVisitor, v -> {
+        p.add(slider(tr("Visitor Slot", "访客槽位"), "wardrobeSlotVisitor", 1, 9, () -> MacroConfig.wardrobeSlotVisitor, v -> {
             MacroConfig.wardrobeSlotVisitor = v;
             save();
         }, ""));
@@ -520,16 +535,16 @@ public class ClickGui extends Screen {
     }
 
     private Panel autoRodPanel(int[] pos) {
-        Panel p = makePanel("Auto Rod", pos);
-        p.add(toggle("Rod on Pest CD", () -> MacroConfig.autoRodPestCd, v -> {
+        Panel p = makePanel(tr("Auto Rod", "自动鱼竿"), pos);
+        p.add(toggle(tr("Rod on Pest CD", "虫害 CD 时甩竿"), () -> MacroConfig.autoRodPestCd, v -> {
             MacroConfig.autoRodPestCd = v;
             save();
         }));
-        p.add(toggle("Rod on Pest Spawn", () -> MacroConfig.autoRodPestSpawn, v -> {
+        p.add(toggle(tr("Rod on Pest Spawn", "虫害生成时甩竿"), () -> MacroConfig.autoRodPestSpawn, v -> {
             MacroConfig.autoRodPestSpawn = v;
             save();
         }));
-        p.add(toggle("Rod on Return to Farm", () -> MacroConfig.autoRodReturnToFarm, v -> {
+        p.add(toggle(tr("Rod on Return to Farm", "返回农场时甩竿"), () -> MacroConfig.autoRodReturnToFarm, v -> {
             MacroConfig.autoRodReturnToFarm = v;
             save();
         }));
@@ -537,16 +552,16 @@ public class ClickGui extends Screen {
     }
 
     private Panel equipmentGeorgePanel(int[] pos) {
-        Panel p = makePanel("Equipment & George", pos);
-        p.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> {
+        Panel p = makePanel(tr("Equipment & George", "装备与 George"), pos);
+        p.add(toggle(tr("Auto-Equipment", "自动装备"), () -> MacroConfig.autoEquipment, v -> {
             MacroConfig.autoEquipment = v;
             save();
         }));
-        p.add(toggle("Auto George Sell", () -> MacroConfig.autoGeorgeSell, v -> {
+        p.add(toggle(tr("Auto George Sell", "自动 George 出售"), () -> MacroConfig.autoGeorgeSell, v -> {
             MacroConfig.autoGeorgeSell = v;
             save();
         }));
-        p.add(slider("George Threshold", "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
+        p.add(slider(tr("George Threshold", "George 阈值"), "georgeSellThreshold", 1, 35, () -> MacroConfig.georgeSellThreshold, v -> {
             MacroConfig.georgeSellThreshold = v;
             save();
         }, ""));
@@ -554,28 +569,28 @@ public class ClickGui extends Screen {
     }
 
     private Panel autoPestPanel(int[] pos) {
-        Panel p = makePanel("Auto Pest", pos);
-        p.add(toggle("Enabled", () -> MacroConfig.autoPestEnabled, v -> {
+        Panel p = makePanel(tr("Auto Pest", "自动虫害"), pos);
+        p.add(toggle(tr("Enabled", "启用"), () -> MacroConfig.autoPestEnabled, v -> {
             MacroConfig.autoPestEnabled = v;
             save();
         }));
-        p.add(slider("Threshold", "pestThreshold", 1, 8, () -> MacroConfig.pestThreshold, v -> {
+        p.add(slider(tr("Threshold", "阈值"), "pestThreshold", 1, 8, () -> MacroConfig.pestThreshold, v -> {
             MacroConfig.pestThreshold = v;
             save();
         }, ""));
-        p.add(toggle("Trigger on Chat", () -> MacroConfig.triggerPestOnChat, v -> {
+        p.add(toggle(tr("Trigger on Chat", "聊天触发"), () -> MacroConfig.triggerPestOnChat, v -> {
             MacroConfig.triggerPestOnChat = v;
             save();
         }));
-        p.add(toggle("Delay Crop Fever", () -> MacroConfig.delayPestForCropFever, v -> {
+        p.add(toggle(tr("Delay Crop Fever", "延后作物狂热"), () -> MacroConfig.delayPestForCropFever, v -> {
             MacroConfig.delayPestForCropFever = v;
             save();
         }));
-        p.add(toggle("AOTV to Roof", () -> MacroConfig.aotvToRoof, v -> {
+        p.add(toggle(tr("AOTV to Roof", "AOTV 到屋顶"), () -> MacroConfig.aotvToRoof, v -> {
             MacroConfig.aotvToRoof = v;
             save();
         }));
-        p.add(csvTextSetting("AOTV Roof Plots", "aotvRoofPlots",
+        p.add(csvTextSetting(tr("AOTV Roof Plots", "AOTV 屋顶地块"), "aotvRoofPlots",
                 () -> String.join(", ", MacroConfig.aotvRoofPlots),
                 v -> {
                     List<String> plots = new ArrayList<>();
@@ -586,57 +601,57 @@ public class ClickGui extends Screen {
                     MacroConfig.aotvRoofPlots = plots;
                     save();
                 },
-                "Comma separated, e.g. 1, 2, 3"));
-        p.add(toggle("Break Before AOTV", () -> MacroConfig.breakBlocksBeforeAotv, v -> {
+                tr("Comma separated, e.g. 1, 2, 3", "用逗号分隔，例如 1, 2, 3")));
+        p.add(toggle(tr("Break Before AOTV", "AOTV 前破坏方块"), () -> MacroConfig.breakBlocksBeforeAotv, v -> {
             MacroConfig.breakBlocksBeforeAotv = v;
             save();
         }));
-        p.add(toggle("Call Phillip for Bonus", () -> MacroConfig.callPhillipForBonus, v -> {
+        p.add(toggle(tr("Call Phillip for Bonus", "呼叫 Phillip 领取加成"), () -> MacroConfig.callPhillipForBonus, v -> {
             MacroConfig.callPhillipForBonus = v;
             save();
         }));
-        p.add(toggle("Spray Single Plot", () -> MacroConfig.spraySinglePlot, v -> {
+        p.add(toggle(tr("Spray Single Plot", "喷洒单个地块"), () -> MacroConfig.spraySinglePlot, v -> {
             MacroConfig.spraySinglePlot = v;
             save();
         }));
-        p.add(slider("Roof Pitch", "aotvRoofPitch", 45, 90, () -> MacroConfig.aotvRoofPitch, v -> {
+        p.add(slider(tr("Roof Pitch", "屋顶仰角"), "aotvRoofPitch", 45, 90, () -> MacroConfig.aotvRoofPitch, v -> {
             MacroConfig.aotvRoofPitch = v;
             save();
         }, ""));
-        p.add(slider("Pitch Human.", "aotvRoofPitchHumanization", 0, 15, () -> MacroConfig.aotvRoofPitchHumanization, v -> {
+        p.add(slider(tr("Pitch Human.", "仰角拟人化"), "aotvRoofPitchHumanization", 0, 15, () -> MacroConfig.aotvRoofPitchHumanization, v -> {
             MacroConfig.aotvRoofPitchHumanization = v;
             save();
         }, ""));
-        SectionEntry rodSection = new SectionEntry("Auto Rod", "autorod");
-        rodSection.add(toggle("Rod on Pest CD", () -> MacroConfig.autoRodPestCd, v -> { MacroConfig.autoRodPestCd = v; save(); }));
-        rodSection.add(toggle("Rod on Pest Spawn", () -> MacroConfig.autoRodPestSpawn, v -> { MacroConfig.autoRodPestSpawn = v; save(); }));
-        rodSection.add(toggle("Rod on Return to Farm", () -> MacroConfig.autoRodReturnToFarm, v -> { MacroConfig.autoRodReturnToFarm = v; save(); }));
+        SectionEntry rodSection = new SectionEntry(tr("Auto Rod", "自动鱼竿"), "autorod");
+        rodSection.add(toggle(tr("Rod on Pest CD", "虫害 CD 时甩竿"), () -> MacroConfig.autoRodPestCd, v -> { MacroConfig.autoRodPestCd = v; save(); }));
+        rodSection.add(toggle(tr("Rod on Pest Spawn", "虫害生成时甩竿"), () -> MacroConfig.autoRodPestSpawn, v -> { MacroConfig.autoRodPestSpawn = v; save(); }));
+        rodSection.add(toggle(tr("Rod on Return to Farm", "返回农场时甩竿"), () -> MacroConfig.autoRodReturnToFarm, v -> { MacroConfig.autoRodReturnToFarm = v; save(); }));
         p.add(rodSection);
-        SectionEntry equipSection = new SectionEntry("Equipment Swap", "equipmentswap");
-        equipSection.add(toggle("Auto-Equipment", () -> MacroConfig.autoEquipment, v -> { MacroConfig.autoEquipment = v; save(); }));
+        SectionEntry equipSection = new SectionEntry(tr("Equipment Swap", "装备切换"), "equipmentswap");
+        equipSection.add(toggle(tr("Auto-Equipment", "自动装备"), () -> MacroConfig.autoEquipment, v -> { MacroConfig.autoEquipment = v; save(); }));
         p.add(equipSection);
         return p;
     }
 
     private Panel manualPestPanel(int[] pos) {
-        Panel p = makePanel("Manual Pest", pos);
-        p.add(toggle("Manual Clean", () -> MacroConfig.manualPestClean, v -> {
+        Panel p = makePanel(tr("Manual Pest", "手动虫害"), pos);
+        p.add(toggle(tr("Manual Clean", "手动清理"), () -> MacroConfig.manualPestClean, v -> {
             MacroConfig.manualPestClean = v;
             save();
         }));
-        p.add(toggle("Manual Ding", () -> MacroConfig.manualPestAlertSound, v -> {
+        p.add(toggle(tr("Manual Ding", "手动提示音"), () -> MacroConfig.manualPestAlertSound, v -> {
             MacroConfig.manualPestAlertSound = v;
             save();
         }));
-        p.add(textSetting("Custom Sound", "manualPestSoundPath", () -> MacroConfig.manualPestSoundPath, v -> {
+        p.add(textSetting(tr("Custom Sound", "自定义声音"), "manualPestSoundPath", () -> MacroConfig.manualPestSoundPath, v -> {
             MacroConfig.manualPestSoundPath = v;
             save();
         }));
-        p.add(slider("Manual Return", "manualPestReturnDelay", 0, 10000, () -> MacroConfig.manualPestReturnDelay, v -> {
+        p.add(slider(tr("Manual Return", "手动返回"), "manualPestReturnDelay", 0, 10000, () -> MacroConfig.manualPestReturnDelay, v -> {
             MacroConfig.manualPestReturnDelay = v;
             save();
         }, ""));
-        p.add(slider("Rewarp At", "manualPestRewarpAt", 0, 8, () -> MacroConfig.manualPestRewarpAt, v -> {
+        p.add(slider(tr("Rewarp At", "回传于"), "manualPestRewarpAt", 0, 8, () -> MacroConfig.manualPestRewarpAt, v -> {
             MacroConfig.manualPestRewarpAt = v;
             save();
         }, ""));
@@ -644,12 +659,12 @@ public class ClickGui extends Screen {
     }
 
     private Panel autoVisitorPanel(int[] pos) {
-        Panel p = makePanel("Auto Visitor", pos);
-        p.add(toggle("Auto-Visitor", () -> MacroConfig.autoVisitor, v -> {
+        Panel p = makePanel(tr("Auto Visitor", "自动访客"), pos);
+        p.add(toggle(tr("Auto-Visitor", "自动访客"), () -> MacroConfig.autoVisitor, v -> {
             MacroConfig.autoVisitor = v;
             save();
         }));
-        p.add(slider("Threshold", "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> {
+        p.add(slider(tr("Threshold", "阈值"), "visitorThreshold", 1, 5, () -> MacroConfig.visitorThreshold, v -> {
             MacroConfig.visitorThreshold = v;
             save();
         }, ""));
@@ -659,12 +674,12 @@ public class ClickGui extends Screen {
 
 
     private Panel autoSellPanel(int[] pos) {
-        Panel p = makePanel("Auto Sell", pos);
-        p.add(toggle("Custom Autosell", () -> MacroConfig.autoBoosterCookie, v -> {
+        Panel p = makePanel(tr("Auto Sell", "自动出售"), pos);
+        p.add(toggle(tr("Custom Autosell", "自定义自动出售"), () -> MacroConfig.autoBoosterCookie, v -> {
             MacroConfig.autoBoosterCookie = v;
             save();
         }));
-        p.add(listSetting("Autosell Item List", "boosterCookieItems", () -> MacroConfig.boosterCookieItems,
+        p.add(listSetting(tr("Autosell Item List", "自动出售物品列表"), "boosterCookieItems", () -> MacroConfig.boosterCookieItems,
                 v -> {
                     MacroConfig.boosterCookieItems = new ArrayList<>(v);
                     save();
@@ -673,100 +688,109 @@ public class ClickGui extends Screen {
     }
 
     private Panel profitPanel(int[] pos) {
-        Panel p = makePanel("Profit Calculator", pos);
-        p.add(toggle("Session HUD", () -> MacroConfig.showSessionProfitHud, v -> {
+        Panel p = makePanel(tr("Profit Calculator", "利润计算器"), pos);
+        p.add(toggle(tr("Session HUD", "会话 HUD"), () -> MacroConfig.showSessionProfitHud, v -> {
             MacroConfig.showSessionProfitHud = v;
             save();
         }));
-        p.add(toggle("Daily HUD", () -> MacroConfig.showTotalToday, v -> {
+        p.add(toggle(tr("Daily HUD", "每日 HUD"), () -> MacroConfig.showTotalToday, v -> {
             MacroConfig.showTotalToday = v;
             save();
         }));
-        p.add(toggle("Lifetime HUD", () -> MacroConfig.showLifetimeHud, v -> {
+        p.add(toggle(tr("Lifetime HUD", "总计 HUD"), () -> MacroConfig.showLifetimeHud, v -> {
             MacroConfig.showLifetimeHud = v;
             save();
         }));
-        p.add(toggle("HUD While Off", () -> MacroConfig.showProfitHudWhileInactive, v -> {
+        p.add(toggle(tr("HUD While Off", "关闭时显示 HUD"), () -> MacroConfig.showProfitHudWhileInactive, v -> {
             MacroConfig.showProfitHudWhileInactive = v;
             save();
         }));
-        p.add(toggle("Compact", () -> MacroConfig.compactProfitCalculator, v -> {
+        p.add(toggle(tr("Compact", "紧凑模式"), () -> MacroConfig.compactProfitCalculator, v -> {
             MacroConfig.compactProfitCalculator = v;
             save();
         }));
-        p.add(cycleEnum("Pricing Mode", MacroConfig.PricingMode.values(), () -> MacroConfig.pricingMode, v -> { MacroConfig.pricingMode = v; save(); }));
-        p.add(listSetting("Pet XP List", "petXpTrackedPets", () -> MacroConfig.petXpTrackedPets,
+        p.add(cycleEnum(tr("Pricing Mode", "定价模式"), MacroConfig.PricingMode.values(), () -> MacroConfig.pricingMode, v -> { MacroConfig.pricingMode = v; save(); }));
+        p.add(listSetting(tr("Pet XP List", "宠物经验列表"), "petXpTrackedPets", () -> MacroConfig.petXpTrackedPets,
                 v -> {
                     MacroConfig.petXpTrackedPets = new ArrayList<>(v);
                     ProfitManager.refreshConfiguredPetXpPrices();
                     save();
                 },
-                "Pet Name, Max Level (100/200), Level 1 Price,",
-                "Max Level Price, Rarity" ));
-        p.add(button("Reset Session", () -> {
+                tr("Pet Name, Max Level (100/200), Level 1 Price,", "宠物名称，最高等级（100/200），1级价格，"),
+                tr("Max Level Price, Rarity", "满级价格，稀有度") ));
+        p.add(button(tr("Reset Session", "重置会话"), () -> {
             MacroStateManager.resetSession();
-            notifyMsg("Session reset!");
+            notifyMsg(tr("Session reset!", "会话已重置！"));
         }));
-        p.add(button("Reset Daily", () -> {
+        p.add(button(tr("Reset Daily", "重置每日"), () -> {
             MacroConfig.todayAccumulatedMs = 0;
             MacroConfig.todayDateStr = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             com.ihanuat.mod.modules.TodayTimeTracker.syncFromConfig();
             if (MacroStateManager.isMacroRunning()) com.ihanuat.mod.modules.TodayTimeTracker.onMacroStart();
             MacroConfig.save();
             ProfitManager.resetDaily();
-            notifyMsg("Daily reset!");
+            notifyMsg(tr("Daily reset!", "每日已重置！"));
         }));
-        p.add(button("Reset Lifetime", () -> {
+        p.add(button(tr("Reset Lifetime", "重置总计"), () -> {
             MacroConfig.lifetimeAccumulated = 0;
             MacroStateManager.syncFromConfig();
             MacroConfig.save();
             ProfitManager.resetLifetime();
-            notifyMsg("Lifetime reset!");
+            notifyMsg(tr("Lifetime reset!", "总计已重置！"));
         }));
         return p;
     }
 
     private Panel dynamicRestPanel(int[] pos) {
-        Panel p = makePanel("Dynamic Rest", pos);
-        p.add(intField("Farming Min", "restScriptingTimeMin", () -> MacroConfig.restScriptingTimeMin, v -> {
+        Panel p = makePanel(tr("Dynamic Rest", "动态休息"), pos);
+        p.add(intField(tr("Farming Min", "耕作最小值"), "restScriptingTimeMin", () -> MacroConfig.restScriptingTimeMin, v -> {
             MacroConfig.restScriptingTimeMin = Math.max(1, v);
             com.ihanuat.mod.modules.DynamicRestManager.onConfigChanged();
             save();
         }, "min"));
-        p.add(intField("Farming Max", "restScriptingTimeMax", () -> MacroConfig.restScriptingTimeMax, v -> {
+        p.add(intField(tr("Farming Max", "耕作最大值"), "restScriptingTimeMax", () -> MacroConfig.restScriptingTimeMax, v -> {
             MacroConfig.restScriptingTimeMax = Math.max(1, v);
             com.ihanuat.mod.modules.DynamicRestManager.onConfigChanged();
             save();
         }, "min"));
-        p.add(intField("Break Min", "restBreakTimeMin", () -> MacroConfig.restBreakTimeMin, v -> {
+        p.add(intField(tr("Break Min", "休息最小值"), "restBreakTimeMin", () -> MacroConfig.restBreakTimeMin, v -> {
             MacroConfig.restBreakTimeMin = Math.max(1, v);
             save();
         }, "min"));
-        p.add(intField("Break Max", "restBreakTimeMax", () -> MacroConfig.restBreakTimeMax, v -> {
+        p.add(intField(tr("Break Max", "休息最大值"), "restBreakTimeMax", () -> MacroConfig.restBreakTimeMax, v -> {
             MacroConfig.restBreakTimeMax = Math.max(1, v);
             save();
         }, "min"));
-        p.add(toggle("Show Daily Total", () -> MacroConfig.showTotalToday, v -> {
+        p.add(toggle(tr("Show Daily Total", "显示今日总时长"), () -> MacroConfig.showTotalToday, v -> {
             MacroConfig.showTotalToday = v;
             save();
         }));
-        p.add(toggle("Show Total Farmed", () -> MacroConfig.showTotalFarmed, v -> {
+        p.add(toggle(tr("Show Total Farmed", "显示累计总时长"), () -> MacroConfig.showTotalFarmed, v -> {
             MacroConfig.showTotalFarmed = v;
             save();
         }));
-        p.add(toggle("Supercraft Before Rest", () -> MacroConfig.superCraftBeforeRest, v -> {
+        p.add(toggle(tr("Supercraft Before Rest", "休息前超级合成"), () -> MacroConfig.superCraftBeforeRest, v -> {
             MacroConfig.superCraftBeforeRest = v;
             save();
         }));
-        p.add(listSetting("Supercraft Crops", "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
+        p.add(listSetting(tr("Supercraft Crops", "超级合作物"), "superCraftCrops", () -> MacroConfig.superCraftCrops, v -> {
                 MacroConfig.superCraftCrops = new ArrayList<>(v);
                 save();
         }));
-        p.add(doubleField("Quit Threshold", "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
+        p.add(doubleField(tr("Quit Threshold", "退出阈值"), "quitThresholdHours", () -> MacroConfig.quitThresholdHours, v -> {
             MacroConfig.quitThresholdHours = Math.max(0.0, v);
             save();
         }, "hr"));
-        p.add(toggle("Force Quit MC", () -> MacroConfig.forceQuitMinecraft, v -> {
+        p.add(toggle(tr("Reset Timer At 00:00", "在 00:00 重置计时器"), () -> MacroConfig.quitAfterSessionLength, v -> {
+            MacroConfig.quitAfterSessionLength = v;
+            com.ihanuat.mod.modules.QuitThresholdManager.syncFromConfig();
+            save();
+        }));
+        p.add(button(tr("Reset Quit Timer", "重置退出计时器"), () -> {
+            com.ihanuat.mod.modules.QuitThresholdManager.resetThreshold();
+            notifyMsg(tr("Quit timer reset!", "退出计时器已重置！"));
+        }));
+        p.add(toggle(tr("Force Quit MC", "强制关闭 MC"), () -> MacroConfig.forceQuitMinecraft, v -> {
             MacroConfig.forceQuitMinecraft = v;
             save();
         }));
@@ -774,180 +798,180 @@ public class ClickGui extends Screen {
     }
 
     private Panel qolPanel(int[] pos) {
-        Panel p = makePanel("QOL", pos);
-        p.add(toggle("Book Combine", () -> MacroConfig.autoBookCombine, v -> {
+        Panel p = makePanel(tr("QOL", "生活质量"), pos);
+        p.add(toggle(tr("Book Combine", "书本合成"), () -> MacroConfig.autoBookCombine, v -> {
             MacroConfig.autoBookCombine = v;
             save();
         }));
-        p.add(toggle("Always Combine", () -> MacroConfig.alwaysActiveCombine, v -> {
+        p.add(toggle(tr("Always Combine", "始终合成"), () -> MacroConfig.alwaysActiveCombine, v -> {
             MacroConfig.alwaysActiveCombine = v;
             save();
         }));
-        p.add(slider("Book Threshold", "bookThreshold", 1, 35, () -> MacroConfig.bookThreshold, v -> {
+        p.add(slider(tr("Book Threshold", "书本阈值"), "bookThreshold", 1, 35, () -> MacroConfig.bookThreshold, v -> {
             MacroConfig.bookThreshold = v;
             save();
         }, ""));
-        p.add(toggle("Chat Cleanup", () -> MacroConfig.hideFilteredChat, v -> {
+        p.add(toggle(tr("Chat Cleanup", "聊天清理"), () -> MacroConfig.hideFilteredChat, v -> {
             MacroConfig.hideFilteredChat = v;
             save();
         }));
-        p.add(toggle("Auto-Drop Junk", () -> MacroConfig.autoDropJunk, v -> {
+        p.add(toggle(tr("Auto-Drop Junk", "自动丢弃垃圾"), () -> MacroConfig.autoDropJunk, v -> {
             MacroConfig.autoDropJunk = v;
             save();
         }));
-        p.add(listSetting("Junk List", "junkItems", () -> MacroConfig.junkItems,
+        p.add(listSetting(tr("Junk List", "垃圾列表"), "junkItems", () -> MacroConfig.junkItems,
                 v -> {
                     MacroConfig.junkItems = new ArrayList<>(v);
                     save();
                 }));
-        p.add(slider("Junk Threshold", "junkThreshold", 1, 35, () -> MacroConfig.junkThreshold, v -> {
+        p.add(slider(tr("Junk Threshold", "垃圾阈值"), "junkThreshold", 1, 35, () -> MacroConfig.junkThreshold, v -> {
             MacroConfig.junkThreshold = v;
             save();
         }, ""));
-        p.add(textSetting("Junk PlotTP", "dropJunkPlotTp", () -> MacroConfig.dropJunkPlotTp, v -> {
+        p.add(textSetting(tr("Junk PlotTP", "垃圾 PlotTP"), "dropJunkPlotTp", () -> MacroConfig.dropJunkPlotTp, v -> {
             MacroConfig.dropJunkPlotTp = v;
             save();
         }));
-        p.add(toggle("Stash Manager", () -> MacroConfig.autoStashManager, v -> {
+        p.add(toggle(tr("Stash Manager", "仓库管理"), () -> MacroConfig.autoStashManager, v -> {
             MacroConfig.autoStashManager = v;
             save();
         }));
-        p.add(toggle("Discord Status", () -> MacroConfig.sendDiscordStatus, v -> {
+        p.add(toggle(tr("Discord Status", "Discord 状态"), () -> MacroConfig.sendDiscordStatus, v -> {
             MacroConfig.sendDiscordStatus = v;
             save();
         }));
-        p.add(textSetting("Webhook URL", "discordWebhookUrl", () -> MacroConfig.discordWebhookUrl, v -> {
+        p.add(textSetting(tr("Webhook URL", "Webhook 地址"), "discordWebhookUrl", () -> MacroConfig.discordWebhookUrl, v -> {
             MacroConfig.discordWebhookUrl = v;
             save();
         }));
-        p.add(intField("Discord Interval", "discordStatusUpdateTime", () -> MacroConfig.discordStatusUpdateTime, v -> {
+        p.add(intField(tr("Discord Interval", "Discord 间隔"), "discordStatusUpdateTime", () -> MacroConfig.discordStatusUpdateTime, v -> {
             MacroConfig.discordStatusUpdateTime = v;
             save();
         }, "min"));
-        p.add(toggle("Debug Messages", () -> MacroConfig.showDebug, v -> {
+        p.add(toggle(tr("Debug Messages", "调试消息"), () -> MacroConfig.showDebug, v -> {
             MacroConfig.showDebug = v;
             save();
         }));
-        p.add(toggle("Log to File", () -> MacroConfig.logDebugToFile, v -> {
+        p.add(toggle(tr("Log to File", "记录到文件"), () -> MacroConfig.logDebugToFile, v -> {
             MacroConfig.logDebugToFile = v;
             if (!v) com.ihanuat.mod.DebugLogger.getInstance().close();
             save();
         }));
-        p.add(button("Open Log Folder", () -> {
+        p.add(button(tr("Open Log Folder", "打开日志文件夹"), () -> {
             try {
                 java.awt.Desktop.getDesktop().open(net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().toFile());
             } catch (Exception e) {
-                notifyMsg("Failed: " + e.getMessage());
+                notifyMsg(tr("Failed: ", "失败：") + e.getMessage());
             }
         }));
         return p;
     }
 
     private Panel themePanel(int[] pos) {
-        Panel p = makePanel("Theme", pos);
+        Panel p = makePanel(tr("Theme", "主题"), pos);
         p.add(new ThemeLibraryEntry());
-        p.add(button("Copy Current Theme", () -> {
+        p.add(button(tr("Copy Current Theme", "复制当前主题"), () -> {
             String code = encodeTheme();
             Minecraft mc = Minecraft.getInstance();
             mc.keyboardHandler.setClipboard(code);
-            notifyMsg("Theme code copied!");
+            notifyMsg(tr("Theme code copied!", "主题代码已复制！"));
         }));
-        p.add(cycleEnum("Text Style", MacroConfig.TextStyle.values(), () -> MacroConfig.themeTextStyle, v -> { MacroConfig.themeTextStyle = v; save(); }));
-        p.add(slider("Outline Size", "themeOutlineSize",   1, 3, () -> MacroConfig.themeOutlineSize,   v -> { MacroConfig.themeOutlineSize = v;   save(); }, "px"));
-        p.add(slider("Shadow Opacity", "themeShadowOpacity", 0, 255, () -> MacroConfig.themeShadowOpacity, v -> { MacroConfig.themeShadowOpacity = v; save(); }, ""));
-        p.add(colorEntry("Panel BG", () -> MacroConfig.themePanelBg, v -> {
+        p.add(cycleEnum(tr("Text Style", "文字样式"), MacroConfig.TextStyle.values(), () -> MacroConfig.themeTextStyle, v -> { MacroConfig.themeTextStyle = v; save(); }));
+        p.add(slider(tr("Outline Size", "描边大小"), "themeOutlineSize",   1, 3, () -> MacroConfig.themeOutlineSize,   v -> { MacroConfig.themeOutlineSize = v;   save(); }, "px"));
+        p.add(slider(tr("Shadow Opacity", "阴影不透明度"), "themeShadowOpacity", 0, 255, () -> MacroConfig.themeShadowOpacity, v -> { MacroConfig.themeShadowOpacity = v; save(); }, ""));
+        p.add(colorEntry(tr("Panel BG", "面板背景"), () -> MacroConfig.themePanelBg, v -> {
             MacroConfig.themePanelBg = v;
             save();
         }));
-        p.add(colorEntry("Panel Header", () -> MacroConfig.themePanelHeader, v -> {
+        p.add(colorEntry(tr("Panel Header", "面板标题栏"), () -> MacroConfig.themePanelHeader, v -> {
             MacroConfig.themePanelHeader = v;
             save();
         }));
-        p.add(colorEntry("Accent", () -> MacroConfig.themeAccent, v -> {
+        p.add(colorEntry(tr("Accent", "强调色"), () -> MacroConfig.themeAccent, v -> {
             MacroConfig.themeAccent = v;
             save();
         }));
-        p.add(colorEntry("Text", () -> MacroConfig.themeText, v -> {
+        p.add(colorEntry(tr("Text", "文字"), () -> MacroConfig.themeText, v -> {
             MacroConfig.themeText = v;
             save();
         }));
-        p.add(colorEntry("Text Dimmed", () -> MacroConfig.themeTextDim, v -> {
+        p.add(colorEntry(tr("Text Dimmed", "次要文字"), () -> MacroConfig.themeTextDim, v -> {
             MacroConfig.themeTextDim = v;
             save();
         }));
-        p.add(colorEntry("Toggle ON", () -> MacroConfig.themeToggleOn, v -> {
+        p.add(colorEntry(tr("Toggle ON", "开关开启"), () -> MacroConfig.themeToggleOn, v -> {
             MacroConfig.themeToggleOn = v;
             save();
         }));
-        p.add(colorEntry("Toggle OFF", () -> MacroConfig.themeToggleOff, v -> {
+        p.add(colorEntry(tr("Toggle OFF", "开关关闭"), () -> MacroConfig.themeToggleOff, v -> {
             MacroConfig.themeToggleOff = v;
             save();
         }));
-        p.add(colorEntry("Slider Fill", () -> MacroConfig.themeSliderFill, v -> {
+        p.add(colorEntry(tr("Slider Fill", "滑块填充"), () -> MacroConfig.themeSliderFill, v -> {
             MacroConfig.themeSliderFill = v;
             save();
         }));
-        p.add(colorEntry("Button Hover", () -> MacroConfig.themeButtonHover, v -> {
+        p.add(colorEntry(tr("Button Hover", "按钮悬停"), () -> MacroConfig.themeButtonHover, v -> {
             MacroConfig.themeButtonHover = v;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Background", () -> MacroConfig.toArgb(MacroConfig.hudBgColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Background", "HUD 背景"), () -> MacroConfig.toArgb(MacroConfig.hudBgColor), v -> {
             MacroConfig.hudBgColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Accent", () -> MacroConfig.toArgb(MacroConfig.hudAccentColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Accent", "HUD 强调色"), () -> MacroConfig.toArgb(MacroConfig.hudAccentColor), v -> {
             MacroConfig.hudAccentColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Title", () -> MacroConfig.toArgb(MacroConfig.hudTitleColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Title", "HUD 标题"), () -> MacroConfig.toArgb(MacroConfig.hudTitleColor), v -> {
             MacroConfig.hudTitleColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Label", () -> MacroConfig.toArgb(MacroConfig.hudLabelColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Label", "HUD 标签"), () -> MacroConfig.toArgb(MacroConfig.hudLabelColor), v -> {
             MacroConfig.hudLabelColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Value", () -> MacroConfig.toArgb(MacroConfig.hudValueColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Value", "HUD 数值"), () -> MacroConfig.toArgb(MacroConfig.hudValueColor), v -> {
             MacroConfig.hudValueColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Bar BG", () -> MacroConfig.toArgb(MacroConfig.hudBarBgColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Bar BG", "HUD 条背景"), () -> MacroConfig.toArgb(MacroConfig.hudBarBgColor), v -> {
             MacroConfig.hudBarBgColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD Bar Fill", () -> MacroConfig.toArgb(MacroConfig.hudBarFillColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD Bar Fill", "HUD 条填充"), () -> MacroConfig.toArgb(MacroConfig.hudBarFillColor), v -> {
             MacroConfig.hudBarFillColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Off", () -> MacroConfig.toArgb(MacroConfig.hudStateOffColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Off", "HUD 状态关闭"), () -> MacroConfig.toArgb(MacroConfig.hudStateOffColor), v -> {
             MacroConfig.hudStateOffColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Farm", () -> MacroConfig.toArgb(MacroConfig.hudStateFarmingColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Farm", "HUD 状态耕作"), () -> MacroConfig.toArgb(MacroConfig.hudStateFarmingColor), v -> {
             MacroConfig.hudStateFarmingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Clean", () -> MacroConfig.toArgb(MacroConfig.hudStateCleaningColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Clean", "HUD 状态清理"), () -> MacroConfig.toArgb(MacroConfig.hudStateCleaningColor), v -> {
             MacroConfig.hudStateCleaningColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Rec", () -> MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Rec", "HUD 状态恢复"), () -> MacroConfig.toArgb(MacroConfig.hudStateRecoveringColor), v -> {
             MacroConfig.hudStateRecoveringColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Visit", () -> MacroConfig.toArgb(MacroConfig.hudStateVisitingColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Visit", "HUD 状态访客"), () -> MacroConfig.toArgb(MacroConfig.hudStateVisitingColor), v -> {
             MacroConfig.hudStateVisitingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Sell", () -> MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Sell", "HUD 状态出售"), () -> MacroConfig.toArgb(MacroConfig.hudStateAutosellingColor), v -> {
             MacroConfig.hudStateAutosellingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(colorEntryNoAlpha("HUD State Spray", () -> MacroConfig.toArgb(MacroConfig.hudStateSprayingColor), v -> {
+        p.add(colorEntryNoAlpha(tr("HUD State Spray", "HUD 状态喷洒"), () -> MacroConfig.toArgb(MacroConfig.hudStateSprayingColor), v -> {
             MacroConfig.hudStateSprayingColor = v & 0xFFFFFF;
             save();
         }));
-        p.add(button("Reset to Default", () -> {
+        p.add(button(tr("Reset to Default", "恢复默认"), () -> {
             MacroConfig.themePanelBg = 0xF0101018;
             MacroConfig.themePanelHeader = 0xFF18182C;
             MacroConfig.themeAccent = 0xFF5050A0;
@@ -972,21 +996,21 @@ public class ClickGui extends Screen {
             MacroConfig.hudStateAutosellingColor = MacroConfig.DEFAULT_HUD_STATE_AUTOSELLING_COLOR;
             MacroConfig.hudStateSprayingColor = MacroConfig.DEFAULT_HUD_STATE_SPRAYING_COLOR;
             save();
-            notifyMsg("Theme reset!");
+            notifyMsg(tr("Theme reset!", "主题已重置！"));
         }));
-        p.add(button("Reset Panel Positions", () -> {
+        p.add(button(tr("Reset Panel Positions", "重置面板位置"), () -> {
             MacroConfig.clickGuiPanelPositions = new int[9][3];
             save();
             panels.clear();
             buildPanels();
-            notifyMsg("Panel positions reset!");
+            notifyMsg(tr("Panel positions reset!", "面板位置已重置！"));
         }));
         return p;
     }
 
 
     private Panel chatRulesPanel(int[] pos) {
-        Panel p = makePanel("Chat Rules", pos);
+        Panel p = makePanel(tr("Chat Rules", "聊天规则"), pos);
         p.add(new ChatRulesEntry());
         return p;
     }
@@ -1031,6 +1055,10 @@ public class ClickGui extends Screen {
         return new ButtonEntry(l, a);
     }
 
+    private static Entry visibleWhen(Supplier<Boolean> visible, Entry entry) {
+        return new VisibleEntry(visible, entry);
+    }
+
     private static ColorEntry colorEntry(String l, Supplier<Integer> g, Consumer<Integer> s) {
         return new ColorEntry(l, g, s, true);
     }
@@ -1048,60 +1076,40 @@ public class ClickGui extends Screen {
         fillRoundRect(g, searchX - 1, searchY - 1, searchW + 2, SEARCH_H + 2, 4, searchActive ? C_ACC() : C_OFF());
         fillRoundRect(g, searchX, searchY, searchW, SEARCH_H, 3, C_BG());
         String searchText = searchQuery.isEmpty() && !searchActive
-                ? "Search modules..."
+                ? tr("Search modules...", "搜索模块...")
                 : searchQuery + (searchActive && (System.currentTimeMillis() / 500) % 2 == 0 ? "|" : "");
         g.drawString(font, searchText, searchX + 5, searchY + 4, searchQuery.isEmpty() && !searchActive ? C_DIM() : C_TXT(), false);
         for (int i = panels.size() - 1; i >= 0; i--) panels.get(i).render(g, mx, my, font, searchQuery);
         if (activeSubPanel != null) activeSubPanel.render(g, mx, my, font);
-        g.drawString(font, "ihanuat  shift+scroll=pan", 3, height - 9, 0xFF333355, false);
+        g.drawString(font, tr("ihanuat  shift+scroll=pan", "ihanuat  shift+滚轮=平移"), 3, height - 9, 0xFF333355, false);
         renderHelperPanel(g, mx, my, font);
     }
 
     private static String getHelperTopicKey(String panelTitle) {
         return switch (panelTitle) {
-            case "General"           -> "general";
-            case "Delays"            -> "delays";
-            case "Dynamic Rest"      -> "dynamicrest";
-            case "QOL"               -> "qol";
-            case "Chat Rules"        -> "chatrules";
-            case "Auto Rod"          -> "autorod";
-            case "Equipment & George" -> "equipmentgeorge";
-            case "Auto Pest"         -> "autopest";
-            case "Manual Pest"       -> "manualpest";
-            case "Auto Visitor"      -> "autovisitor";
-            case "Auto Sell"         -> "autosell";
-            case "Profit Calculator" -> "profitcalculator";
-            case "Wardrobe Swap"     -> "wardrobeswap";
+            case "General", "常规" -> "general";
+            case "Delays", "延迟" -> "delays";
+            case "Dynamic Rest", "动态休息" -> "dynamicrest";
+            case "QOL", "生活质量" -> "qol";
+            case "Chat Rules", "聊天规则" -> "chatrules";
+            case "Auto Rod", "自动鱼竿" -> "autorod";
+            case "Equipment & George", "装备与 George" -> "equipmentgeorge";
+            case "Auto Pest", "自动虫害" -> "autopest";
+            case "Manual Pest", "手动虫害" -> "manualpest";
+            case "Auto Visitor", "自动访客" -> "autovisitor";
+            case "Auto Sell", "自动出售" -> "autosell";
+            case "Profit Calculator", "利润计算器" -> "profitcalculator";
+            case "Wardrobe Swap", "衣柜切换" -> "wardrobeswap";
             default                  -> null;
         };
     }
 
     private static boolean hasHelperTopic(String panelTitle) {
-        return switch (panelTitle) {
-            case "General", "Delays", "Dynamic Rest", "QOL", "Chat Rules",
-                 "Auto Rod", "Equipment & George", "Auto Pest", "Manual Pest", "Auto Visitor",
-                 "Auto Sell", "Profit Calculator", "Wardrobe Swap" -> true;
-            default -> false;
-        };
+        return getHelperTopicKey(panelTitle) != null;
     }
 
     private static void updateHelperForPanel(String panelTitle) {
-        String newTopic = switch (panelTitle) {
-            case "General"             -> "general";
-            case "Delays"              -> "delays";
-            case "Dynamic Rest"        -> "dynamicrest";
-            case "QOL"                 -> "qol";
-            case "Chat Rules"          -> "chatrules";
-            case "Auto Rod"            -> "autorod";
-            case "Equipment & George" -> "equipmentgeorge";
-            case "Auto Pest"           -> "autopest";
-            case "Manual Pest"         -> "manualpest";
-            case "Auto Visitor"        -> "autovisitor";
-            case "Auto Sell"           -> "autosell";
-            case "Wardrobe Swap"     -> "wardrobeswap";
-            case "Profit Calculator"   -> "profitcalculator";
-            default                    -> null;
-        };
+        String newTopic = getHelperTopicKey(panelTitle);
         if (newTopic != null && !newTopic.equals(helperTopic)) {
             helperTopic      = newTopic;
             helperTitle      = panelTitle;
@@ -1110,6 +1118,7 @@ public class ClickGui extends Screen {
     }
 
     private static String[] getHelperLines(String topic) {
+        if (I18n.isZh()) return getChineseHelperLines(topic);
         return switch (topic) {
             case "chatrules" -> new String[]{
                     "Name — Label shown in the Discord alert.",
@@ -1138,7 +1147,9 @@ public class ClickGui extends Screen {
                     "Break Min/Max — Randomly pick a break (disconnect) duration in this minute range.",
                     "Show Daily Total — Display today's active farming time in the HUD.",
                     "Show Total Farmed — Display lifetime active farming time in the HUD.",
-                    "Quit Threshold — Stop the macro when session time exceeds this many hours (0 = off).",
+                    "Quit Threshold — Stop the macro when the selected quit timer exceeds this many hours (0 = off).",
+                    "Reset Timer At 00:00 — Use today's farming timer for quit threshold checks and reset it automatically at 00:00. Off = keep using the dedicated quit timer.",
+                    "Reset Quit Timer — Clear whichever quit timer mode is currently active.",
                     "Force Quit MC — Fully close Minecraft when the quit threshold is hit.",
             };
             case "qol" -> new String[]{
@@ -1229,6 +1240,131 @@ public class ClickGui extends Screen {
                     "Auto-Resume After Rest — Automatically restart the macro after a Dynamic Rest break.",
                     "Auto-Recover Disconnect — Reconnect and resume if unexpectedly kicked.",
                     "Persist Session Timer — Keep the Dynamic Rest timer running across sessions.",
+            };
+            default -> new String[0];
+        };
+    }
+
+    private static String[] getChineseHelperLines(String topic) {
+        return switch (topic) {
+            case "chatrules" -> new String[]{
+                    "名称 - 显示在 Discord 提醒中的标签。",
+                    "匹配文本 - 每条聊天消息中要扫描的精确文本。",
+                    "包含/等于/开头/结尾 - 匹配文本的方式。",
+                    "大小写 - 开启时区分大小写。",
+                    "启用 - 仅在开启时生效。",
+                    "任意匹配都会发送 Discord webhook 提醒。",
+                    "在生活质量面板设置 webhook 地址。首个匹配优先。",
+            };
+            case "delays" -> new String[]{
+                    "随机延迟 - 通过 getRandomizedDelay() 在每个定时动作上额外增加的随机毫秒数。作为大多数流程中的全局拟人抖动。",
+                    "旋转 - 宏在开始耕作前转向作物所花费的时间。值越高越像真人，但会拖慢循环速度。",
+                    "GUI 点击 - 菜单内每次模拟点击之间的间隔（衣柜、铁砧、George、垃圾丢弃界面）。适用于所有 GUI 交互。",
+                    "装备切换 - 更换装备预设槽后暂停一段时间，让服务器有时间应用新装备后再执行下一步。",
+                    "鱼竿切换 - 切换到鱼竿后暂停一段时间。仅在启用自动鱼竿时生效（虫害 CD / 生成 / 返回农场触发）。",
+                    "虫害聊天 - 在收到虫害聊天消息后等待多久，宏才会开始虫害清理流程。可用于等待聊天内容稳定。",
+                    "书本合成 - 在铁砧合成书本时每次模拟点击之间的间隔。建议保持在约 150ms 以上以避免漏点。",
+                    "自动出售点击 - 自动出售期间 Booster Cookie 菜单每次点击之间的间隔。建议高于 100ms 以避免服务器吞点击。",
+                    "衣柜后切换 - 非 AOTV 路线下衣柜 GUI 关闭后的等待时间。如果宏在护甲尚未完全装备时就继续耕作，可以提高该值。",
+                    "衣柜 AOTV - AOTV 路线下衣柜 GUI 关闭后的等待时间。通常较短，因为之后会立刻使用 AOTV；若切换时序有问题可调整。",
+                    "AOTV 吸附 - 触发 AOTV 吸附扫描与真正传送之间的等待时间。过低可能导致传送前吸附不到虫害。",
+            };
+            case "dynamicrest" -> new String[]{
+                    "耕作最小/最大值 - 在这个分钟范围内随机选择一次耕作时长。",
+                    "休息最小/最大值 - 在这个分钟范围内随机选择一次休息（断开连接）时长。",
+                    "显示今日总时长 - 在 HUD 中显示今天的有效耕作时间。",
+                    "显示累计总时长 - 在 HUD 中显示总计有效耕作时间。",
+                    "退出阈值 - 当独立退出计时器超过该小时数时停止宏（0 = 关闭）。",
+                    "重置退出计时器 - 将独立退出计时器清零。",
+                    "强制关闭 MC - 达到退出阈值时完全关闭 Minecraft。",
+            };
+            case "qol" -> new String[]{
+                    "书本合成 - 在铁砧自动合成附魔书。",
+                    "始终合成 - 即使宏没有在耕作时也进行合成。",
+                    "书本阈值 - 达到该数量的书本后才会触发合成。",
+                    "聊天清理 - 隐藏 Hypixel 中嘈杂的脚本/击杀消息。",
+                    "自动丢弃垃圾 - 自动丢弃与垃圾列表匹配的物品。",
+                    "垃圾列表 - 视为垃圾的物品名称片段列表。",
+                    "垃圾阈值 - 背包中有这么多垃圾物品时进行丢弃。",
+                    "垃圾 PlotTP - 丢弃垃圾前传送到的地块编号。",
+                    "仓库管理 - 自动出售完成后自动执行 /pickupstash。",
+                    "Discord 状态 - 定期向 webhook 发送宏状态。",
+                    "Webhook 地址 - 用于状态和聊天提醒的 Discord webhook 地址。",
+                    "Discord 间隔 - 多久（分钟）发送一次状态更新。",
+                    "调试消息 - 在聊天中显示详细调试信息。",
+                    "记录到文件 - 将调试消息写入游戏文件夹中的文件。",
+            };
+            case "autorod" -> new String[]{
+                    "虫害 CD 时甩竿 - 当虫害冷却结束时自动使用鱼竿。",
+                    "虫害生成时甩竿 - 当虫害出现在农场上时立即使用鱼竿。",
+                    "返回农场时甩竿 - 清理虫害或处理访客后返回农场时使用鱼竿。",
+            };
+            case "equipmentgeorge" -> new String[]{
+                    "自动装备 - 在虫害生成模式与虫害清理/耕作模式切换时自动更换装备预设槽。",
+                    "自动 George 出售 - 通过 George 的 Abiphone 联系人自动出售宠物掉落物（需要先解锁 George 联系人）。",
+                    "George 阈值 - 背包中达到该数量的宠物后才会触发出售给 George。",
+            };
+            case "equipmentswap" -> new String[]{
+                    "自动装备 - 控制是否在虫害生成与虫害清理/耕作时切换装备。",
+            };
+            case "autogeorge" -> new String[]{
+                    "自动 George 出售 - 是否将宠物掉落物出售给 George（需要 George 的 Abiphone 联系人）。",
+                    "阈值 - 背包中出售给 George 所需的最低宠物数量。",
+            };
+            case "autopest" -> new String[]{
+                    "启用 - 自动虫害处理的总开关。关闭后会暂停自动开始虫害流程，但不会影响宏的其他部分。",
+                    "阈值 - 触发虫害清理前所需的虫害数量。",
+                    "聊天触发 - 当聊天中出现虫害生成提示时自动开始虫害清理。",
+                    "延后作物狂热 - 等待作物狂热结束后再清理虫害，以免损失加成。",
+                    "AOTV 到屋顶 - 清理虫害前使用 Aspect of the Void 以太传送到屋顶。",
+                    "AOTV 屋顶地块 - 可以 AOTV 上屋顶的地块编号列表，用逗号分隔。",
+                    "AOTV 前破坏方块 - 在向屋顶使用 AOTV 以太传送前先破坏挡路的方块。",
+                    "屋顶仰角 - 用 AOTV 瞄准屋顶时向上看的角度（度数）。",
+                    "仰角拟人化 - 轻微随机化屋顶仰角，让行为更像真人。",
+            };
+            case "manualpest" -> new String[]{
+                    "手动清理 - 让宏完成准备和移动，然后在启动虫害清理脚本前停下，让你手动清理虫害。",
+                    "手动提示音 - 当手动清理进行到需要你接手时播放本地提示音。",
+                    "自定义声音 - 手动提示音可选的本地音频文件。将文件放到 config/ihanuat/sounds/ 中，并填写完整文件名和扩展名，例如 ding.wav。推荐使用 .wav。也可以粘贴完整绝对路径。若为空或无效，则回退到系统蜂鸣声。",
+                    "手动返回 - 在手动清理模式下，虫害数量达到目标后宏在返回花园前应等待多久。",
+                    "回传于 - 当实时虫害数量小于或等于该值时返回花园。设为 0 表示完全清理；若你想故意留下一些虫害，可设为 1 或更高。",
+            };
+            case "autovisitor" -> new String[]{
+                    "自动访客 - 自动处理出现在农场中的访客。",
+                    "阈值 - 启动自动访客所需的最少访客数量。",
+            };
+            case "autosell" -> new String[]{
+                    "自定义自动出售 - 启用 ihanuat 的自定义自动出售流程，出售自动出售物品列表中的物品。",
+                    "自动出售物品列表 - 在自动出售流程中自动卖出的物品名称列表。",
+            };
+            case "wardrobeswap" -> new String[]{
+                    "自动衣柜（虫害） - 控制虫害出现时是否自动切换衣柜。",
+                    "自动衣柜（访客） - 当访客出现时切换到访客衣柜槽位。",
+                    "护甲切换（访客） - 处理访客时只更换单件护甲，而不是切换整个衣柜槽位。如果你想保留当前衣柜但更换特定部件，可使用此项。",
+                    "耕作槽位 - 用于耕作和虫害清理护甲的衣柜槽位。",
+                    "虫害槽位 - 用于虫害生成护甲的衣柜槽位。",
+                    "访客槽位 - 处理访客时使用的衣柜槽位。",
+            };
+            case "profitcalculator" -> new String[]{
+                    "会话 HUD - 显示当前宏会话中获得的利润。",
+                    "每日 HUD - 在 HUD 上显示今日总利润。",
+                    "总计 HUD - 在 HUD 上显示累计总利润。",
+                    "关闭时显示 HUD - 即使宏未运行也保持利润 HUD 可见。",
+                    "紧凑模式 - 将所有利润 HUD 合并为一个紧凑显示。",
+                    "宠物经验列表 - 用于利润计算时追踪经验增长的宠物列表。格式：宠物名称，最高等级（100/200），1级价格，满级价格，稀有度。",
+            };
+            case "general" -> new String[]{
+                    "显示宏 HUD - 切换宏状态/利润 HUD 叠加层。",
+                    "仅在花园显示 GUI - 只允许在花园内打开该 GUI。",
+                    "启用 PlotTP 回传 - 当玩家到达回传位置时自动重新回传。",
+                    "按住 W 直到撞墙 - 回传后持续按住 W 直到撞墙。",
+                    "取消飞行模式 - 飞行后如何落地（双击空格或潜行）。",
+                    "农场脚本 - 宏运行的耕作脚本。",
+                    "PlotTP 编号 - /plottp 命令所使用的地块编号。",
+                    "记录回传坐标 - 将你当前的 XYZ 保存为回传触发点。",
+                    "休息后自动继续 - 动态休息结束后自动重新启动宏。",
+                    "断线后自动恢复 - 意外掉线后自动重连并继续。",
+                    "保留会话计时器 - 让动态休息计时器在不同会话之间持续运行。",
             };
             default -> new String[0];
         };
@@ -1736,13 +1872,15 @@ public class ClickGui extends Screen {
         }
 
         List<Entry> filtered(String q) {
-            if (q == null || q.isBlank()) return entries;
+            List<Entry> visibleEntries = entries.stream().filter(this::isEntryVisible).collect(Collectors.toList());
+            if (q == null || q.isBlank()) return visibleEntries;
             String query = q.toLowerCase();
-            if (title.toLowerCase().contains(query)) return entries;
-            return entries.stream().filter(e -> entryLabel(e).toLowerCase().contains(query)).collect(Collectors.toList());
+            if (title.toLowerCase().contains(query)) return visibleEntries;
+            return visibleEntries.stream().filter(e -> entryLabel(e).toLowerCase().contains(query)).collect(Collectors.toList());
         }
 
         String entryLabel(Entry e) {
+            if (e instanceof VisibleEntry ve) return entryLabel(ve.entry);
             if (e instanceof ToggleEntry te) return te.label;
             if (e instanceof SliderEntry se) return se.label;
             if (e instanceof CycleEnumEntry<?> ce) return ce.label;
@@ -1751,11 +1889,15 @@ public class ClickGui extends Screen {
             if (e instanceof IntFieldEntry ie) return ie.label;
             if (e instanceof DoubleFieldEntry de) return de.label;
             if (e instanceof ButtonEntry be) return be.label;
-            if (e instanceof ScriptSelectorEntry) return "Farm Script";
+            if (e instanceof ScriptSelectorEntry) return tr("Farm Script", "农场脚本");
             if (e instanceof ColorEntry ce) return ce.label;
-            if (e instanceof ImportCodeEntry) return "Paste Theme Code";
+            if (e instanceof ImportCodeEntry) return tr("Paste Theme Code", "粘贴主题代码");
             if (e instanceof SectionEntry se) return se.label;
             return "";
+        }
+
+        boolean isEntryVisible(Entry e) {
+            return !(e instanceof VisibleEntry ve) || ve.isVisible();
         }
 
         List<Entry> flatEntries(String q) {
@@ -1763,7 +1905,9 @@ public class ClickGui extends Screen {
             for (Entry e : filtered(q)) {
                 result.add(e);
                 if (e instanceof SectionEntry se && !se.collapsed) {
-                    result.addAll(se.children);
+                    for (Entry child : se.children) {
+                        if (isEntryVisible(child)) result.add(child);
+                    }
                 }
             }
             return result;
@@ -1944,6 +2088,35 @@ public class ClickGui extends Screen {
         }
     }
 
+    static class VisibleEntry implements Entry {
+        final Supplier<Boolean> visible;
+        final Entry entry;
+
+        VisibleEntry(Supplier<Boolean> visible, Entry entry) {
+            this.visible = visible;
+            this.entry = entry;
+        }
+
+        boolean isVisible() {
+            return visible.get();
+        }
+
+        @Override
+        public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
+            entry.render(g, x, y, w, h, hov, font);
+        }
+
+        @Override
+        public void onClick(int mx, int my) {
+            entry.onClick(mx, my);
+        }
+
+        @Override
+        public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
+            return entry.openSubPanel(mx, my, sw, sh);
+        }
+    }
+
     static class ToggleEntry implements Entry {
         final String label;
         final Supplier<Boolean> getter;
@@ -2037,7 +2210,7 @@ public class ClickGui extends Screen {
 
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            String val = getter.get().name();
+            String val = getter.get().toString();
             int vw = font.width(val);
             int mid = y + h / 2 - 4;
             MacroConfig.drawStyledText(g, font, label, x + 2, mid, hov ? C_TXT() : C_DIM());
@@ -2248,7 +2421,7 @@ public class ClickGui extends Screen {
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
             if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
-            String lbl = "Paste Theme Code";
+            String lbl = tr("Paste Theme Code", "粘贴主题代码");
             int tw = font.width(lbl);
             MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
         }
@@ -2259,11 +2432,11 @@ public class ClickGui extends Screen {
 
         @Override
         public SubPanel openSubPanel(int mx, int my, int sw, int sh) {
-            return new StringInputSubPanel(mx, my, sw, sh, "Paste Theme Code", "", "", v -> {
+            return new StringInputSubPanel(mx, my, sw, sh, tr("Paste Theme Code", "粘贴主题代码"), "", "", v -> {
                 if (applyThemeCode(v)) {
-                    Minecraft.getInstance().player.displayClientMessage(Component.literal("Theme applied!"), true);
+                    Minecraft.getInstance().player.displayClientMessage(Component.literal(tr("Theme applied!", "主题已应用！")), true);
                 } else {
-                    Minecraft.getInstance().player.displayClientMessage(Component.literal("Invalid theme code!"), true);
+                    Minecraft.getInstance().player.displayClientMessage(Component.literal(tr("Invalid theme code!", "主题代码无效！")), true);
                 }
             });
         }
@@ -2275,7 +2448,7 @@ public class ClickGui extends Screen {
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
             if (hov) fillRoundRect(g, x + 2, y + 2, w - 4, h - 4, 3, C_HOVER());
             int count = MacroConfig.savedThemes.size();
-            String lbl = "Theme Library (" + count + ")";
+            String lbl = tr("Theme Library", "主题库") + " (" + count + ")";
             int tw = font.width(lbl);
             MacroConfig.drawStyledText(g, font, lbl, x + (w - tw) / 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
         }
@@ -2356,7 +2529,7 @@ public class ClickGui extends Screen {
             fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
             g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
             g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
-            MacroConfig.drawStyledText(g, font, "Theme Library", panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, tr("Theme Library", "主题库"), panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
 
             int bcy = btnCenterY();
             int abx = addBtnX(), dbx = delBtnX();
@@ -2435,7 +2608,7 @@ public class ClickGui extends Screen {
                 int lw  = font.width("Name:");
                 int cy  = fy + PAD;
 
-                String formTitle = editingMode ? "Edit Theme" : "Add Theme";
+                String formTitle = editingMode ? tr("Edit Theme", "编辑主题") : tr("Add Theme", "添加主题");
                 MacroConfig.drawStyledText(g, font, formTitle, fx, cy + (ROW_H - 8) / 2, C_TXT());
                 cy += ROW_H + PAD;
 
@@ -2778,7 +2951,7 @@ public class ClickGui extends Screen {
             fillRoundRect(g, panelX, panelY, W, HDR_H, PANEL_RADIUS, C_HDR());
             g.fill(panelX, panelY + HDR_H - PANEL_RADIUS, panelX + W, panelY + HDR_H, C_HDR());
             g.fill(panelX + 2, panelY + HDR_H - 1, panelX + W - 2, panelY + HDR_H, C_LINE());
-            MacroConfig.drawStyledText(g, font, "Chat Rules", panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, tr("Chat Rules", "聊天规则"), panelX + 5, panelY + HDR_H / 2 - 4, C_TXT());
             int crQx = panelX + W - 10 - font.width("?") - 4;
             boolean crQhov = mx >= crQx - 1 && mx <= crQx + font.width("?") + 3 && my >= panelY && my <= panelY + HDR_H;
             boolean crQactive = "chatrules".equals(helperTopic);
@@ -2923,7 +3096,7 @@ public class ClickGui extends Screen {
                     if ("chatrules".equals(helperTopic)) {
                         helperTopic = null; helperTitle = null; helperScrollOffset = 0;
                     } else {
-                        helperTopic = "chatrules"; helperTitle = "Chat Rules"; helperScrollOffset = 0;
+                        helperTopic = "chatrules"; helperTitle = tr("Chat Rules", "聊天规则"); helperScrollOffset = 0;
                     }
                     return true;
                 }
@@ -3141,10 +3314,10 @@ public class ClickGui extends Screen {
 
         @Override
         public void render(GuiGraphics g, int x, int y, int w, int h, boolean hov, net.minecraft.client.gui.Font font) {
-            MacroConfig.drawStyledText(g, font, "Farm Script", x + 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
+            MacroConfig.drawStyledText(g, font, tr("Farm Script", "农场脚本"), x + 2, y + h / 2 - 4, hov ? C_TXT() : C_DIM());
             String disp = displayName();
             int dw = font.width(disp);
-            while (dw > w - font.width("Farm Script") - 20 && disp.length() > 4) {
+            while (dw > w - font.width(tr("Farm Script", "农场脚本")) - 20 && disp.length() > 4) {
                 disp = disp.substring(0, disp.length() - 1);
                 dw = font.width(disp + "..");
             }
@@ -3181,7 +3354,7 @@ public class ClickGui extends Screen {
             int h = h();
             fillRoundRect(g, x - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g, x, y, w, h, 3, C_SPBG());
-            MacroConfig.drawStyledText(g, font, "Farm Script", x + 4, y + 4, C_TXT());
+            MacroConfig.drawStyledText(g, font, tr("Farm Script", "农场脚本"), x + 4, y + 4, C_TXT());
             g.fill(x + 4, y + 14, x + w - 4, y + 15, C_ACC());
             int ey = y + 18;
             for (String[] s : ScriptSelectorEntry.SCRIPTS) {
@@ -3598,7 +3771,7 @@ public class ClickGui extends Screen {
             fillRoundRect(g, rx - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g, rx, y, w, h, 3, C_SPBG());
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
-            MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
+            MacroConfig.drawStyledText(g, font, tr("reset", "重置"), resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
             if (tf.value.isEmpty() && !placeholder.isEmpty()) {
                 g.fill(rx + 4, y + 20, rx + w - 4, y + 42, C_SBGR());
                 g.fill(rx + 4, y + 42, rx + w - 4, y + 43, C_ACC());
@@ -3671,7 +3844,7 @@ public class ClickGui extends Screen {
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
             String range = min == Integer.MIN_VALUE ? "" : "[" + min + "-" + max + "]";
             MacroConfig.drawStyledText(g, font, range, rx + w - font.width(range) - font.width("reset") - 18, y + 6, C_DIM());
-            MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
+            MacroConfig.drawStyledText(g, font, tr("reset", "重置"), resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
             tf.render(g, font, rx + 4, y + 20, w - 8, 22);
         }
         @Override public boolean contains(int mx, int my) {
@@ -3739,7 +3912,7 @@ public class ClickGui extends Screen {
             fillRoundRect(g, rx - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g, rx, y, w, h, 3, C_SPBG());
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
-            MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
+            MacroConfig.drawStyledText(g, font, tr("reset", "重置"), resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
             tf.render(g, font, rx + 4, y + 20, w - 8, 22);
         }
         @Override public boolean contains(int mx, int my) {
@@ -3874,7 +4047,7 @@ public class ClickGui extends Screen {
             fillRoundRect(g, rx - 2, y - 2, w + 4, h + 4, 4, C_SPBD());
             fillRoundRect(g, rx, y, w, h, 3, C_SPBG());
             MacroConfig.drawStyledText(g, font, label, rx + 5, y + 6, C_TXT());
-            MacroConfig.drawStyledText(g, font, "reset", resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
+            MacroConfig.drawStyledText(g, font, tr("reset", "重置"), resetBtnX(font), y + 4, overReset(mx, my, font) ? 0xFFFF5555 : C_DIM());
             int hintY = y + 16;
             for (String hint : hints) { MacroConfig.drawStyledText(g, font, hint, rx + 6, hintY, C_DIM()); hintY += 10; }
             g.fill(rx + 4, y + 18 + hints.length * 10, rx + w - 4, y + h - 6, C_SBGR());

@@ -74,6 +74,14 @@ public class TodayTimeTracker {
         checkDayRollover();
     }
 
+    public static void resetToday() {
+        String today = LocalDate.now().format(DATE_FMT);
+        MacroConfig.todayDateStr = today;
+        MacroConfig.todayAccumulatedMs = 0;
+        todaySegmentStart = MacroStateManager.isMacroRunning() ? System.currentTimeMillis() : 0;
+        MacroConfig.save();
+    }
+
     // ── Internals ──────────────────────────────────────────────────────────
 
     private static void checkDayRollover() {

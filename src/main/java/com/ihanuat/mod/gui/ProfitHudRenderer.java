@@ -226,7 +226,7 @@ public class ProfitHudRenderer {
         g.drawString(client.font, value, PANEL_W - PADDING_H - client.font.width(value), y, valueColor, false);
     }
 
-    private static String formatProfit(long amount) { return String.format("%,d", amount); }
+    private static String formatProfit(long amount) { return ProfitManager.formatChineseCoins(amount); }
 
     private static void fillRoundedRect(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         for (int row = 0; row < h; row++) {
