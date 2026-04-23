@@ -183,7 +183,7 @@ public class QuitThresholdManager {
 
     private static String buildTotalProfitStr() {
         long total = ProfitManager.getTotalProfit("session");
-        return ProfitManager.formatChineseCoins(total);
+        return ProfitManager.formatCoins(total);
     }
 
     private static String buildAvgProfitPerHourStr() {
@@ -192,7 +192,7 @@ public class QuitThresholdManager {
         long totalProfit = ProfitManager.getTotalProfit("session");
         double hours = sessionMs / 3_600_000.0;
         long cph = (long) (totalProfit / hours);
-        return ProfitManager.formatChineseCoins(cph);
+        return ProfitManager.formatCoins(cph);
     }
 
 

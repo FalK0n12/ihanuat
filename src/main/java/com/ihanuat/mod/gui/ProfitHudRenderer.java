@@ -1,6 +1,7 @@
 package com.ihanuat.mod.gui;
 
 import java.util.Map;
+import java.util.Locale;
 
 import com.ihanuat.mod.MacroConfig;
 import com.ihanuat.mod.MacroStateManager;
@@ -173,9 +174,9 @@ public class ProfitHudRenderer {
                 double price = ProfitManager.getItemPrice(item);
                 long lineProfit = (long)(price * count);
                 String countDisplay;
-                if (item.equals("[Spray] Sprayonator")) countDisplay = "x" + String.format("%,d", ProfitManager.getSprayQuantity(mode));
-                else if (item.startsWith("Pet XP ("))   countDisplay = String.format("%,d XP", count);
-                else                                     countDisplay = "x" + String.format("%,d", count);
+                if (item.equals("[Spray] Sprayonator")) countDisplay = "x" + String.format(Locale.US, "%,d", ProfitManager.getSprayQuantity(mode));
+                else if (item.startsWith("Pet XP ("))   countDisplay = String.format(Locale.US, "%,d XP", count);
+                else                                     countDisplay = "x" + String.format(Locale.US, "%,d", count);
                 String lbl = ProfitManager.getCategorizedName(item) + " §r(" + countDisplay + ")";
                 int vc;
                 if (item.equals("[Visitor] Visitor Cost") || item.equals("[Spray] Sprayonator")) vc = 0xFFFF5555;
@@ -226,7 +227,7 @@ public class ProfitHudRenderer {
         g.drawString(client.font, value, PANEL_W - PADDING_H - client.font.width(value), y, valueColor, false);
     }
 
-    private static String formatProfit(long amount) { return ProfitManager.formatChineseCoins(amount); }
+    private static String formatProfit(long amount) { return ProfitManager.formatCoins(amount); }
 
     private static void fillRoundedRect(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         for (int row = 0; row < h; row++) {

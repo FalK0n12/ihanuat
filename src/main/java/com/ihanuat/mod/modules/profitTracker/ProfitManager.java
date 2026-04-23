@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -221,6 +222,23 @@ public class ProfitManager {
             return s.endsWith(".0万") ? s.replace(".0万", "万") : s;
         }
         return String.format("%,d", value);
+    }
+
+    public static String formatCoins(long value) {
+        if (value < 0) return "-" + formatCoins(-value);
+        if (value >= 1_000_000_000L) {
+            String s = String.format(Locale.US, "%.1fb", value / 1_000_000_000.0);
+            return s.endsWith(".0b") ? s.replace(".0b", "b") : s;
+        }
+        if (value >= 1_000_000L) {
+            String s = String.format(Locale.US, "%.1fm", value / 1_000_000.0);
+            return s.endsWith(".0m") ? s.replace(".0m", "m") : s;
+        }
+        if (value >= 1_000L) {
+            String s = String.format(Locale.US, "%.1fk", value / 1_000.0);
+            return s.endsWith(".0k") ? s.replace(".0k", "k") : s;
+        }
+        return String.format(Locale.US, "%,d", value);
     }
 
     public static void handleChatMessage(Component component) {

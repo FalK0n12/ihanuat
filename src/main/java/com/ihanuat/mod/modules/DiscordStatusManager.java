@@ -159,7 +159,7 @@ public class DiscordStatusManager {
         double hours = sessionMs / 3_600_000.0;
         long cph = (long) (totalProfit / hours);
 
-        return ProfitManager.formatChineseCoins(cph);
+        return ProfitManager.formatCoins(cph);
     }
 
     /**
