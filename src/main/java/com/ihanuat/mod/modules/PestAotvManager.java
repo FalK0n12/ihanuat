@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 
 public class PestAotvManager {
+    private static final long DOUBLE_ETHERWARP_DELAY_MS = 120L;
+
     public static volatile boolean isSneakingForAotv = false;
 
     public static void resetState() {
@@ -63,6 +65,11 @@ public class PestAotvManager {
             double startY = client.player.getY();
             Thread.sleep(50 + (long) (Math.random() * 80));
             client.execute(() -> client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND));
+            if (MacroConfig.doubleEtherwarp) {
+                Thread.sleep(DOUBLE_ETHERWARP_DELAY_MS);
+                client.execute(() -> client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND));
+                ClientUtils.sendDebugMessage(client, "Double Etherwarp: fired second AOTV click.");
+            }
 
             ClientUtils.waitForYChange(client, startY, 1500);
             isSneakingForAotv = false;

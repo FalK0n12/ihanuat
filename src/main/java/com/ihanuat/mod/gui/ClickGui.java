@@ -590,6 +590,10 @@ public class ClickGui extends Screen {
             MacroConfig.aotvToRoof = v;
             save();
         }));
+        p.add(toggle(tr("Double Etherwarp", "双击以太传送"), () -> MacroConfig.doubleEtherwarp, v -> {
+            MacroConfig.doubleEtherwarp = v;
+            save();
+        }));
         p.add(csvTextSetting(tr("AOTV Roof Plots", "AOTV 屋顶地块"), "aotvRoofPlots",
                 () -> String.join(", ", MacroConfig.aotvRoofPlots),
                 v -> {
@@ -1191,6 +1195,7 @@ public class ClickGui extends Screen {
                     "Trigger on Chat — Automatically start the pest cleaner when the pest spawning notification appears in chat.",
                     "Delay Crop Fever — Wait for Crop Fever to expire before clearing pests, so you don't lose the bonus.",
                     "AOTV to Roof — Use the Aspect of the Void to etherwarp up to the roof before clearing pests.",
+                    "Double Etherwarp — When AOTV-to-roof is used, click the AOTV twice with a short delay between clicks.",
                     "AOTV Roof Plots — Comma-separated list of plot numbers where AOTV-to-roof is possible.",
                     "Break Before AOTV — Break blocks in the way before firing the AOTV etherwarp to the roof.",
                     "Roof Pitch — How far upward (in degrees) to look when aiming the AOTV etherwarp at the roof.",
@@ -1317,6 +1322,7 @@ public class ClickGui extends Screen {
                     "聊天触发 - 当聊天中出现虫害生成提示时自动开始虫害清理。",
                     "延后作物狂热 - 等待作物狂热结束后再清理虫害，以免损失加成。",
                     "AOTV 到屋顶 - 清理虫害前使用 Aspect of the Void 以太传送到屋顶。",
+                    "双击以太传送 - 使用 AOTV 到屋顶时，两次点击 AOTV，中间短暂延迟。",
                     "AOTV 屋顶地块 - 可以 AOTV 上屋顶的地块编号列表，用逗号分隔。",
                     "AOTV 前破坏方块 - 在向屋顶使用 AOTV 以太传送前先破坏挡路的方块。",
                     "屋顶仰角 - 用 AOTV 瞄准屋顶时向上看的角度（度数）。",

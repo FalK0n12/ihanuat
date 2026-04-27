@@ -74,6 +74,7 @@ public class MacroConfig {
     public static final int DEFAULT_GEORGE_SELL_THRESHOLD = 3;
     public static final int DEFAULT_ROTATION_TIME = 500;
     public static final boolean DEFAULT_AOTV_TO_ROOF = false;
+    public static final boolean DEFAULT_DOUBLE_ETHERWARP = false;
     public static final int DEFAULT_AOTV_ROOF_PITCH = 88;
     public static final int DEFAULT_AOTV_ROOF_PITCH_HUMANIZATION = 3;
     public static final java.util.List<String> DEFAULT_AOTV_ROOF_PLOTS = java.util.Collections.emptyList();
@@ -210,6 +211,7 @@ public class MacroConfig {
     public static int georgeSellThreshold = DEFAULT_GEORGE_SELL_THRESHOLD;
     public static int rotationTime = DEFAULT_ROTATION_TIME;
     public static boolean aotvToRoof = DEFAULT_AOTV_TO_ROOF;
+    public static boolean doubleEtherwarp = DEFAULT_DOUBLE_ETHERWARP;
     public static int aotvRoofPitch = DEFAULT_AOTV_ROOF_PITCH;
     public static int aotvRoofPitchHumanization = DEFAULT_AOTV_ROOF_PITCH_HUMANIZATION;
     public static java.util.List<String> aotvRoofPlots = new java.util.ArrayList<>(DEFAULT_AOTV_ROOF_PLOTS);
@@ -534,6 +536,7 @@ public class MacroConfig {
         d.georgeSellThreshold = georgeSellThreshold;
         d.rotationTime = rotationTime;
         d.aotvToRoof = aotvToRoof;
+        d.doubleEtherwarp = doubleEtherwarp;
         d.aotvRoofPitch = aotvRoofPitch;
         d.aotvRoofPitchHumanization = aotvRoofPitchHumanization;
         d.aotvRoofPlots = new java.util.ArrayList<>(aotvRoofPlots);
@@ -677,6 +680,7 @@ public class MacroConfig {
             georgeSellThreshold = d.georgeSellThreshold;
             rotationTime = d.rotationTime;
             aotvToRoof = d.aotvToRoof;
+            doubleEtherwarp = d.doubleEtherwarp;
             aotvRoofPitch = Math.max(45, Math.min(90, d.aotvRoofPitch));
             aotvRoofPitchHumanization = Math.max(0, Math.min(15, d.aotvRoofPitchHumanization));
             if (d.aotvRoofPlots != null) aotvRoofPlots = new java.util.ArrayList<>(d.aotvRoofPlots);
@@ -878,6 +882,7 @@ public class MacroConfig {
         int georgeSellThreshold = DEFAULT_GEORGE_SELL_THRESHOLD;
         int rotationTime = DEFAULT_ROTATION_TIME;
         boolean aotvToRoof = DEFAULT_AOTV_TO_ROOF;
+        boolean doubleEtherwarp = DEFAULT_DOUBLE_ETHERWARP;
         int aotvRoofPitch = DEFAULT_AOTV_ROOF_PITCH;
         int aotvRoofPitchHumanization = DEFAULT_AOTV_ROOF_PITCH_HUMANIZATION;
         java.util.List<String> aotvRoofPlots = new java.util.ArrayList<>(DEFAULT_AOTV_ROOF_PLOTS);
